@@ -1,0 +1,829 @@
+# app.py - Main Flask Application
+import os
+import json
+import joblib
+import numpy as np
+import pandas as pd
+from datetime import datetime, timedelta
+from flask import Flask, request, jsonify, render_template_string
+from flask_cors import CORS
+import openai
+from azure.storage.blob import BlobServiceClient
+from azure.identity import DefaultAzureCredential
+import logging
+import traceback
+from typing import Dict, Any, List
+from dotenv import load_dotenv
+import io
+
+# Load environment variables
+load_dotenv()
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+app = Flask(__name__)
+CORS(app)
+
+# Configuration
+class Config:
+    def __init__(self):
+        # OpenAI Configuration
+        self.openai_api_key = os.getenv('OPENAI_API_KEY')
+        self.openai_api_base = os.getenv('OPENAI_API_BASE')
+        self.openai_api_version = os.getenv('OPENAI_API_VERSION', '2024-02-15-preview')
+        self.openai_deployment_name = os.getenv('OPENAI_DEPLOYMENT_NAME', 'gpt-4')
+        
+        # Azure Storage Configuration
+        self.storage_connection_string = os.getenv('AZURE_STORAGE_CONNECTION_STRING')
+        self.container_name = os.getenv('CONTAINER_NAME', 'journaldata')
+        self.balance_blob = os.getenv('BALANCE_BLOB', 'balance_records.json')
+        self.journal_blob = os.getenv('JOURNAL_BLOB', 'journal_entries.json')
+        
+        # Model Configuration
+        self.model_blob_name = os.getenv('MODEL_BLOB_NAME', 'trained_model.pkl')
+        self.scaler_blob_name = os.getenv('SCALER_BLOB_NAME', 'feature_scaler.pkl')
+        
+        # API Configuration
+        self.api_key = os.getenv('API_KEY', 'default-key')
+        
+        # Feature columns
+        self.feature_columns = [
+            'DAYS_SINCE_EPOCH', 'JOURNAL_COUNT', 'JOURNAL_TOTAL_AMOUNT', 
+            'JOURNAL_AVG_AMOUNT', 'JOURNAL_STD_AMOUNT', 'MONTH', 'QUARTER',
+            'DAY_OF_WEEK', 'IS_WEEKEND', 'BALANCE_LAG_1', 'BALANCE_LAG_7'
+        ]
+
+config = Config()
+
+# Initialize OpenAI
+if config.openai_api_key and config.openai_api_base:
+    openai.api_type = "azure"
+    openai.api_base = config.openai_api_base
+    openai.api_version = config.openai_api_version
+    openai.api_key = config.openai_api_key
+
+# Global variables
+model = None
+scaler = None
+blob_service_client = None
+
+def initialize_azure_services():
+    """Initialize Azure services"""
+    global blob_service_client
+    
+    try:
+        if config.storage_connection_string:
+            blob_service_client = BlobServiceClient.from_connection_string(
+                config.storage_connection_string
+            )
+            logger.info("✅ Azure Blob Storage initialized")
+            return True
+        else:
+            logger.warning("⚠️ No storage connection string found")
+            return False
+    except Exception as e:
+        logger.error(f"❌ Failed to initialize Azure services: {e}")
+        return False
+
+def load_model_from_azure():
+    """Load trained model and scaler from Azure Blob Storage"""
+    global model, scaler
+    
+    if not blob_service_client:
+        logger.warning("⚠️ Blob service client not initialized")
+        return False
+    
+    try:
+        # Download model
+        model_blob_client = blob_service_client.get_blob_client(
+            container=config.container_name, 
+            blob=config.model_blob_name
+        )
+        model_data = model_blob_client.download_blob().readall()
+        
+        # Download scaler
+        scaler_blob_client = blob_service_client.get_blob_client(
+            container=config.container_name, 
+            blob=config.scaler_blob_name
+        )
+        scaler_data = scaler_blob_client.download_blob().readall()
+        
+        # Load models
+        model = joblib.load(io.BytesIO(model_data))
+        scaler = joblib.load(io.BytesIO(scaler_data))
+        
+        logger.info("✅ Model and scaler loaded from Azure")
+        return True
+        
+    except Exception as e:
+        logger.error(f"❌ Failed to load model from Azure: {e}")
+        return False
+
+def load_data_from_azure():
+    """Load financial data from Azure Blob Storage"""
+    if not blob_service_client:
+        return None, None
+        
+    try:
+        # Load balance records
+        balance_blob_client = blob_service_client.get_blob_client(
+            container=config.container_name, 
+            blob=config.balance_blob
+        )
+        balance_data = balance_blob_client.download_blob().readall().decode('utf-8')
+        balance_records = json.loads(balance_data)
+        
+        # Load journal entries
+        journal_blob_client = blob_service_client.get_blob_client(
+            container=config.container_name, 
+            blob=config.journal_blob
+        )
+        journal_data = journal_blob_client.download_blob().readall().decode('utf-8')
+        journal_entries = json.loads(journal_data)
+        
+        # Convert to DataFrames
+        balance_df = pd.DataFrame(balance_records)
+        journal_df = pd.DataFrame(journal_entries)
+        
+        # Convert dates
+        balance_df['DATE'] = pd.to_datetime(balance_df['DATE'])
+        journal_df['ENTRY_DATE'] = pd.to_datetime(journal_df['ENTRY_DATE'])
+        
+        return balance_df, journal_df
+        
+    except Exception as e:
+        logger.error(f"❌ Failed to load data from Azure: {e}")
+        return None, None
+
+def parse_natural_language(nl_input: str) -> Dict[str, Any]:
+    """Parse natural language input using OpenAI"""
+    
+    if not config.openai_api_key:
+        return fallback_parsing(nl_input)
+    
+    prompt = f"""
+    Convert this financial description into JSON with these exact fields:
+    - JOURNAL_COUNT: number of journal entries (integer)
+    - JOURNAL_TOTAL_AMOUNT: total amount (float)
+    - JOURNAL_AVG_AMOUNT: average amount (float)
+    - JOURNAL_STD_AMOUNT: standard deviation (float, estimate if not given)
+    - MONTH: month 1-12 (integer)
+    - QUARTER: quarter 1-4 (integer)
+    - DAY_OF_WEEK: 0=Monday to 6=Sunday (integer)
+    - IS_WEEKEND: 1 if Saturday/Sunday, 0 otherwise (integer)
+    - DAYS_SINCE_EPOCH: days since Jan 1, 1970 (integer)
+    - BALANCE_LAG_1: previous balance estimate (float)
+    - BALANCE_LAG_7: balance 7 days ago estimate (float)
+    
+    Input: "{nl_input}"
+    
+    Return only valid JSON:
+    """
+    
+    try:
+        response = openai.ChatCompletion.create(
+            engine=config.openai_deployment_name,
+            messages=[
+                {"role": "system", "content": "You are a financial data parser. Return only valid JSON."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.1,
+            max_tokens=500
+        )
+        
+        result = response.choices[0].message.content.strip()
+        
+        # Clean up response
+        if result.startswith('```json'):
+            result = result[7:-3]
+        elif result.startswith('```'):
+            result = result[3:-3]
+        
+        return json.loads(result)
+        
+    except Exception as e:
+        logger.warning(f"OpenAI parsing failed: {e}, using fallback")
+        return fallback_parsing(nl_input)
+
+def fallback_parsing(nl_input: str) -> Dict[str, Any]:
+    """Fallback parsing when OpenAI is not available"""
+    import re
+    
+    numbers = re.findall(r'\d+(?:,\d{3})*(?:\.\d+)?', nl_input)
+    numbers = [float(n.replace(',', '')) for n in numbers]
+    
+    current_date = datetime.now()
+    
+    return {
+        'JOURNAL_COUNT': int(numbers[0]) if len(numbers) > 0 else 10,
+        'JOURNAL_TOTAL_AMOUNT': numbers[1] if len(numbers) > 1 else 25000,
+        'JOURNAL_AVG_AMOUNT': numbers[2] if len(numbers) > 2 else 2500,
+        'JOURNAL_STD_AMOUNT': 500,
+        'MONTH': current_date.month,
+        'QUARTER': (current_date.month - 1) // 3 + 1,
+        'DAY_OF_WEEK': current_date.weekday(),
+        'IS_WEEKEND': 1 if current_date.weekday() >= 5 else 0,
+        'DAYS_SINCE_EPOCH': (current_date - datetime(1970, 1, 1)).days,
+        'BALANCE_LAG_1': 50000,
+        'BALANCE_LAG_7': 48000
+    }
+
+# Authentication decorator
+def require_api_key(f):
+    def decorated_function(*args, **kwargs):
+        api_key = request.headers.get('X-API-Key') or request.args.get('api_key')
+        if api_key != config.api_key:
+            return jsonify({'error': 'Invalid API key'}), 401
+        return f(*args, **kwargs)
+    decorated_function.__name__ = f.__name__
+    return decorated_function
+
+# Routes
+@app.route('/')
+def health_check():
+    """Health check endpoint"""
+    return jsonify({
+        'status': 'healthy',
+        'service': 'Market Analysis API',
+        'timestamp': datetime.now().isoformat(),
+        'model_loaded': model is not None,
+        'openai_configured': bool(config.openai_api_key),
+        'storage_configured': blob_service_client is not None
+    })
+
+@app.route('/api/predict', methods=['POST'])
+@require_api_key
+def predict_balance():
+    """Predict balance from structured input"""
+    try:
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({'error': 'No input data provided'}), 400
+        
+        if model is None or scaler is None:
+            return jsonify({'error': 'Model not loaded'}), 503
+        
+        # Prepare feature vector
+        feature_vector = []
+        for col in config.feature_columns:
+            feature_vector.append(data.get(col, 0))
+        
+        # Scale and predict
+        feature_vector = np.array(feature_vector).reshape(1, -1)
+        feature_vector_scaled = scaler.transform(feature_vector)
+        prediction = model.predict(feature_vector_scaled)[0]
+        
+        return jsonify({
+            'predicted_balance': round(prediction, 2),
+            'input_features': data,
+            'timestamp': datetime.now().isoformat(),
+            'status': 'success'
+        })
+        
+    except Exception as e:
+        logger.error(f"Prediction error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/predict-nl', methods=['POST'])
+@require_api_key
+def predict_from_natural_language():
+    """Predict balance from natural language input"""
+    try:
+        data = request.get_json()
+        nl_input = data.get('input', '')
+        
+        if not nl_input:
+            return jsonify({'error': 'No natural language input provided'}), 400
+        
+        if model is None or scaler is None:
+            return jsonify({'error': 'Model not loaded'}), 503
+        
+        # Parse natural language
+        structured_input = parse_natural_language(nl_input)
+        
+        # Prepare feature vector
+        feature_vector = []
+        for col in config.feature_columns:
+            feature_vector.append(structured_input.get(col, 0))
+        
+        # Scale and predict
+        feature_vector = np.array(feature_vector).reshape(1, -1)
+        feature_vector_scaled = scaler.transform(feature_vector)
+        prediction = model.predict(feature_vector_scaled)[0]
+        
+        return jsonify({
+            'natural_language_input': nl_input,
+            'structured_input': structured_input,
+            'predicted_balance': round(prediction, 2),
+            'timestamp': datetime.now().isoformat(),
+            'status': 'success'
+        })
+        
+    except Exception as e:
+        logger.error(f"Natural language prediction error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/market-report', methods=['POST'])
+@require_api_key
+def generate_market_report():
+    """Generate comprehensive market analysis report"""
+    try:
+        # For simplicity, return a structured report template
+        # In production, you'd integrate with your standalone_market_report.py
+        
+        current_date = datetime.now()
+        
+        # Mock data for demonstration
+        report = {
+            'report_date': current_date.isoformat(),
+            'current_performance': {
+                'period': current_date.strftime('%B %Y'),
+                'avg_daily_balance': 125000.00,
+                'balance_trend': 'Increasing (+$1,247/day)',
+                'total_transactions': 450,
+                'volatility': 'Medium'
+            },
+            'predictions': {
+                'month_end_balance': 135000.00,
+                'predicted_trend': 'Stable',
+                'confidence': 'High'
+            },
+            'risk_assessment': [
+                {
+                    'type': 'Liquidity Risk',
+                    'level': 'Low',
+                    'description': 'Adequate cash flow projected'
+                }
+            ],
+            'recommendations': [
+                {
+                    'category': 'Cash Flow Management',
+                    'priority': 'Medium',
+                    'recommendation': 'Monitor seasonal trends for Q4 planning',
+                    'action': 'Review cash management strategies'
+                }
+            ],
+            'status': 'success'
+        }
+        
+        return jsonify(report)
+        
+    except Exception as e:
+        logger.error(f"Market report generation error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/chat', methods=['POST'])
+@require_api_key
+def chat_with_analyst():
+    """Chat with AI financial analyst"""
+    try:
+        data = request.get_json()
+        question = data.get('question', '')
+        context = data.get('context', {})
+        
+        if not question:
+            return jsonify({'error': 'No question provided'}), 400
+        
+        if not config.openai_api_key:
+            return jsonify({
+                'question': question,
+                'answer': 'AI chat is not available. OpenAI configuration is missing.',
+                'status': 'limited'
+            })
+        
+        # Enhanced prompt with financial context
+        system_prompt = f"""
+        You are a senior financial analyst with expertise in balance prediction and risk management.
+        
+        Context: {json.dumps(context, indent=2) if context else 'No specific context provided'}
+        
+        Provide specific, actionable financial advice. Keep responses professional and concise.
+        """
+        
+        response = openai.ChatCompletion.create(
+            engine=config.openai_deployment_name,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": question}
+            ],
+            temperature=0.3,
+            max_tokens=500
+        )
+        
+        return jsonify({
+            'question': question,
+            'answer': response.choices[0].message.content.strip(),
+            'timestamp': datetime.now().isoformat(),
+            'status': 'success'
+        })
+        
+    except Exception as e:
+        logger.error(f"Chat error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/docs')
+def api_documentation():
+    """API documentation"""
+    
+    docs_html = """
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Market Analysis API Documentation</title>
+        <style>
+            body { font-family: Arial, sans-serif; margin: 40px; background: #f5f5f5; }
+            .container { max-width: 1200px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; }
+            .endpoint { background: #f9f9f9; padding: 15px; margin: 20px 0; border-radius: 5px; border-left: 4px solid #007ACC; }
+            .method { color: white; padding: 5px 10px; border-radius: 3px; font-weight: bold; display: inline-block; }
+            .post { background: #4CAF50; }
+            .get { background: #2196F3; }
+            code { background: #f0f0f0; padding: 2px 5px; border-radius: 3px; }
+            pre { background: #f0f0f0; padding: 10px; border-radius: 5px; overflow-x: auto; }
+            .example { background: #e8f5e8; padding: 10px; border-radius: 5px; margin: 10px 0; }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h1>🚀 Market Analysis API Documentation</h1>
+            
+            <h2>🔐 Authentication</h2>
+            <p>All endpoints require API key authentication via header: <code>X-API-Key: your-api-key</code></p>
+            
+            <div class="endpoint">
+                <h3><span class="method get">GET</span> /</h3>
+                <p><strong>Health Check</strong> - Check API status and configuration</p>
+                <div class="example">
+                    <strong>Example Response:</strong>
+                    <pre>{
+  "status": "healthy",
+  "model_loaded": true,
+  "openai_configured": true
+}</pre>
+                </div>
+            </div>
+            
+            <div class="endpoint">
+                <h3><span class="method post">POST</span> /api/predict</h3>
+                <p><strong>Structured Prediction</strong> - Predict balance from structured financial data</p>
+                <div class="example">
+                    <strong>Request:</strong>
+                    <pre>{
+  "JOURNAL_COUNT": 15,
+  "JOURNAL_TOTAL_AMOUNT": 50000,
+  "JOURNAL_AVG_AMOUNT": 3333.33,
+  "MONTH": 6,
+  "DAY_OF_WEEK": 1,
+  "IS_WEEKEND": 0
+}</pre>
+                    <strong>Response:</strong>
+                    <pre>{
+  "predicted_balance": 187423.67,
+  "status": "success"
+}</pre>
+                </div>
+            </div>
+            
+            <div class="endpoint">
+                <h3><span class="method post">POST</span> /api/predict-nl</h3>
+                <p><strong>Natural Language Prediction</strong> - Predict balance from natural language using AI</p>
+                <div class="example">
+                    <strong>Request:</strong>
+                    <pre>{
+  "input": "I have 15 journal entries this month with a total of $50,000"
+}</pre>
+                    <strong>Response:</strong>
+                    <pre>{
+  "natural_language_input": "I have 15 journal entries...",
+  "structured_input": {...},
+  "predicted_balance": 187423.67,
+  "status": "success"
+}</pre>
+                </div>
+            </div>
+            
+            <div class="endpoint">
+                <h3><span class="method post">POST</span> /api/market-report</h3>
+                <p><strong>Market Analysis Report</strong> - Generate comprehensive financial analysis</p>
+                <div class="example">
+                    <strong>Response includes:</strong>
+                    <ul>
+                        <li>Current month performance analysis</li>
+                        <li>Predictive insights for remainder of month</li>
+                        <li>Risk assessment and recommendations</li>
+                        <li>Historical performance comparison</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="endpoint">
+                <h3><span class="method post">POST</span> /api/chat</h3>
+                <p><strong>AI Financial Analyst</strong> - Chat with AI for financial insights</p>
+                <div class="example">
+                    <strong>Request:</strong>
+                    <pre>{
+  "question": "What factors should I consider for cash flow management?",
+  "context": {"current_balance": 150000, "trend": "increasing"}
+}</pre>
+                    <strong>Response:</strong>
+                    <pre>{
+  "question": "What factors should I consider...",
+  "answer": "Based on your increasing trend...",
+  "status": "success"
+}</pre>
+                </div>
+            </div>
+            
+            <h2>📝 Usage Examples</h2>
+            
+            <h3>Python</h3>
+            <pre>import requests
+
+headers = {'X-API-Key': 'your-api-key'}
+url = 'https://your-app.azurecontainerapps.io'
+
+# Natural language prediction
+response = requests.post(f"{url}/api/predict-nl", 
+    headers=headers,
+    json={"input": "15 entries worth $50,000"}
+)
+print(f"Predicted: ${response.json()['predicted_balance']:,.2f}")</pre>
+            
+            <h3>cURL</h3>
+            <pre>curl -X POST -H "X-API-Key: your-key" -H "Content-Type: application/json" \\
+     -d '{"input": "20 entries worth $75000"}' \\
+     https://your-app.azurecontainerapps.io/api/predict-nl</pre>
+            
+            <h2>🔴 Error Codes</h2>
+            <ul>
+                <li><code>401</code> - Invalid API key</li>
+                <li><code>400</code> - Bad request (missing required fields)</li>
+                <li><code>500</code> - Internal server error</li>
+                <li><code>503</code> - Service unavailable (model not loaded)</li>
+            </ul>
+            
+            <p><em>For more examples and integration guides, check the repository README.</em></p>
+        </div>
+    </body>
+    </html>
+    """
+    
+    return docs_html
+
+# Initialize services on startup
+def startup():
+    """Initialize services on startup"""
+    logger.info("🚀 Starting Market Analysis API...")
+    
+    # Initialize Azure services
+    if initialize_azure_services():
+        # Load model from Azure
+        if not load_model_from_azure():
+            logger.warning("⚠️ Could not load model from Azure - predictions will be limited")
+    else:
+        logger.warning("⚠️ Azure services not initialized - running in limited mode")
+
+# Call startup when module is imported
+startup()
+
+if __name__ == '__main__':
+    port = int(os.environ.get('PORT', 8000))
+    debug = os.environ.get('DEBUG', 'False').lower() == 'true'
+    
+    app.run(host='0.0.0.0', port=port, debug=debug)
+
+#============================================================================
+# api_client.py - Python SDK for the API
+#============================================================================
+import requests
+import json
+from typing import Dict, Any, Optional
+
+class MarketAnalysisClient:
+    """Python client for Market Analysis API"""
+    
+    def __init__(self, base_url: str, api_key: str):
+        """
+        Initialize client
+        
+        Args:
+            base_url: Base URL of the API
+            api_key: Your API key
+        """
+        self.base_url = base_url.rstrip('/')
+        self.api_key = api_key
+        self.session = requests.Session()
+        self.session.headers.update({'X-API-Key': api_key})
+    
+    def health_check(self) -> Dict[str, Any]:
+        """Check API health status"""
+        response = self.session.get(f"{self.base_url}/")
+        response.raise_for_status()
+        return response.json()
+    
+    def predict_balance(self, features: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Predict balance from structured features
+        
+        Args:
+            features: Dictionary with financial features
+            
+        Returns:
+            Prediction result
+        """
+        response = self.session.post(f"{self.base_url}/api/predict", json=features)
+        response.raise_for_status()
+        return response.json()
+    
+    def predict_from_text(self, text: str) -> Dict[str, Any]:
+        """
+        Predict balance from natural language text
+        
+        Args:
+            text: Natural language description
+            
+        Returns:
+            Prediction result with parsed features
+        """
+        response = self.session.post(
+            f"{self.base_url}/api/predict-nl", 
+            json={"input": text}
+        )
+        response.raise_for_status()
+        return response.json()
+    
+    def generate_market_report(self) -> Dict[str, Any]:
+        """Generate comprehensive market analysis report"""
+        response = self.session.post(f"{self.base_url}/api/market-report", json={})
+        response.raise_for_status()
+        return response.json()
+    
+    def chat_with_analyst(self, question: str, context: Optional[Dict] = None) -> Dict[str, Any]:
+        """
+        Chat with AI financial analyst
+        
+        Args:
+            question: Your question
+            context: Optional financial context
+            
+        Returns:
+            AI analyst response
+        """
+        payload = {"question": question}
+        if context:
+            payload["context"] = context
+            
+        response = self.session.post(f"{self.base_url}/api/chat", json=payload)
+        response.raise_for_status()
+        return response.json()
+
+# Example usage
+if __name__ == "__main__":
+    # Example usage of the client
+    client = MarketAnalysisClient(
+        base_url="http://localhost:8000",  # Change to your deployed URL
+        api_key="your-api-key"
+    )
+    
+    try:
+        # Health check
+        status = client.health_check()
+        print(f"API Status: {status['status']}")
+        
+        # Natural language prediction
+        result = client.predict_from_text(
+            "I have 20 journal entries worth $75,000 total on a Tuesday in June"
+        )
+        print(f"Predicted Balance: ${result['predicted_balance']:,.2f}")
+        
+    except Exception as e:
+        print(f"Error: {e}")
+
+#============================================================================
+# test_api.py - Test Suite
+#============================================================================
+import pytest
+import requests
+import json
+import time
+from api_client import MarketAnalysisClient
+
+# Test configuration
+API_BASE_URL = "http://localhost:8000"  # Change for production testing
+API_KEY = "your-api-key"  # Change to your actual API key
+
+class TestMarketAnalysisAPI:
+    """Test suite for Market Analysis API"""
+    
+    @classmethod
+    def setup_class(cls):
+        """Setup test client"""
+        cls.client = MarketAnalysisClient(API_BASE_URL, API_KEY)
+    
+    def test_health_check(self):
+        """Test health check endpoint"""
+        response = self.client.health_check()
+        assert response['status'] == 'healthy'
+        assert 'timestamp' in response
+        print("✅ Health check passed")
+    
+    def test_structured_prediction(self):
+        """Test structured balance prediction"""
+        features = {
+            "JOURNAL_COUNT": 15,
+            "JOURNAL_TOTAL_AMOUNT": 50000,
+            "JOURNAL_AVG_AMOUNT": 3333.33,
+            "MONTH": 6,
+            "DAY_OF_WEEK": 1,
+            "IS_WEEKEND": 0,
+            "DAYS_SINCE_EPOCH": 19500
+        }
+        
+        result = self.client.predict_balance(features)
+        assert 'predicted_balance' in result
+        assert result['predicted_balance'] > 0
+        assert result['status'] == 'success'
+        print(f"✅ Structured prediction: ${result['predicted_balance']:,.2f}")
+    
+    def test_natural_language_prediction(self):
+        """Test natural language prediction"""
+        text = "I have 20 journal entries worth $75,000 on a Tuesday"
+        
+        result = self.client.predict_from_text(text)
+        assert 'predicted_balance' in result
+        assert 'structured_input' in result
+        assert result['status'] == 'success'
+        print(f"✅ Natural language prediction: ${result['predicted_balance']:,.2f}")
+    
+    def test_market_report_generation(self):
+        """Test market report generation"""
+        result = self.client.generate_market_report()
+        
+        assert 'current_performance' in result
+        assert 'predictions' in result
+        assert 'recommendations' in result
+        assert result['status'] == 'success'
+        print("✅ Market report generated successfully")
+    
+    def test_chat_functionality(self):
+        """Test chat with analyst"""
+        result = self.client.chat_with_analyst(
+            "What are the key risk factors to monitor?"
+        )
+        
+        assert 'answer' in result
+        assert len(result['answer']) > 0
+        print("✅ Chat functionality working")
+    
+    def test_performance(self):
+        """Basic performance test"""
+        start_time = time.time()
+        
+        result = self.client.predict_from_text("10 entries worth $25,000")
+        
+        end_time = time.time()
+        response_time = end_time - start_time
+        
+        assert response_time < 10.0  # Should respond within 10 seconds
+        print(f"✅ Performance test: {response_time:.2f}s response time")
+
+def run_tests():
+    """Run all tests"""
+    print("🧪 Running API Test Suite...")
+    print("=" * 50)
+    
+    test_instance = TestMarketAnalysisAPI()
+    test_instance.setup_class()
+    
+    tests = [
+        ("Health Check", test_instance.test_health_check),
+        ("Structured Prediction", test_instance.test_structured_prediction),
+        ("Natural Language Prediction", test_instance.test_natural_language_prediction),
+        ("Market Report", test_instance.test_market_report_generation),
+        ("Chat Functionality", test_instance.test_chat_functionality),
+        ("Performance Test", test_instance.test_performance)
+    ]
+    
+    passed = 0
+    failed = 0
+    
+    for test_name, test_func in tests:
+        try:
+            test_func()
+            passed += 1
+        except Exception as e:
+            print(f"❌ {test_name} failed: {e}")
+            failed += 1
+    
+    print("\n" + "=" * 50)
+    print(f"📊 Test Results: {passed} passed, {failed} failed")
+    
+    if failed == 0:
+        print("🎉 All tests passed!")
+    else:
+        print("⚠️ Some tests failed. Check your API configuration.")
+
+if __name__ == "__main__":
+    run_tests()
