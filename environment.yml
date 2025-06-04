@@ -1,0 +1,8 @@
+name: balance-env
+dependencies:
+  - python=3.10
+  - pip
+  - pip:
+      - scikit-learn
+      - numpy
+      - joblib
