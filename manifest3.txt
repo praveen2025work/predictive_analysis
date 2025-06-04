@@ -1,0 +1,305 @@
+# train_and_upload_model.py - Enhanced version for your project
+import os
+import joblib
+import pandas as pd
+import numpy as np
+from datetime import datetime, timedelta
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.preprocessing import StandardScaler
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+from azure.storage.blob import BlobServiceClient
+import json
+import logging
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+class ModelTrainerUploader:
+    def __init__(self):
+        # Azure configuration
+        self.storage_connection_string = os.getenv('AZURE_STORAGE_CONNECTION_STRING')
+        self.container_name = os.getenv('CONTAINER_NAME', 'journaldata')
+        
+        # Feature columns (must match app.py)
+        self.feature_columns = [
+            'DAYS_SINCE_EPOCH', 'JOURNAL_COUNT', 'JOURNAL_TOTAL_AMOUNT', 
+            'JOURNAL_AVG_AMOUNT', 'JOURNAL_STD_AMOUNT', 'MONTH', 'QUARTER',
+            'DAY_OF_WEEK', 'IS_WEEKEND', 'BALANCE_LAG_1', 'BALANCE_LAG_7'
+        ]
+        
+        # Initialize Azure client
+        if self.storage_connection_string:
+            self.blob_service_client = BlobServiceClient.from_connection_string(
+                self.storage_connection_string
+            )
+        else:
+            self.blob_service_client = None
+            logger.warning("No Azure storage connection string found")
+        
+        self.model = None
+        self.scaler = StandardScaler()
+
+    def create_sample_data(self):
+        """Create sample financial data for training"""
+        logger.info("📊 Creating sample financial data...")
+        
+        # Create sample balance records
+        balance_records = []
+        journal_entries = []
+        
+        start_date = datetime(2020, 1, 1)
+        end_date = datetime(2023, 12, 31)
+        
+        current_date = start_date
+        book_ids = ['BOOK_001', 'BOOK_002', 'BOOK_003']
+        
+        while current_date <= end_date:
+            for book_id in book_ids:
+                # Generate balance record
+                base_balance = 100000 + np.random.normal(0, 20000)
+                seasonal_factor = 1 + 0.1 * np.sin(2 * np.pi * current_date.timetuple().tm_yday / 365)
+                balance = max(10000, base_balance * seasonal_factor)
+                
+                balance_records.append({
+                    'DATE': current_date.isoformat(),
+                    'SAP_BOOK_ID': book_id,
+                    'BALANCE': round(balance, 2)
+                })
+                
+                # Generate journal entries
+                n_entries = max(1, int(np.random.poisson(8)))
+                for _ in range(n_entries):
+                    amount = np.random.normal(2000, 500) * seasonal_factor
+                    journal_entries.append({
+                        'ENTRY_DATE': current_date.isoformat(),
+                        'SAP_BOOK_ID': book_id,
+                        'VALUE': round(amount, 2)
+                    })
+            
+            current_date += timedelta(days=1)
+        
+        logger.info(f"✅ Created {len(balance_records)} balance records and {len(journal_entries)} journal entries")
+        return balance_records, journal_entries
+
+    def upload_sample_data(self, balance_records, journal_entries):
+        """Upload sample data to Azure Blob Storage"""
+        if not self.blob_service_client:
+            logger.warning("No blob service client available")
+            return False
+        
+        try:
+            # Upload balance records
+            balance_blob = self.blob_service_client.get_blob_client(
+                container=self.container_name,
+                blob='balance_records.json'
+            )
+            balance_blob.upload_blob(
+                json.dumps(balance_records, indent=2),
+                overwrite=True
+            )
+            
+            # Upload journal entries
+            journal_blob = self.blob_service_client.get_blob_client(
+                container=self.container_name,
+                blob='journal_entries.json'
+            )
+            journal_blob.upload_blob(
+                json.dumps(journal_entries, indent=2),
+                overwrite=True
+            )
+            
+            logger.info("✅ Sample data uploaded to Azure Blob Storage")
+            return True
+            
+        except Exception as e:
+            logger.error(f"❌ Failed to upload sample data: {e}")
+            return False
+
+    def process_data_for_training(self, balance_records, journal_entries):
+        """Process data for ML training"""
+        logger.info("🔧 Processing data for training...")
+        
+        # Convert to DataFrames
+        balance_df = pd.DataFrame(balance_records)
+        journal_df = pd.DataFrame(journal_entries)
+        
+        # Process balance data
+        balance_df['DATE'] = pd.to_datetime(balance_df['DATE'])
+        balance_df['BALANCE'] = pd.to_numeric(balance_df['BALANCE'])
+        balance_df['YEAR'] = balance_df['DATE'].dt.year
+        
+        # Process and aggregate journal data
+        journal_df['ENTRY_DATE'] = pd.to_datetime(journal_df['ENTRY_DATE'])
+        journal_df['VALUE'] = pd.to_numeric(journal_df['VALUE'])
+        
+        journal_agg = journal_df.groupby([journal_df['ENTRY_DATE'].dt.date, 'SAP_BOOK_ID']).agg({
+            'VALUE': ['sum', 'mean', 'count', 'std']
+        }).reset_index()
+        
+        # Flatten column names
+        journal_agg.columns = ['ENTRY_DATE', 'SAP_BOOK_ID', 'JOURNAL_TOTAL_AMOUNT', 
+                              'JOURNAL_AVG_AMOUNT', 'JOURNAL_COUNT', 'JOURNAL_STD_AMOUNT']
+        journal_agg['DATE'] = pd.to_datetime(journal_agg['ENTRY_DATE'])
+        journal_agg.drop(columns=['ENTRY_DATE'], inplace=True)
+        journal_agg['JOURNAL_STD_AMOUNT'].fillna(0, inplace=True)
+        
+        # Merge datasets
+        merged_df = pd.merge(balance_df, journal_agg, how='left', on=['DATE', 'SAP_BOOK_ID'])
+        
+        # Create features
+        merged_df['MONTH'] = merged_df['DATE'].dt.month
+        merged_df['QUARTER'] = merged_df['DATE'].dt.quarter
+        merged_df['DAY_OF_WEEK'] = merged_df['DATE'].dt.dayofweek
+        merged_df['IS_WEEKEND'] = (merged_df['DAY_OF_WEEK'] >= 5).astype(int)
+        merged_df['DAYS_SINCE_EPOCH'] = (merged_df['DATE'] - pd.Timestamp('1970-01-01')).dt.days
+        
+        # Create lag features
+        merged_df = merged_df.sort_values(['SAP_BOOK_ID', 'DATE'])
+        merged_df['BALANCE_LAG_1'] = merged_df.groupby('SAP_BOOK_ID')['BALANCE'].shift(1)
+        merged_df['BALANCE_LAG_7'] = merged_df.groupby('SAP_BOOK_ID')['BALANCE'].shift(7)
+        
+        # Fill missing values
+        merged_df.fillna(method='ffill', inplace=True)
+        merged_df.fillna(0, inplace=True)
+        
+        logger.info(f"✅ Data processed: {len(merged_df)} records ready for training")
+        return merged_df
+
+    def train_model(self, df):
+        """Train Random Forest model"""
+        logger.info("🤖 Training Random Forest model...")
+        
+        # Prepare features
+        feature_cols = [col for col in self.feature_columns if col in df.columns]
+        
+        # Split data
+        train_df = df[df['YEAR'] <= 2022].copy()
+        test_df = df[df['YEAR'] > 2022].copy()
+        
+        if len(test_df) == 0:
+            logger.warning("No test data available, using random split")
+            train_df, test_df = train_test_split(df, test_size=0.2, random_state=42)
+        
+        # Prepare features and targets
+        X_train = train_df[feature_cols].fillna(0)
+        y_train = train_df['BALANCE']
+        X_test = test_df[feature_cols].fillna(0)
+        y_test = test_df['BALANCE']
+        
+        logger.info(f"Training set: {len(X_train)} samples")
+        logger.info(f"Test set: {len(X_test)} samples")
+        
+        # Scale features
+        X_train_scaled = self.scaler.fit_transform(X_train)
+        X_test_scaled = self.scaler.transform(X_test)
+        
+        # Train model
+        self.model = RandomForestRegressor(
+            n_estimators=150,
+            max_depth=15,
+            min_samples_split=5,
+            min_samples_leaf=2,
+            random_state=42,
+            n_jobs=-1
+        )
+        
+        self.model.fit(X_train_scaled, y_train)
+        
+        # Evaluate
+        y_pred = self.model.predict(X_test_scaled)
+        mae = mean_absolute_error(y_test, y_pred)
+        rmse = np.sqrt(mean_squared_error(y_test, y_pred))
+        r2 = r2_score(y_test, y_pred)
+        
+        logger.info(f"✅ Model trained successfully!")
+        logger.info(f"📊 Performance Metrics:")
+        logger.info(f"   • MAE: ${mae:,.2f}")
+        logger.info(f"   • RMSE: ${rmse:,.2f}")
+        logger.info(f"   • R² Score: {r2:.3f}")
+        
+        # Feature importance
+        feature_importance = pd.DataFrame({
+            'feature': feature_cols,
+            'importance': self.model.feature_importances_
+        }).sort_values('importance', ascending=False)
+        
+        logger.info(f"🔍 Top 5 Feature Importance:")
+        for i, (_, row) in enumerate(feature_importance.head().iterrows(), 1):
+            logger.info(f"   {i}. {row['feature']}: {row['importance']:.3f}")
+        
+        return {'mae': mae, 'rmse': rmse, 'r2': r2, 'feature_importance': feature_importance}
+
+    def upload_models_to_azure(self):
+        """Upload trained model and scaler to Azure"""
+        if not self.blob_service_client:
+            logger.warning("No blob service client available")
+            return False
+        
+        logger.info("☁️ Uploading models to Azure...")
+        
+        try:
+            # Save model locally first
+            model_filename = 'trained_model.pkl'
+            scaler_filename = 'feature_scaler.pkl'
+            
+            joblib.dump(self.model, model_filename)
+            joblib.dump(self.scaler, scaler_filename)
+            
+            # Upload model
+            with open(model_filename, 'rb') as model_file:
+                model_blob = self.blob_service_client.get_blob_client(
+                    container=self.container_name,
+                    blob='trained_model.pkl'
+                )
+                model_blob.upload_blob(model_file, overwrite=True)
+            
+            # Upload scaler
+            with open(scaler_filename, 'rb') as scaler_file:
+                scaler_blob = self.blob_service_client.get_blob_client(
+                    container=self.container_name,
+                    blob='feature_scaler.pkl'
+                )
+                scaler_blob.upload_blob(scaler_file, overwrite=True)
+            
+            # Clean up local files
+            os.remove(model_filename)
+            os.remove(scaler_filename)
+            
+            logger.info("✅ Models uploaded to Azure successfully!")
+            return True
+            
+        except Exception as e:
+            logger.error(f"❌ Failed to upload models: {e}")
+            return False
+
+    def test_uploaded_model(self):
+        """Test the uploaded model"""
+        if not self.blob_service_client:
+            return False
+        
+        logger.info("🧪 Testing uploaded model...")
+        
+        try:
+            # Download and test model
+            model_blob = self.blob_service_client.get_blob_client(
+                container=self.container_name,
+                blob='trained_model.pkl'
+            )
+            model_data = model_blob.download_blob().readall()
+            
+            scaler_blob = self.blob_service_client.get_blob_client(
+                container=self.container_name,
+                blob='feature_scaler.pkl'
+            )
+            scaler_data = scaler_blob.download_blob().readall()
+            
+            # Load models
+            import io
+            test_model = joblib.load(io.BytesIO(model_data))
+            test_scaler = joblib.load(io.BytesIO(scaler
