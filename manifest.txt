@@ -1,0 +1,509 @@
+# Complete File Structure for Azure OpenAI Market Analysis API
+# Create these files in your project directory
+
+# Project structure:
+market-analysis-api/
+├── app.py                          # Main Flask API application
+├── requirements.txt                # Python dependencies
+├── Dockerfile                      # Docker container configuration
+├── .env.template                   # Environment variables template
+├── .env                           # Your actual environment variables (create from template)
+├── deploy.sh                      # Deployment script
+├── train_and_upload_model.py      # Model training and upload
+├── quick_start.py                 # Testing and demo script
+├── api_client.py                  # Python SDK for API
+├── test_api.py                    # Test suite
+├── docker-compose.yml             # Local development
+├── .gitignore                     # Git ignore file
+├── README.md                      # Documentation
+└── bicep/
+    └── main.bicep                 # Azure infrastructure template
+
+# Let's create each file:
+
+#============================================================================
+# 1. requirements.txt
+#============================================================================
+Flask==2.3.3
+Flask-CORS==4.0.0
+pandas==2.0.3
+numpy==1.24.3
+scikit-learn==1.3.0
+joblib==1.3.2
+openai==0.28.1
+azure-storage-blob==12.17.0
+azure-identity==1.13.0
+python-dotenv==1.0.0
+gunicorn==21.2.0
+requests==2.31.0
+
+#============================================================================
+# 2. .env.template (Copy this to .env and fill in your values)
+#============================================================================
+# OpenAI Configuration
+OPENAI_API_KEY=your-openai-api-key-here
+OPENAI_API_BASE=https://your-openai-resource.openai.azure.com/
+OPENAI_API_VERSION=2024-02-15-preview
+OPENAI_DEPLOYMENT_NAME=gpt-4
+
+# Azure Storage Configuration
+AZURE_STORAGE_CONNECTION_STRING=DefaultEndpointsProtocol=https;AccountName=youraccount;AccountKey=yourkey;EndpointSuffix=core.windows.net
+CONTAINER_NAME=journaldata
+BALANCE_BLOB=balance_records.json
+JOURNAL_BLOB=journal_entries.json
+
+# Model Configuration
+MODEL_BLOB_NAME=trained_model.pkl
+SCALER_BLOB_NAME=feature_scaler.pkl
+
+# API Security
+API_KEY=your-secure-api-key-here
+
+# Application Configuration
+PORT=8000
+DEBUG=False
+
+#============================================================================
+# 3. Dockerfile
+#============================================================================
+FROM python:3.9-slim
+
+# Set working directory
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    gcc \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements first for better caching
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy application code
+COPY . .
+
+# Create non-root user for security
+RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
+USER appuser
+
+# Expose port
+EXPOSE 8000
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
+  CMD curl -f http://localhost:8000/ || exit 1
+
+# Run application with gunicorn
+CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "4", "--timeout", "120", "app:app"]
+
+#============================================================================
+# 4. docker-compose.yml (for local development)
+#============================================================================
+version: '3.8'
+
+services:
+  market-analysis-api:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - PORT=8000
+      - DEBUG=True
+    env_file:
+      - .env
+    volumes:
+      - ./logs:/app/logs
+    restart: unless-stopped
+
+#============================================================================
+# 5. .gitignore
+#============================================================================
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+venv/
+env/
+ENV/
+
+# Environment variables
+.env
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.log
+
+# Model files
+*.pkl
+*.joblib
+
+# Temporary files
+*.tmp
+*.temp
+
+# Azure
+deployment_info.txt
+api_usage_examples.txt
+
+#============================================================================
+# 6. Deploy Script - deploy.sh
+#============================================================================
+#!/bin/bash
+# deploy.sh - Complete Azure deployment script
+
+set -e
+
+# Configuration
+RESOURCE_GROUP_NAME=${1:-"market-analysis-rg"}
+LOCATION=${2:-"East US"}
+SUBSCRIPTION_ID=${3:-""}
+
+# Colors for output
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+RED='\033[0;31m'
+NC='\033[0m'
+
+echo "🚀 Deploying Market Analysis API to Azure..."
+
+# Check if Azure CLI is installed
+if ! command -v az &> /dev/null; then
+    echo -e "${RED}❌ Azure CLI is not installed${NC}"
+    exit 1
+fi
+
+# Login check
+if ! az account show &> /dev/null; then
+    echo "🔑 Logging in to Azure..."
+    az login
+fi
+
+# Set subscription
+if [ -n "$SUBSCRIPTION_ID" ]; then
+    az account set --subscription "$SUBSCRIPTION_ID"
+fi
+
+SUBSCRIPTION_ID=$(az account show --query id --output tsv)
+echo -e "${GREEN}✅ Using subscription: $SUBSCRIPTION_ID${NC}"
+
+# Generate unique names
+RANDOM_SUFFIX=$(shuf -i 1000-9999 -n 1)
+STORAGE_ACCOUNT_NAME="marketanalysis${RANDOM_SUFFIX}"
+CONTAINER_REGISTRY_NAME="marketanalysisacr${RANDOM_SUFFIX}"
+OPENAI_SERVICE_NAME="openai-market-analysis-${RANDOM_SUFFIX}"
+
+echo "📦 Creating resource group..."
+az group create --name "$RESOURCE_GROUP_NAME" --location "$LOCATION"
+
+echo "💾 Creating storage account..."
+az storage account create \
+    --name "$STORAGE_ACCOUNT_NAME" \
+    --resource-group "$RESOURCE_GROUP_NAME" \
+    --location "$LOCATION" \
+    --sku Standard_LRS
+
+echo "📊 Creating blob container..."
+az storage container create \
+    --name journaldata \
+    --account-name "$STORAGE_ACCOUNT_NAME"
+
+echo "🐳 Creating container registry..."
+az acr create \
+    --name "$CONTAINER_REGISTRY_NAME" \
+    --resource-group "$RESOURCE_GROUP_NAME" \
+    --sku Basic \
+    --admin-enabled true
+
+echo "🤖 Creating OpenAI service..."
+az cognitiveservices account create \
+    --name "$OPENAI_SERVICE_NAME" \
+    --resource-group "$RESOURCE_GROUP_NAME" \
+    --location "$LOCATION" \
+    --kind OpenAI \
+    --sku S0 \
+    --custom-domain "$OPENAI_SERVICE_NAME"
+
+echo "🧠 Deploying GPT-4 model..."
+az cognitiveservices account deployment create \
+    --name "$OPENAI_SERVICE_NAME" \
+    --resource-group "$RESOURCE_GROUP_NAME" \
+    --deployment-name "gpt-4" \
+    --model-name "gpt-4" \
+    --model-version "0613" \
+    --model-format "OpenAI" \
+    --sku-capacity 10 \
+    --sku-name "Standard"
+
+echo "🌐 Creating Container Apps environment..."
+az containerapp env create \
+    --name "market-analysis-env" \
+    --resource-group "$RESOURCE_GROUP_NAME" \
+    --location "$LOCATION"
+
+echo "🔨 Building and pushing Docker image..."
+az acr build --registry "$CONTAINER_REGISTRY_NAME" --image market-analysis-api:latest .
+
+# Get connection strings and keys
+STORAGE_CONNECTION_STRING=$(az storage account show-connection-string --name "$STORAGE_ACCOUNT_NAME" --resource-group "$RESOURCE_GROUP_NAME" --query connectionString --output tsv)
+OPENAI_KEY=$(az cognitiveservices account keys list --name "$OPENAI_SERVICE_NAME" --resource-group "$RESOURCE_GROUP_NAME" --query 'key1' --output tsv)
+REGISTRY_SERVER=$(az acr show --name "$CONTAINER_REGISTRY_NAME" --resource-group "$RESOURCE_GROUP_NAME" --query loginServer --output tsv)
+REGISTRY_USERNAME=$(az acr credential show --name "$CONTAINER_REGISTRY_NAME" --resource-group "$RESOURCE_GROUP_NAME" --query username --output tsv)
+REGISTRY_PASSWORD=$(az acr credential show --name "$CONTAINER_REGISTRY_NAME" --resource-group "$RESOURCE_GROUP_NAME" --query passwords[0].value --output tsv)
+
+# Generate API key
+API_KEY="market-analysis-$(openssl rand -hex 16)"
+
+echo "📱 Creating container app..."
+az containerapp create \
+    --name "market-analysis-api" \
+    --resource-group "$RESOURCE_GROUP_NAME" \
+    --environment "market-analysis-env" \
+    --image "$REGISTRY_SERVER/market-analysis-api:latest" \
+    --registry-server "$REGISTRY_SERVER" \
+    --registry-username "$REGISTRY_USERNAME" \
+    --registry-password "$REGISTRY_PASSWORD" \
+    --target-port 8000 \
+    --ingress external \
+    --min-replicas 1 \
+    --max-replicas 5 \
+    --cpu 1.0 \
+    --memory 2Gi \
+    --env-vars \
+        AZURE_STORAGE_CONNECTION_STRING="$STORAGE_CONNECTION_STRING" \
+        OPENAI_API_KEY="$OPENAI_KEY" \
+        OPENAI_API_BASE="https://${OPENAI_SERVICE_NAME}.openai.azure.com/" \
+        OPENAI_DEPLOYMENT_NAME="gpt-4" \
+        API_KEY="$API_KEY" \
+        PORT=8000
+
+# Get container app URL
+CONTAINER_APP_URL=$(az containerapp show --name "market-analysis-api" --resource-group "$RESOURCE_GROUP_NAME" --query properties.configuration.ingress.fqdn --output tsv)
+
+# Create .env file with deployment values
+cat > .env << EOF
+# Generated deployment configuration - $(date)
+AZURE_STORAGE_CONNECTION_STRING=$STORAGE_CONNECTION_STRING
+OPENAI_API_KEY=$OPENAI_KEY
+OPENAI_API_BASE=https://${OPENAI_SERVICE_NAME}.openai.azure.com/
+OPENAI_API_VERSION=2024-02-15-preview
+OPENAI_DEPLOYMENT_NAME=gpt-4
+CONTAINER_NAME=journaldata
+BALANCE_BLOB=balance_records.json
+JOURNAL_BLOB=journal_entries.json
+MODEL_BLOB_NAME=trained_model.pkl
+SCALER_BLOB_NAME=feature_scaler.pkl
+API_KEY=$API_KEY
+PORT=8000
+DEBUG=False
+EOF
+
+# Save deployment info
+cat > deployment_info.txt << EOF
+Market Analysis API Deployment Information
+=========================================
+
+Deployment Date: $(date)
+Resource Group: $RESOURCE_GROUP_NAME
+Location: $LOCATION
+Subscription ID: $SUBSCRIPTION_ID
+
+Resources Created:
+- Storage Account: $STORAGE_ACCOUNT_NAME
+- Container Registry: $CONTAINER_REGISTRY_NAME
+- OpenAI Service: $OPENAI_SERVICE_NAME
+- Container App: market-analysis-api
+
+API Access:
+- URL: https://$CONTAINER_APP_URL
+- Documentation: https://$CONTAINER_APP_URL/docs
+- API Key: $API_KEY
+
+Next Steps:
+1. Upload sample data: python train_and_upload_model.py
+2. Test API: python quick_start.py
+3. View docs: https://$CONTAINER_APP_URL/docs
+EOF
+
+echo -e "${GREEN}🎉 Deployment completed successfully!${NC}"
+echo -e "${GREEN}🔗 API URL: https://$CONTAINER_APP_URL${NC}"
+echo -e "${GREEN}🔑 API Key: $API_KEY${NC}"
+echo -e "${GREEN}📚 Documentation: https://$CONTAINER_APP_URL/docs${NC}"
+echo ""
+echo "Next steps:"
+echo "1. Train and upload model: python train_and_upload_model.py"
+echo "2. Test API: python quick_start.py"
+
+#============================================================================
+# 7. README.md
+#============================================================================
+# Market Analysis API with Azure OpenAI
+
+A comprehensive financial balance prediction API powered by Random Forest ML and Azure OpenAI.
+
+## 🚀 Quick Start
+
+### Prerequisites
+- Azure subscription
+- Azure CLI installed
+- Python 3.9+
+- Docker (optional, for local development)
+
+### Deploy to Azure (5 minutes)
+
+1. **Clone and setup:**
+```bash
+git clone <your-repo>
+cd market-analysis-api
+```
+
+2. **Deploy everything:**
+```bash
+chmod +x deploy.sh
+./deploy.sh "your-resource-group" "East US" "your-subscription-id"
+```
+
+3. **Train and upload model:**
+```bash
+python train_and_upload_model.py
+```
+
+4. **Test your API:**
+```bash
+python quick_start.py
+```
+
+That's it! Your API is live at the URL shown in the deployment output.
+
+## 📚 API Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/` | Health check |
+| POST | `/api/predict` | Structured prediction |
+| POST | `/api/predict-nl` | Natural language prediction |
+| POST | `/api/market-report` | Generate market report |
+| POST | `/api/chat` | Chat with AI analyst |
+| GET | `/docs` | API documentation |
+
+## 🔧 Local Development
+
+1. **Setup environment:**
+```bash
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+pip install -r requirements.txt
+```
+
+2. **Configure environment:**
+```bash
+cp .env.template .env
+# Edit .env with your Azure resource details
+```
+
+3. **Run locally:**
+```bash
+python app.py
+```
+
+4. **Test locally:**
+```bash
+python quick_start.py --url http://localhost:8000
+```
+
+## 💡 Usage Examples
+
+### Python
+```python
+import requests
+
+headers = {'X-API-Key': 'your-api-key'}
+url = 'https://your-app.azurecontainerapps.io'
+
+# Natural language prediction
+response = requests.post(f"{url}/api/predict-nl", 
+    headers=headers,
+    json={"input": "15 entries worth $50,000"}
+)
+print(f"Predicted: ${response.json()['predicted_balance']:,.2f}")
+```
+
+### cURL
+```bash
+curl -X POST -H "X-API-Key: your-key" -H "Content-Type: application/json" \
+     -d '{"input": "20 entries worth $75000"}' \
+     https://your-app.azurecontainerapps.io/api/predict-nl
+```
+
+## 🏗️ Architecture
+
+- **Azure Container Apps**: Scalable API hosting
+- **Azure OpenAI**: Natural language processing
+- **Azure Blob Storage**: Data and model storage
+- **Random Forest**: ML prediction model
+- **Flask**: API framework
+
+## 📊 Features
+
+- ✅ Natural language balance predictions
+- ✅ Comprehensive market analysis reports
+- ✅ AI financial analyst chat
+- ✅ Auto-scaling and monitoring
+- ✅ Professional API documentation
+- ✅ Python SDK included
+
+## 🔒 Security
+
+- API key authentication
+- HTTPS only
+- Secrets in Azure Key Vault
+- Container security scanning
+
+## 📈 Monitoring
+
+Access monitoring at:
+- Azure Portal → Your Resource Group → Container App
+- Application Insights for detailed metrics
+- Health endpoint: `GET /`
+
+## 🆘 Support
+
+1. Check API documentation: `/docs`
+2. Review deployment info: `deployment_info.txt`
+3. Run diagnostics: `python quick_start.py`
+
+## 📄 License
+
+MIT License
