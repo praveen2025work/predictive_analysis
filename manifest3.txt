@@ -302,4 +302,430 @@ class ModelTrainerUploader:
             # Load models
             import io
             test_model = joblib.load(io.BytesIO(model_data))
-            test_scaler = joblib.load(io.BytesIO(scaler
+            test_scaler = joblib.load(io.BytesIO(scaler_data))
+            
+            # Test prediction
+            test_input = {
+                'DAYS_SINCE_EPOCH': (datetime.now() - datetime(1970, 1, 1)).days,
+                'JOURNAL_COUNT': 15,
+                'JOURNAL_TOTAL_AMOUNT': 50000,
+                'JOURNAL_AVG_AMOUNT': 3333.33,
+                'JOURNAL_STD_AMOUNT': 500,
+                'MONTH': 6,
+                'QUARTER': 2,
+                'DAY_OF_WEEK': 1,
+                'IS_WEEKEND': 0,
+                'BALANCE_LAG_1': 100000,
+                'BALANCE_LAG_7': 98000
+            }
+            
+            # Prepare feature vector
+            feature_vector = []
+            for col in self.feature_columns:
+                feature_vector.append(test_input.get(col, 0))
+            
+            # Scale and predict
+            feature_vector = np.array(feature_vector).reshape(1, -1)
+            feature_vector_scaled = test_scaler.transform(feature_vector)
+            prediction = test_model.predict(feature_vector_scaled)[0]
+            
+            logger.info(f"✅ Model test successful!")
+            logger.info(f"🎯 Test prediction: ${prediction:,.2f}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"❌ Model test failed: {e}")
+            return False
+
+    def run_complete_pipeline(self):
+        """Run the complete training and upload pipeline"""
+        logger.info("🚀 Starting complete training pipeline...")
+        
+        try:
+            # Step 1: Create sample data
+            balance_records, journal_entries = self.create_sample_data()
+            
+            # Step 2: Upload sample data to Azure
+            if self.blob_service_client:
+                self.upload_sample_data(balance_records, journal_entries)
+            
+            # Step 3: Process data
+            processed_df = self.process_data_for_training(balance_records, journal_entries)
+            
+            # Step 4: Train model
+            results = self.train_model(processed_df)
+            
+            # Step 5: Upload models to Azure
+            if self.blob_service_client:
+                upload_success = self.upload_models_to_azure()
+                if upload_success:
+                    self.test_uploaded_model()
+            
+            logger.info("🎉 Training pipeline completed successfully!")
+            return True
+            
+        except Exception as e:
+            logger.error(f"❌ Pipeline failed: {e}")
+            return False
+
+def main():
+    """Main execution function"""
+    print("🤖 Market Analysis Model Training Pipeline")
+    print("=" * 50)
+    
+    # Check environment
+    if not os.getenv('AZURE_STORAGE_CONNECTION_STRING'):
+        print("⚠️ AZURE_STORAGE_CONNECTION_STRING not found in environment")
+        print("Models will be trained locally but not uploaded to Azure")
+    
+    # Run training
+    trainer = ModelTrainerUploader()
+    success = trainer.run_complete_pipeline()
+    
+    if success:
+        print("\n🎉 SUCCESS! Your model is ready!")
+        print("Next steps:")
+        print("1. Deploy your API if not already done")
+        print("2. Test your API: python test_api.py")
+    else:
+        print("\n❌ Training failed. Check logs above.")
+
+if __name__ == "__main__":
+    main()
+
+#============================================================================
+# quick_start.py - Simplified version for your setup
+#============================================================================
+import os
+import requests
+import json
+import time
+from datetime import datetime
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
+
+class QuickStartTester:
+    """Quick testing and demo of the API"""
+    
+    def __init__(self, base_url=None, api_key=None):
+        # Try to detect from environment or files
+        self.base_url = base_url or self._detect_api_url()
+        self.api_key = api_key or self._detect_api_key()
+        
+        if not self.base_url or not self.api_key:
+            print("❌ Could not detect API URL or key. Please provide them manually.")
+            print("Usage: python quick_start.py")
+            print("Or set environment variables: API_BASE_URL and API_KEY")
+            exit(1)
+        
+        self.session = requests.Session()
+        self.session.headers.update({
+            'X-API-Key': self.api_key,
+            'Content-Type': 'application/json'
+        })
+        
+        print(f"🎯 Testing API at: {self.base_url}")
+    
+    def _detect_api_url(self):
+        """Detect API URL from various sources"""
+        # Try environment
+        url = os.getenv('API_BASE_URL')
+        if url:
+            return url.rstrip('/')
+        
+        # Try deployment info file
+        try:
+            with open('deployment_info.txt', 'r') as f:
+                for line in f:
+                    if 'URL:' in line and 'https://' in line:
+                        return 'https://' + line.split('https://')[-1].strip()
+        except:
+            pass
+        
+        # Default for local
+        return "http://localhost:8000"
+    
+    def _detect_api_key(self):
+        """Detect API key from various sources"""
+        # Try environment
+        key = os.getenv('API_KEY')
+        if key:
+            return key
+        
+        # Try .env file
+        try:
+            with open('.env', 'r') as f:
+                for line in f:
+                    if line.startswith('API_KEY='):
+                        return line.split('=', 1)[1].strip()
+        except:
+            pass
+        
+        return None
+    
+    def test_health(self):
+        """Test health endpoint"""
+        print("\n🏥 Testing Health Check...")
+        try:
+            response = self.session.get(f"{self.base_url}/")
+            response.raise_for_status()
+            data = response.json()
+            
+            print(f"✅ API is healthy")
+            print(f"   Status: {data.get('status')}")
+            print(f"   Model Loaded: {data.get('model_loaded')}")
+            print(f"   OpenAI Configured: {data.get('openai_configured')}")
+            return True
+        except Exception as e:
+            print(f"❌ Health check failed: {e}")
+            return False
+    
+    def test_prediction(self):
+        """Test basic prediction"""
+        print("\n🔮 Testing Natural Language Prediction...")
+        
+        test_cases = [
+            "I have 15 journal entries worth $50,000",
+            "20 transactions totaling $75,000 on Tuesday",
+            "5 entries, $25,000 total, Friday"
+        ]
+        
+        for i, test_input in enumerate(test_cases, 1):
+            try:
+                response = self.session.post(
+                    f"{self.base_url}/api/predict-nl",
+                    json={"input": test_input}
+                )
+                response.raise_for_status()
+                data = response.json()
+                
+                print(f"✅ Test {i}: {test_input[:30]}...")
+                print(f"   Predicted: ${data.get('predicted_balance', 0):,.2f}")
+            except Exception as e:
+                print(f"❌ Test {i} failed: {e}")
+    
+    def test_chat(self):
+        """Test chat functionality"""
+        print("\n💬 Testing AI Chat...")
+        
+        try:
+            response = self.session.post(
+                f"{self.base_url}/api/chat",
+                json={"question": "What should I monitor for cash flow management?"}
+            )
+            response.raise_for_status()
+            data = response.json()
+            
+            print("✅ Chat working")
+            print(f"   Response: {data.get('answer', '')[:100]}...")
+        except Exception as e:
+            print(f"❌ Chat test failed: {e}")
+    
+    def run_all_tests(self):
+        """Run all tests"""
+        print("🚀 Market Analysis API - Quick Test Suite")
+        print("=" * 50)
+        
+        tests = [
+            self.test_health,
+            self.test_prediction,
+            self.test_chat
+        ]
+        
+        passed = 0
+        for test in tests:
+            try:
+                if test():
+                    passed += 1
+            except:
+                pass
+        
+        print(f"\n📊 Results: {passed}/{len(tests)} tests passed")
+        
+        if passed == len(tests):
+            print("🎉 All tests passed! Your API is working perfectly.")
+        else:
+            print("⚠️ Some tests failed. Check your configuration.")
+
+def main():
+    """Main function"""
+    import sys
+    
+    # Parse command line arguments
+    base_url = None
+    api_key = None
+    
+    if len(sys.argv) > 1:
+        base_url = sys.argv[1]
+    if len(sys.argv) > 2:
+        api_key = sys.argv[2]
+    
+    # Run tests
+    tester = QuickStartTester(base_url, api_key)
+    tester.run_all_tests()
+
+if __name__ == "__main__":
+    main()
+
+#============================================================================
+# setup_local.py - Local development setup script
+#============================================================================
+import os
+import subprocess
+import sys
+from pathlib import Path
+
+def setup_local_environment():
+    """Setup local development environment"""
+    print("🔧 Setting up local development environment...")
+    
+    # Create virtual environment
+    if not Path("venv").exists():
+        print("📦 Creating virtual environment...")
+        subprocess.run([sys.executable, "-m", "venv", "venv"])
+    
+    # Activate virtual environment and install dependencies
+    if os.name == 'nt':  # Windows
+        pip_path = "venv/Scripts/pip"
+        python_path = "venv/Scripts/python"
+    else:  # Unix/Linux/macOS
+        pip_path = "venv/bin/pip"
+        python_path = "venv/bin/python"
+    
+    print("📚 Installing dependencies...")
+    subprocess.run([pip_path, "install", "-r", "requirements.txt"])
+    
+    # Create .env file if it doesn't exist
+    if not Path(".env").exists():
+        print("📝 Creating .env file...")
+        with open(".env", "w") as f:
+            f.write("""# Local development configuration
+# Copy your Azure values here after deployment
+
+AZURE_STORAGE_CONNECTION_STRING=your-connection-string
+OPENAI_API_KEY=your-openai-key
+OPENAI_API_BASE=https://your-resource.openai.azure.com/
+OPENAI_API_VERSION=2024-02-15-preview
+OPENAI_DEPLOYMENT_NAME=gpt-4
+CONTAINER_NAME=journaldata
+API_KEY=local-dev-key
+PORT=8000
+DEBUG=True
+""")
+        print("✅ .env file created. Please update with your Azure values.")
+    
+    # Create sample data for local testing
+    print("📊 Creating sample data...")
+    subprocess.run([python_path, "train_and_upload_model.py"])
+    
+    print("✅ Local environment setup complete!")
+    print("\nNext steps:")
+    print("1. Update .env file with your Azure configuration")
+    print("2. Run the API: python app.py")
+    print("3. Test the API: python quick_start.py")
+
+if __name__ == "__main__":
+    setup_local_environment()
+
+#============================================================================
+# check_requirements.py - Verify all requirements are met
+#============================================================================
+import subprocess
+import sys
+import importlib
+import os
+
+def check_python_version():
+    """Check Python version"""
+    version = sys.version_info
+    if version.major == 3 and version.minor >= 9:
+        print(f"✅ Python {version.major}.{version.minor}.{version.micro}")
+        return True
+    else:
+        print(f"❌ Python {version.major}.{version.minor}.{version.micro} (requires 3.9+)")
+        return False
+
+def check_packages():
+    """Check required packages"""
+    required_packages = [
+        'flask', 'pandas', 'numpy', 'scikit-learn', 
+        'joblib', 'requests', 'python-dotenv'
+    ]
+    
+    missing = []
+    for package in required_packages:
+        try:
+            importlib.import_module(package.replace('-', '_'))
+            print(f"✅ {package}")
+        except ImportError:
+            print(f"❌ {package}")
+            missing.append(package)
+    
+    return len(missing) == 0, missing
+
+def check_environment():
+    """Check environment configuration"""
+    required_env = [
+        'AZURE_STORAGE_CONNECTION_STRING',
+        'OPENAI_API_KEY', 
+        'API_KEY'
+    ]
+    
+    missing = []
+    for env_var in required_env:
+        if os.getenv(env_var):
+            print(f"✅ {env_var}")
+        else:
+            print(f"❌ {env_var}")
+            missing.append(env_var)
+    
+    return len(missing) == 0, missing
+
+def check_azure_cli():
+    """Check Azure CLI"""
+    try:
+        result = subprocess.run(['az', '--version'], capture_output=True, text=True)
+        if result.returncode == 0:
+            print("✅ Azure CLI")
+            return True
+        else:
+            print("❌ Azure CLI")
+            return False
+    except FileNotFoundError:
+        print("❌ Azure CLI not found")
+        return False
+
+def main():
+    """Main check function"""
+    print("🔍 Checking Requirements for Market Analysis API")
+    print("=" * 50)
+    
+    checks = [
+        ("Python Version", check_python_version),
+        ("Azure CLI", check_azure_cli),
+        ("Python Packages", lambda: check_packages()[0]),
+        ("Environment Variables", lambda: check_environment()[0])
+    ]
+    
+    all_passed = True
+    
+    for check_name, check_func in checks:
+        print(f"\n{check_name}:")
+        passed = check_func()
+        if not passed:
+            all_passed = False
+    
+    print("\n" + "=" * 50)
+    if all_passed:
+        print("🎉 All requirements met! You're ready to deploy.")
+    else:
+        print("⚠️ Some requirements are missing. Please install them before deploying.")
+        print("\nQuick fixes:")
+        print("• Install packages: pip install -r requirements.txt")
+        print("• Install Azure CLI: https://docs.microsoft.com/en-us/cli/azure/install-azure-cli")
+        print("• Set environment variables in .env file")
+
+if __name__ == "__main__":
+    main()
