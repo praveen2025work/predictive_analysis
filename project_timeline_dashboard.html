@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Project Timeline Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f8fafc;
+            color: #1e293b;
+            line-height: 1.6;
+            padding: 24px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: #3b82f6;
+            color: white;
+            padding: 32px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2rem;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 1.1rem;
+        }
+
+        .content {
+            padding: 32px;
+        }
+
+        .section {
+            margin-bottom: 48px;
+        }
+
+        .section-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #1e293b;
+            margin-bottom: 24px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* Milestones */
+        .milestones-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 16px;
+        }
+
+        .milestone {
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 4px solid;
+        }
+
+        .milestone.completed {
+            background: #f0fdf4;
+            border-left-color: #22c55e;
+        }
+
+        .milestone.current {
+            background: #fef3c7;
+            border-left-color: #f59e0b;
+        }
+
+        .milestone.upcoming {
+            background: #eff6ff;
+            border-left-color: #3b82f6;
+        }
+
+        .milestone-header {
+            font-weight: 600;
+            margin-bottom: 4px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .milestone-date {
+            color: #64748b;
+            font-size: 0.9rem;
+        }
+
+        /* Tables */
+        .table-wrapper {
+            overflow-x: auto;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+        }
+
+        th {
+            background: #f8fafc;
+            color: #374151;
+            font-weight: 600;
+            padding: 16px 12px;
+            text-align: left;
+            border-bottom: 1px solid #e2e8f0;
+            font-size: 0.875rem;
+        }
+
+        td {
+            padding: 16px 12px;
+            border-bottom: 1px solid #f1f5f9;
+            vertical-align: top;
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        .component-name {
+            font-weight: 500;
+            color: #1e293b;
+        }
+
+        /* Tags */
+        .tag {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 16px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            margin: 2px;
+        }
+
+        .tag-python { background: #fef3c7; color: #92400e; }
+        .tag-java { background: #dbeafe; color: #1d4ed8; }
+        .tag-ui { background: #d1fae5; color: #059669; }
+        .tag-qa { background: #fce7f3; color: #be185d; }
+        .tag-infra { background: #f3e8ff; color: #7c3aed; }
+
+        .timeline-tag {
+            background: #f1f5f9;
+            color: #475569;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            display: inline-block;
+            margin: 2px;
+        }
+
+        /* Resource Grid */
+        .resource-table {
+            display: grid;
+            grid-template-columns: 120px repeat(4, 1fr);
+            gap: 1px;
+            background: #e2e8f0;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .resource-cell {
+            background: white;
+            padding: 16px 12px;
+            font-size: 0.875rem;
+        }
+
+        .resource-header {
+            background: #f8fafc;
+            font-weight: 600;
+            color: #374151;
+        }
+
+        .resource-role {
+            background: #f1f5f9;
+            font-weight: 600;
+            color: #1e293b;
+        }
+
+        .activity-tag {
+            background: #eff6ff;
+            color: #1d4ed8;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            margin: 2px;
+            display: inline-block;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            body {
+                padding: 16px;
+            }
+
+            .content {
+                padding: 24px;
+            }
+
+            .header {
+                padding: 24px;
+            }
+
+            .header h1 {
+                font-size: 1.5rem;
+            }
+
+            .milestones-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .resource-table {
+                display: block;
+            }
+
+            .resource-cell {
+                display: block;
+                border-bottom: 1px solid #e2e8f0;
+            }
+
+            .resource-cell:last-child {
+                border-bottom: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 Project Timeline Dashboard</h1>
+            <p>Exception File Processing & Workflow Management System</p>
+        </div>
+
+        <div class="content">
+            <!-- Milestones Section -->
+            <div class="section">
+                <h2 class="section-title">📅 Project Milestones</h2>
+                <div class="milestones-grid">
+                    <div class="milestone completed">
+                        <div class="milestone-header">✅ BRD Sign-off</div>
+                        <div class="milestone-date">June 2025</div>
+                    </div>
+                    <div class="milestone current">
+                        <div class="milestone-header">🚧 Development Start</div>
+                        <div class="milestone-date">July 2025</div>
+                    </div>
+                    <div class="milestone upcoming">
+                        <div class="milestone-header">🧪 BA/QA Completion</div>
+                        <div class="milestone-date">March 2026</div>
+                    </div>
+                    <div class="milestone upcoming">
+                        <div class="milestone-header">👤 User UAT</div>
+                        <div class="milestone-date">April–July 2026</div>
+                    </div>
+                    <div class="milestone upcoming">
+                        <div class="milestone-header">🚀 Go-Live</div>
+                        <div class="milestone-date">August 2026</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Component Timeline Section -->
+            <div class="section">
+                <h2 class="section-title">📦 Component-wise Timeline</h2>
+                <div class="table-wrapper">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Component</th>
+                                <th>Owner</th>
+                                <th>Development</th>
+                                <th>BA/QA Window</th>
+                                <th>UAT</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td class="component-name">File Ingestion & Control File Validation</td>
+                                <td><span class="tag tag-python">Python Devs</span></td>
+                                <td><span class="timeline-tag">Jul–Aug 2025</span></td>
+                                <td><span class="timeline-tag">Sep 2025</span></td>
+                                <td><span class="timeline-tag">Apr 2026</span></td>
+                            </tr>
+                            <tr>
+                                <td class="component-name">Transformation Logic (aging, status)</td>
+                                <td>
+                                    <span class="tag tag-python">Python</span>
+                                    <span class="tag tag-java">Java</span>
+                                </td>
+                                <td><span class="timeline-tag">Aug–Sep 2025</span></td>
+                                <td><span class="timeline-tag">Sep–Oct 2025</span></td>
+                                <td><span class="timeline-tag">Apr 2026</span></td>
+                            </tr>
+                            <tr>
+                                <td class="component-name">Workflow Engine</td>
+                                <td><span class="tag tag-java">Java Devs</span></td>
+                                <td><span class="timeline-tag">Sep–Oct 2025</span></td>
+                                <td><span class="timeline-tag">Oct–Nov 2025</span></td>
+                                <td><span class="timeline-tag">Apr–May 2026</span></td>
+                            </tr>
+                            <tr>
+                                <td class="component-name">UI Steps Execution (React/Angular)</td>
+                                <td><span class="tag tag-ui">UI Devs</span></td>
+                                <td><span class="timeline-tag">Oct–Dec 2025</span></td>
+                                <td><span class="timeline-tag">Dec 2025–Jan 2026</span></td>
+                                <td><span class="timeline-tag">May 2026</span></td>
+                            </tr>
+                            <tr>
+                                <td class="component-name">Entitlements Module</td>
+                                <td><span class="tag tag-java">Java Dev</span></td>
+                                <td><span class="timeline-tag">Nov–Dec 2025</span></td>
+                                <td><span class="timeline-tag">Jan 2026</span></td>
+                                <td><span class="timeline-tag">May 2026</span></td>
+                            </tr>
+                            <tr>
+                                <td class="component-name">Audit and Logging</td>
+                                <td><span class="tag tag-java">Java Dev</span></td>
+                                <td><span class="timeline-tag">Nov–Dec 2025</span></td>
+                                <td><span class="timeline-tag">Jan 2026</span></td>
+                                <td><span class="timeline-tag">May 2026</span></td>
+                            </tr>
+                            <tr>
+                                <td class="component-name">Reporting & Export</td>
+                                <td><span class="tag tag-java">Java Dev</span></td>
+                                <td><span class="timeline-tag">Jan–Feb 2026</span></td>
+                                <td><span class="timeline-tag">Feb–Mar 2026</span></td>
+                                <td><span class="timeline-tag">Jun 2026</span></td>
+                            </tr>
+                            <tr>
+                                <td class="component-name">Infra Setup (server, DB, schedulers)</td>
+                                <td><span class="tag tag-infra">Tech Lead + Infra</span></td>
+                                <td><span class="timeline-tag">Jul–Aug 2025</span></td>
+                                <td>–</td>
+                                <td>–</td>
+                            </tr>
+                            <tr>
+                                <td class="component-name">Integration & Regression Testing</td>
+                                <td><span class="tag tag-qa">QA</span></td>
+                                <td><span class="timeline-tag">Jan–Mar 2026</span></td>
+                                <td>–</td>
+                                <td>–</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Resource Allocation Section -->
+            <div class="section">
+                <h2 class="section-title">👥 Resource Allocation Plan</h2>
+                <div class="resource-table">
+                    <div class="resource-cell resource-header">Role</div>
+                    <div class="resource-cell resource-header">Jul–Sep 2025</div>
+                    <div class="resource-cell resource-header">Oct–Dec 2025</div>
+                    <div class="resource-cell resource-header">Jan–Mar 2026</div>
+                    <div class="resource-cell resource-header">Apr–Jul 2026</div>
+
+                    <div class="resource-cell resource-role">PM</div>
+                    <div class="resource-cell"><span class="activity-tag">Oversight</span></div>
+                    <div class="resource-cell"><span class="activity-tag">Reporting</span></div>
+                    <div class="resource-cell"><span class="activity-tag">QA Signoff</span></div>
+                    <div class="resource-cell"><span class="activity-tag">UAT Support</span></div>
+
+                    <div class="resource-cell resource-role">BA</div>
+                    <div class="resource-cell"><span class="activity-tag">BRD Support</span></div>
+                    <div class="resource-cell"><span class="activity-tag">Use Case Support</span></div>
+                    <div class="resource-cell"><span class="activity-tag">Test Case Closure</span></div>
+                    <div class="resource-cell"><span class="activity-tag">UAT Liaison</span></div>
+
+                    <div class="resource-cell resource-role">QA</div>
+                    <div class="resource-cell"><span class="activity-tag">Parallel Testing</span></div>
+                    <div class="resource-cell"><span class="activity-tag">Integration Setup</span></div>
+                    <div class="resource-cell"><span class="activity-tag">Full System QA</span></div>
+                    <div class="resource-cell"><span class="activity-tag">UAT Support Only</span></div>
+
+                    <div class="resource-cell resource-role">Java Devs</div>
+                    <div class="resource-cell"><span class="activity-tag">APIs, Workflow</span></div>
+                    <div class="resource-cell"><span class="activity-tag">Entitlements, Logging</span></div>
+                    <div class="resource-cell"><span class="activity-tag">Support QA</span></div>
+                    <div class="resource-cell"><span class="activity-tag">Support UAT</span></div>
+
+                    <div class="resource-cell resource-role">Python Devs</div>
+                    <div class="resource-cell"><span class="activity-tag">Ingestion Logic</span></div>
+                    <div class="resource-cell"><span class="activity-tag">Transform Logic</span></div>
+                    <div class="resource-cell"><span class="activity-tag">Support QA</span></div>
+                    <div class="resource-cell"><span class="activity-tag">Support UAT</span></div>
+
+                    <div class="resource-cell resource-role">UI Devs</div>
+                    <div class="resource-cell"><span class="activity-tag">Step UI</span></div>
+                    <div class="resource-cell"><span class="activity-tag">Validation & User Flows</span></div>
+                    <div class="resource-cell"><span class="activity-tag">Bug Fixing</span></div>
+                    <div class="resource-cell"><span class="activity-tag">Support UAT</span></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
