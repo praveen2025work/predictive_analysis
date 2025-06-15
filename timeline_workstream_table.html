@@ -1,0 +1,784 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Exception Management System - Timeline by Work Stream</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background: #f5f5f5;
+        }
+        
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        h1, h2 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        
+        .timeline-table, .resource-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            font-size: 10px;
+        }
+        
+        .timeline-table th, .resource-table th {
+            background: #607d8b;
+            color: white;
+            padding: 8px 4px;
+            text-align: center;
+            border: 1px solid #2c3e50;
+            font-weight: bold;
+        }
+        
+        .timeline-table td, .resource-table td {
+            border: 1px solid #bdc3c7;
+            padding: 6px 3px;
+            text-align: center;
+            vertical-align: middle;
+        }
+        
+        /* Feature Group Headers */
+        .feature-group {
+            background: #f5f5f5 !important;
+            font-weight: bold;
+            color: #2c3e50;
+            text-align: left;
+            padding: 8px;
+        }
+        
+        .feature-foundation { background: #fff3cd !important; }
+        .feature-parallel { background: #cfe2ff !important; }
+        .feature-integration { background: #d1ecf1 !important; }
+        
+        /* Component rows */
+        .component-row td:first-child {
+            text-align: left;
+            padding-left: 10px;
+            font-weight: 500;
+        }
+        
+        /* Work Stream Columns */
+        .ws-file { background: #f0f8ff; }
+        .ws-backend { background: #f5fff5; }
+        .ws-frontend { background: #fffaf0; }
+        .ws-workflow { background: #faf5ff; }
+        .ws-entitlement { background: #fff5f5; }
+        .ws-reporting { background: #f0fff8; }
+        
+        /* Phase indicators */
+        .phase-dev { background: #2196F3; color: white; font-weight: bold; }
+        .phase-qa { background: #FF5722; color: white; font-weight: bold; }
+        .phase-uat { background: #FF9800; color: white; font-weight: bold; }
+        .phase-complete { background: #4CAF50; color: white; font-weight: bold; }
+        .phase-na { background: #E0E0E0; color: #666; }
+        
+        /* Priority indicators */
+        .priority-critical { border-left: 4px solid #F44336; }
+        .priority-high { border-left: 4px solid #FF9800; }
+        .priority-medium { border-left: 4px solid #2196F3; }
+        
+        .notes {
+            font-size: 8px;
+            color: #666;
+            font-style: italic;
+        }
+        
+        .legend {
+            margin: 20px 0;
+            padding: 15px;
+            background: #ecf0f1;
+            border-radius: 5px;
+        }
+        
+        .legend-item {
+            display: inline-block;
+            margin: 5px 10px;
+            padding: 3px 8px;
+            border-radius: 3px;
+            font-size: 11px;
+            font-weight: bold;
+        }
+        
+        /* Resource Allocation Table */
+        .resource-table {
+            margin-top: 40px;
+        }
+        
+        .team-pm { background: #fdfdfd; }
+        .team-ba { background: #fffef7; }
+        .team-java { background: #f8fcff; }
+        .team-python { background: #fdfaff; }
+        .team-ui { background: #f8fff8; }
+        .team-qa { background: #fffafc; }
+        
+        .date-cell {
+            font-size: 9px;
+            font-weight: bold;
+        }
+        
+        @media print {
+            body { margin: 0; }
+            .container { box-shadow: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Exception Management System - Timeline by Work Stream</h1>
+        <div style="text-align: center; margin-bottom: 20px; color: #666;">
+            <strong>Total Resources: 12</strong> (1 PM, 1 BA, 2 QA, 3 Python, 4 Java, 3 UI Developers)
+        </div>
+        
+        <div class="legend">
+            <strong>Legend:</strong>
+            <span class="legend-item phase-dev">Development</span>
+            <span class="legend-item phase-qa">QA/Testing</span>
+            <span class="legend-item phase-uat">UAT</span>
+            <span class="legend-item phase-complete">Complete</span>
+            <span class="legend-item phase-na">N/A</span>
+        </div>
+        
+        <table class="timeline-table">
+            <thead>
+                <tr>
+                    <th rowspan="3" style="width: 20%;">Component</th>
+                    <th rowspan="3" style="width: 6%;">Priority</th>
+                    <th rowspan="3" style="width: 8%;">Owner</th>
+                    <th colspan="12">Work Streams</th>
+                    <th rowspan="3" style="width: 6%;">UAT Date</th>
+                </tr>
+                <tr>
+                    <th colspan="2" class="ws-file">File Ingestion</th>
+                    <th colspan="2" class="ws-backend">Backend Services</th>
+                    <th colspan="2" class="ws-frontend">Frontend UI</th>
+                    <th colspan="2" class="ws-workflow">Workflow</th>
+                    <th colspan="2" class="ws-entitlement">Entitlements</th>
+                    <th colspan="2" class="ws-reporting">Reporting</th>
+                </tr>
+                <tr>
+                    <th class="ws-file" style="width: 5%;">Start</th>
+                    <th class="ws-file" style="width: 5%;">End</th>
+                    <th class="ws-backend" style="width: 5%;">Start</th>
+                    <th class="ws-backend" style="width: 5%;">End</th>
+                    <th class="ws-frontend" style="width: 5%;">Start</th>
+                    <th class="ws-frontend" style="width: 5%;">End</th>
+                    <th class="ws-workflow" style="width: 5%;">Start</th>
+                    <th class="ws-workflow" style="width: 5%;">End</th>
+                    <th class="ws-entitlement" style="width: 5%;">Start</th>
+                    <th class="ws-entitlement" style="width: 5%;">End</th>
+                    <th class="ws-reporting" style="width: 5%;">Start</th>
+                    <th class="ws-reporting" style="width: 5%;">End</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- PHASE 1: FOUNDATION FEATURES -->
+                <tr>
+                    <td colspan="15" class="feature-group feature-foundation">PHASE 1: FOUNDATION - Data Pipeline (Jul-Sep 2025)</td>
+                </tr>
+                
+                <tr class="component-row priority-critical">
+                    <td>File Watcher Service
+                        <div class="notes">Monitor Atlas & User files, Automated triggers</div>
+                    </td>
+                    <td>Critical</td>
+                    <td>Python Dev A</td>
+                    <td class="date-cell phase-dev">15-Jul-2025</td>
+                    <td class="date-cell phase-dev">15-Aug-2025</td>
+                    <td class="phase-na">-</td>
+                    <td class="phase-na">-</td>
+                    <td class="phase-na">-</td>
+                    <td class="phase-na">-</td>
+                    <td class="phase-na">-</td>
+                    <td class="phase-na">-</td>
+                    <td class="phase-na">-</td>
+                    <td class="phase-na">-</td>
+                    <td class="phase-na">-</td>
+                    <td class="phase-na">-</td>
+                    <td class="date-cell phase-uat">15-Apr-2026</td>
+                </tr>
+                
+                <tr class="component-row priority-critical">
+                    <td>File Validation Engine
+                        <div class="notes">Schema validation, Data quality checks</div>
+                    </td>
+                    <td>Critical</td>
+                    <td>Python Dev B</td>
+                    <td class="date-cell phase-dev">15-Jul-2025</td>
+                    <td class="date-cell phase-dev">15-Aug-2025</td>
+                    <td class="date-cell phase-qa">16-Aug-2025</td>
+                    <td class="date-cell phase-qa">15-Sep-2025</td>
+                    <td class="phase-na">-</td>
+                    <td class="phase-na">-</td>
+                    <td class="phase-na">-</td>
+                    <td class="phase-na">-</td>
+                    <td class="phase-na">-</td>
+                    <td class="phase-na">-</td>
+                    <td class="phase-na">-</td>
+                    <td class="phase-na">-</td>
+                    <td class="date-cell phase-uat">15-Apr-2026</td>
+                </tr>
+                
+                <tr class="component-row priority-critical">
+                    <td>Data Transformation Service
+                        <div class="notes">Exception processing, Data enrichment</div>
+                    </td>
+                    <td>Critical</td>
+                    <td>Python Dev C + Java Dev A</td>
+                    <td class="date-cell phase-dev">16-Aug-2025</td>
+                    <td class="date-cell phase-dev">15-Sep-2025</td>
+                    <td class="date-cell phase-dev">16-Aug-2025</td>
+                    <td class="date-cell phase-dev">15-Sep-2025</td>
+                    <td class="phase-na">-</td>
+                    <td class="phase-na">-</td>
+                    <td class="phase-na">-</td>
+                    <td class="phase-na">-</td>
+                    <td class="phase-na">-</td>
+                    <td class="phase-na">-</td>
+                    <td class="phase-na">-</td>
+                    <td class="phase-na">-</td>
+                    <td class="date-cell phase-uat">15-Apr-2026</td>
+                </tr>
+                
+                <tr class="component-row priority-critical">
+                    <td>Data Loading & Storage
+                        <div class="notes">Database persistence, Data versioning</div>
+                    </td>
+                    <td>Critical</td>
+                    <td>Java Dev B</td>
+                    <td class="phase-na">-</td>
+                    <td class="phase-na">-</td>
+                    <td class="date-cell phase-dev">16-Aug-2025</td>
+                    <td class="date-cell phase-dev">15-Sep-2025</td>
+                    <td class="phase-na">-</td>
+                    <td class="phase-na">-</td>
+                    <td class="phase-na">-</td>
+                    <td class="phase-na">-</td>
+                    <td class="phase-na">-</td>
+                    <td class="phase-na">-</td>
+                    <td class="phase-na">-</td>
+                    <td class="phase-na">-</td>
+                    <td class="date-cell phase-uat">15-Apr-2026</td>
+                </tr>
+                
+                <tr class="component-row priority-high">
+                    <td>Aging & Status Logic
+                        <div class="notes">Exception aging, Status lifecycle management</div>
+                    </td>
+                    <td>High</td>
+                    <td>Java Dev C</td>
+                    <td class="phase-na">-</td>
+                    <td class="phase-na">-</td>
+                    <td class="date-cell phase-dev">15-Sep-2025</td>
+                    <td class="date-cell phase-dev">15-Oct-2025</td>
+                    <td class="phase-na">-</td>
+                    <td class="phase-na">-</td>
+                    <td class="phase-na">-</td>
+                    <td class="phase-na">-</td>
+                    <td class="phase-na">-</td>
+                    <td class="phase-na">-</td>
+                    <td class="phase-na">-</td>
+                    <td class="phase-na">-</td>
+                    <td class="date-cell phase-uat">15-Apr-2026</td>
+                </tr>
+                
+                <!-- PHASE 2A: PARALLEL DEVELOPMENT - UI -->
+                <tr>
+                    <td colspan="15" class="feature-group feature-parallel">PHASE 2A: EXCEPTION DASHBOARD - Mock Data Parallel (Aug 2025-Feb 2026)</td>
+                </tr>
+                
+                <tr class="component-row priority-high">
+                    <td>Exception View & Management
+                        <div class="notes">Data grid, filtering, status management, edit capabilities</div>
+                    </td>
+                    <td>High</td>
+                    <td>UI Dev A</td>
+                    <td class="phase-na">-</td>
+                    <td class="phase-na">-</td>
+                    <td class="date-cell phase-dev">15-Aug-2025</td>
+                    <td class="date-cell phase-dev">15-Sep-2025</td>
+                    <td class="date-cell phase-dev">15-Aug-2025</td>
+                    <td class="date-cell phase-dev">15-Oct-2025</td>
+                    <td class="phase-na">-</td>
+                    <td class="phase-na">-</td>
+                    <td class="phase-na">-</td>
+                    <td class="phase-na">-</td>
+                    <td class="phase-na">-</td>
+                    <td class="phase-na">-</td>
+                    <td class="date-cell phase-uat">15-May-2026</td>
+                </tr>
+                
+                <tr class="component-row priority-medium">
+                    <td>Analytics & Reporting UI
+                        <div class="notes">Exception trends, aging reports, export functionality</div>
+                    </td>
+                    <td>Medium</td>
+                    <td>UI Dev B</td>
+                    <td class="phase-na">-</td>
+                    <td class="phase-na">-</td>
+                    <td class="date-cell phase-dev">15-Nov-2025</td>
+                    <td class="date-cell phase-dev">15-Dec-2025</td>
+                    <td class="date-cell phase-dev">15-Oct-2025</td>
+                    <td class="date-cell phase-dev">15-Dec-2025</td>
+                    <td class="phase-na">-</td>
+                    <td class="phase-na">-</td>
+                    <td class="phase-na">-</td>
+                    <td class="phase-na">-</td>
+                    <td class="date-cell phase-dev">15-Nov-2025</td>
+                    <td class="date-cell phase-dev">15-Jan-2026</td>
+                    <td class="date-cell phase-uat">15-Jun-2026</td>
+                </tr>
+                
+                <!-- PHASE 2B: ENTITLEMENTS -->
+                <tr>
+                    <td colspan="15" class="feature-group feature-parallel">PHASE 2B: ENTITLEMENTS - File Based Parallel (Sep-Dec 2025)</td>
+                </tr>
+                
+                <tr class="component-row priority-high">
+                    <td>Entitlements File Processing
+                        <div class="notes">User entitlement files, role & permission mapping</div>
+                    </td>
+                    <td>High</td>
+                    <td>Python Dev C</td>
+                    <td class="date-cell phase-dev">15-Sep-2025</td>
+                    <td class="date-cell phase-dev">15-Oct-2025</td>
+                    <td class="date-cell phase-dev">16-Oct-2025</td>
+                    <td class="date-cell phase-dev">15-Nov-2025</td>
+                    <td class="phase-na">-</td>
+                    <td class="phase-na">-</td>
+                    <td class="phase-na">-</td>
+                    <td class="phase-na">-</td>
+                    <td class="date-cell phase-dev">15-Sep-2025</td>
+                    <td class="date-cell phase-dev">15-Nov-2025</td>
+                    <td class="phase-na">-</td>
+                    <td class="phase-na">-</td>
+                    <td class="date-cell phase-uat">15-May-2026</td>
+                </tr>
+                
+                <tr class="component-row priority-medium">
+                    <td>Workflow Entitlement Integration
+                        <div class="notes">Workflow stage permissions, dynamic access control</div>
+                    </td>
+                    <td>Medium</td>
+                    <td>Java Dev D</td>
+                    <td class="phase-na">-</td>
+                    <td class="phase-na">-</td>
+                    <td class="date-cell phase-dev">16-Nov-2025</td>
+                    <td class="date-cell phase-dev">15-Dec-2025</td>
+                    <td class="phase-na">-</td>
+                    <td class="phase-na">-</td>
+                    <td class="date-cell phase-dev">16-Oct-2025</td>
+                    <td class="date-cell phase-dev">15-Dec-2025</td>
+                    <td class="date-cell phase-dev">16-Oct-2025</td>
+                    <td class="date-cell phase-dev">15-Dec-2025</td>
+                    <td class="phase-na">-</td>
+                    <td class="phase-na">-</td>
+                    <td class="date-cell phase-uat">15-May-2026</td>
+                </tr>
+                
+                <!-- PHASE 2C: WORKFLOW -->
+                <tr>
+                    <td colspan="15" class="feature-group feature-parallel">PHASE 2C: WORKFLOW SCREENS - Mock + Integration Parallel (Sep 2025-Feb 2026)</td>
+                </tr>
+                
+                <tr class="component-row priority-high">
+                    <td>Workflow Engine Integration
+                        <div class="notes">External workflow system connection, step dependency management</div>
+                    </td>
+                    <td>High</td>
+                    <td>Java Dev C</td>
+                    <td class="phase-na">-</td>
+                    <td class="phase-na">-</td>
+                    <td class="date-cell phase-dev">15-Sep-2025</td>
+                    <td class="date-cell phase-dev">15-Oct-2025</td>
+                    <td class="phase-na">-</td>
+                    <td class="phase-na">-</td>
+                    <td class="date-cell phase-dev">15-Sep-2025</td>
+                    <td class="date-cell phase-dev">15-Nov-2025</td>
+                    <td class="phase-na">-</td>
+                    <td class="phase-na">-</td>
+                    <td class="phase-na">-</td>
+                    <td class="phase-na">-</td>
+                    <td class="date-cell phase-uat">15-Apr-2026</td>
+                </tr>
+                
+                <tr class="component-row priority-high">
+                    <td>Risk Screen
+                        <div class="notes">Risk assessment interface, data storage in exception system</div>
+                    </td>
+                    <td>High</td>
+                    <td>UI Dev C</td>
+                    <td class="phase-na">-</td>
+                    <td class="phase-na">-</td>
+                    <td class="date-cell phase-dev">16-Oct-2025</td>
+                    <td class="date-cell phase-dev">15-Nov-2025</td>
+                    <td class="date-cell phase-dev">16-Oct-2025</td>
+                    <td class="date-cell phase-dev">15-Nov-2025</td>
+                    <td class="date-cell phase-dev">16-Oct-2025</td>
+                    <td class="date-cell phase-dev">15-Nov-2025</td>
+                    <td class="phase-na">-</td>
+                    <td class="phase-na">-</td>
+                    <td class="phase-na">-</td>
+                    <td class="phase-na">-</td>
+                    <td class="date-cell phase-uat">15-Apr-2026</td>
+                </tr>
+                
+                <tr class="component-row priority-high">
+                    <td>Front Office / Product Control
+                        <div class="notes">Trade validation interface, workflow step execution</div>
+                    </td>
+                    <td>High</td>
+                    <td>UI Dev C</td>
+                    <td class="phase-na">-</td>
+                    <td class="phase-na">-</td>
+                    <td class="date-cell phase-dev">16-Nov-2025</td>
+                    <td class="date-cell phase-dev">15-Dec-2025</td>
+                    <td class="date-cell phase-dev">16-Nov-2025</td>
+                    <td class="date-cell phase-dev">15-Dec-2025</td>
+                    <td class="date-cell phase-dev">16-Nov-2025</td>
+                    <td class="date-cell phase-dev">15-Dec-2025</td>
+                    <td class="phase-na">-</td>
+                    <td class="phase-na">-</td>
+                    <td class="phase-na">-</td>
+                    <td class="phase-na">-</td>
+                    <td class="date-cell phase-uat">15-May-2026</td>
+                </tr>
+                
+                <tr class="component-row priority-medium">
+                    <td>Remaining Workflow Screens
+                        <div class="notes">Sign Off Sheet, RIS MR/WCR/CCR, Regulatory Reporting, Mgmt Approvals</div>
+                    </td>
+                    <td>Medium</td>
+                    <td>UI Dev C</td>
+                    <td class="phase-na">-</td>
+                    <td class="phase-na">-</td>
+                    <td class="date-cell phase-dev">16-Dec-2025</td>
+                    <td class="date-cell phase-dev">15-Jan-2026</td>
+                    <td class="date-cell phase-dev">16-Dec-2025</td>
+                    <td class="date-cell phase-dev">15-Feb-2026</td>
+                    <td class="date-cell phase-dev">16-Dec-2025</td>
+                    <td class="date-cell phase-dev">15-Feb-2026</td>
+                    <td class="phase-na">-</td>
+                    <td class="phase-na">-</td>
+                    <td class="phase-na">-</td>
+                    <td class="phase-na">-</td>
+                    <td class="date-cell phase-uat">15-Jun-2026</td>
+                </tr>
+                
+                <!-- PHASE 3: INTEGRATION -->
+                <tr>
+                    <td colspan="15" class="feature-group feature-integration">PHASE 3: INTEGRATION & REAL DATA (Jan-Jul 2026)</td>
+                </tr>
+                
+                <tr class="component-row priority-critical">
+                    <td>Real Data Integration
+                        <div class="notes">Replace mock data, end-to-end testing, performance optimization</div>
+                    </td>
+                    <td>Critical</td>
+                    <td>All Devs</td>
+                    <td class="date-cell phase-qa">15-Jan-2026</td>
+                    <td class="date-cell phase-qa">15-Mar-2026</td>
+                    <td class="date-cell phase-qa">15-Jan-2026</td>
+                    <td class="date-cell phase-qa">15-Mar-2026</td>
+                    <td class="date-cell phase-qa">16-Feb-2026</td>
+                    <td class="date-cell phase-qa">15-Apr-2026</td>
+                    <td class="date-cell phase-qa">16-Feb-2026</td>
+                    <td class="date-cell phase-qa">15-Apr-2026</td>
+                    <td class="date-cell phase-qa">16-Feb-2026</td>
+                    <td class="date-cell phase-qa">15-Apr-2026</td>
+                    <td class="date-cell phase-qa">16-Mar-2026</td>
+                    <td class="date-cell phase-qa">15-Apr-2026</td>
+                    <td class="date-cell phase-uat">15-May-2026</td>
+                </tr>
+                
+                <tr class="component-row priority-high">
+                    <td>Workflow Integration Testing
+                        <div class="notes">Real workflow system connection, cross-system testing</div>
+                    </td>
+                    <td>High</td>
+                    <td>Java+QA</td>
+                    <td class="phase-na">-</td>
+                    <td class="phase-na">-</td>
+                    <td class="date-cell phase-qa">16-Feb-2026</td>
+                    <td class="date-cell phase-qa">15-Apr-2026</td>
+                    <td class="date-cell phase-qa">16-Mar-2026</td>
+                    <td class="date-cell phase-qa">15-May-2026</td>
+                    <td class="date-cell phase-qa">16-Feb-2026</td>
+                    <td class="date-cell phase-qa">15-Apr-2026</td>
+                    <td class="date-cell phase-qa">16-Mar-2026</td>
+                    <td class="date-cell phase-qa">15-May-2026</td>
+                    <td class="phase-na">-</td>
+                    <td class="phase-na">-</td>
+                    <td class="date-cell phase-uat">15-Jun-2026</td>
+                </tr>
+                
+                <tr class="component-row priority-high">
+                    <td>Downstream Data Integration
+                        <div class="notes">Motif & Axiom connections, real-time export, error handling</div>
+                    </td>
+                    <td>High</td>
+                    <td>Python Dev A</td>
+                    <td class="date-cell phase-qa">16-Apr-2026</td>
+                    <td class="date-cell phase-qa">15-May-2026</td>
+                    <td class="date-cell phase-qa">16-Mar-2026</td>
+                    <td class="date-cell phase-qa">15-May-2026</td>
+                    <td class="phase-na">-</td>
+                    <td class="phase-na">-</td>
+                    <td class="date-cell phase-qa">16-Apr-2026</td>
+                    <td class="date-cell phase-qa">15-Jun-2026</td>
+                    <td class="phase-na">-</td>
+                    <td class="phase-na">-</td>
+                    <td class="date-cell phase-qa">16-May-2026</td>
+                    <td class="date-cell phase-qa">15-Jun-2026</td>
+                    <td class="date-cell phase-uat">15-Jul-2026</td>
+                </tr>
+                
+                <!-- INFRASTRUCTURE -->
+                <tr>
+                    <td colspan="15" class="feature-group">INFRASTRUCTURE & SUPPORT (Ongoing)</td>
+                </tr>
+                
+                <tr class="component-row priority-medium">
+                    <td>Infrastructure Setup
+                        <div class="notes">Servers, DB, schedulers, monitoring</div>
+                    </td>
+                    <td>Medium</td>
+                    <td>Java Dev A + B</td>
+                    <td class="date-cell phase-dev">15-Jul-2025</td>
+                    <td class="date-cell phase-dev">15-Aug-2025</td>
+                    <td class="date-cell phase-dev">15-Jul-2025</td>
+                    <td class="date-cell phase-dev">15-Aug-2025</td>
+                    <td class="date-cell phase-complete">15-Sep-2025</td>
+                    <td class="date-cell phase-complete">Ongoing</td>
+                    <td class="date-cell phase-complete">15-Oct-2025</td>
+                    <td class="date-cell phase-complete">Ongoing</td>
+                    <td class="date-cell phase-complete">15-Oct-2025</td>
+                    <td class="date-cell phase-complete">Ongoing</td>
+                    <td class="date-cell phase-complete">15-Nov-2025</td>
+                    <td class="date-cell phase-complete">Ongoing</td>
+                    <td class="date-cell phase-complete">Ongoing</td>
+                </tr>
+                
+                <tr class="component-row priority-medium">
+                    <td>Audit & Logging Service
+                        <div class="notes">Activity tracking, compliance logs, error handling</div>
+                    </td>
+                    <td>Medium</td>
+                    <td>Java Dev D</td>
+                    <td class="phase-na">-</td>
+                    <td class="phase-na">-</td>
+                    <td class="date-cell phase-dev">15-Nov-2025</td>
+                    <td class="date-cell phase-dev">15-Dec-2025</td>
+                    <td class="date-cell phase-complete">15-Jan-2026</td>
+                    <td class="date-cell phase-complete">Ongoing</td>
+                    <td class="date-cell phase-complete">15-Jan-2026</td>
+                    <td class="date-cell phase-complete">Ongoing</td>
+                    <td class="date-cell phase-complete">15-Jan-2026</td>
+                    <td class="date-cell phase-complete">Ongoing</td>
+                    <td class="date-cell phase-dev">15-Nov-2025</td>
+                    <td class="date-cell phase-dev">15-Dec-2025</td>
+                    <td class="date-cell phase-uat">15-May-2026</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h2>Resource Allocation Matrix - 12 Resources</h2>
+        
+        <table class="resource-table">
+            <thead>
+                <tr>
+                    <th style="width: 15%;">Role</th>
+                    <th style="width: 15%;">Resource Name</th>
+                    <th style="width: 15%;">Primary Work Stream</th>
+                    <th style="width: 18%;">Jul-Oct 2025</th>
+                    <th style="width: 18%;">Nov 2025-Feb 2026</th>
+                    <th style="width: 19%;">Mar-Jul 2026</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr class="team-pm">
+                    <td>Project Manager</td>
+                    <td>PM Lead</td>
+                    <td>Overall Coordination</td>
+                    <td>Foundation Phase Management<br/>15-Jul to 15-Oct</td>
+                    <td>Parallel Development Oversight<br/>15-Nov to 15-Feb</td>
+                    <td>Integration & UAT Management<br/>15-Mar to 15-Jul</td>
+                </tr>
+                
+                <tr class="team-ba">
+                    <td>Business Analyst</td>
+                    <td>BA Lead</td>
+                    <td>Requirements & Testing</td>
+                    <td>BRD Support & Test Cases<br/>15-Jul to 15-Oct</td>
+                    <td>Mock Data Design & Validation<br/>15-Nov to 15-Feb</td>
+                    <td>UAT Coordination & Sign-off<br/>15-Mar to 15-Jul</td>
+                </tr>
+                
+                <tr class="team-qa">
+                    <td>QA Engineer</td>
+                    <td>QA Lead</td>
+                    <td>Testing Coordination</td>
+                    <td>Test Framework Setup<br/>15-Jul to 15-Oct</td>
+                    <td>Component Testing<br/>15-Nov to 15-Feb</td>
+                    <td>Integration & System Testing<br/>15-Mar to 15-Jul</td>
+                </tr>
+                
+                <tr class="team-qa">
+                    <td>QA Engineer</td>
+                    <td>QA Tester</td>
+                    <td>Manual & Automation Testing</td>
+                    <td>Test Case Development<br/>15-Jul to 15-Oct</td>
+                    <td>Parallel Testing Support<br/>15-Nov to 15-Feb</td>
+                    <td>End-to-End Testing<br/>15-Mar to 15-Jul</td>
+                </tr>
+                
+                <tr class="team-python">
+                    <td>Python Developer</td>
+                    <td>Python Dev A (File Processing)</td>
+                    <td>File Ingestion</td>
+                    <td>File Watcher Service<br/>15-Jul to 15-Aug</td>
+                    <td>Available for Support<br/>15-Nov to 15-Feb</td>
+                    <td>Downstream Integration<br/>16-Apr to 15-May</td>
+                </tr>
+                
+                <tr class="team-python">
+                    <td>Python Developer</td>
+                    <td>Python Dev B (File Validation)</td>
+                    <td>File Ingestion</td>
+                    <td>File Validation Engine<br/>15-Jul to 15-Aug</td>
+                    <td>Available for Support<br/>15-Nov to 15-Feb</td>
+                    <td>Real Data Integration<br/>15-Jan to 15-Mar</td>
+                </tr>
+                
+                <tr class="team-python">
+                    <td>Python Developer</td>
+                    <td>Python Dev C (Data Transform + Entitlement)</td>
+                    <td>Backend Services + Entitlements</td>
+                    <td>Data Transformation<br/>16-Aug to 15-Sep</td>
+                    <td>Entitlement File Processing<br/>15-Sep to 15-Nov</td>
+                    <td>Real Data Integration<br/>15-Jan to 15-Mar</td>
+                </tr>
+                
+                <tr class="team-java">
+                    <td>Java Developer</td>
+                    <td>Java Dev A (Core Services + Infra)</td>
+                    <td>Backend Services</td>
+                    <td>Data Loading & Storage + Infra<br/>16-Aug to 15-Sep</td>
+                    <td>Service Enhancement<br/>16-Oct to 15-Dec</td>
+                    <td>Real Data Integration<br/>15-Jan to 15-Mar</td>
+                </tr>
+                
+                <tr class="team-java">
+                    <td>Java Developer</td>
+                    <td>Java Dev B (Business Logic + Infra)</td>
+                    <td>Backend Services</td>
+                    <td>Aging & Status Logic + Infra<br/>15-Sep to 15-Oct</td>
+                    <td>Performance Optimization<br/>16-Oct to 15-Dec</td>
+                    <td>Logic Testing & Tuning<br/>15-Jan to 15-Apr</td>
+                </tr>
+                
+                <tr class="team-java">
+                    <td>Java Developer</td>
+                    <td>Java Dev C (Workflow Engine)</td>
+                    <td>Workflow</td>
+                    <td>Workflow Engine Integration<br/>15-Sep to 15-Oct</td>
+                    <td>Engine Enhancement<br/>16-Nov to 15-Dec</td>
+                    <td>Cross-system Testing<br/>16-Feb to 15-Apr</td>
+                </tr>
+                
+                <tr class="team-java">
+                    <td>Java Developer</td>
+                    <td>Java Dev D (Entitlements + Audit)</td>
+                    <td>Entitlements + Reporting</td>
+                    <td>Setup & Planning<br/>15-Sep to 15-Oct</td>
+                    <td>Workflow Entitlement + Audit Service<br/>16-Oct to 15-Dec</td>
+                    <td>Security Integration<br/>16-Feb to 15-Apr</td>
+                </tr>
+                
+                <tr class="team-ui">
+                    <td>UI Developer</td>
+                    <td>UI Dev A (Exception Management)</td>
+                    <td>Frontend UI</td>
+                    <td>Exception View & Management<br/>15-Aug to 15-Oct</td>
+                    <td>UI Enhancement & Testing<br/>16-Oct to 15-Dec</td>
+                    <td>Real Data Integration<br/>16-Feb to 15-Apr</td>
+                </tr>
+                
+                <tr class="team-ui">
+                    <td>UI Developer</td>
+                    <td>UI Dev B (Reporting + Analytics)</td>
+                    <td>Frontend UI</td>
+                    <td>Setup & Planning<br/>15-Aug to 15-Oct</td>
+                    <td>Analytics & Reporting UI<br/>15-Oct to 15-Dec</td>
+                    <td>Integration Testing<br/>16-Mar to 15-May</td>
+                </tr>
+                
+                <tr class="team-ui">
+                    <td>UI Developer</td>
+                    <td>UI Dev C (Workflow Screens)</td>
+                    <td>Workflow</td>
+                    <td>Setup & Planning<br/>15-Sep to 15-Oct</td>
+                    <td>Risk + Front Office + Workflow Screens<br/>16-Oct to 15-Feb</td>
+                    <td>Workflow Integration<br/>16-Feb to 15-May</td>
+                </tr>
+            </tbody>
+        </table>
+        
+        <div style="margin-top: 30px; padding: 15px; background: #f8f9fa; border-radius: 5px;">
+            <h3 style="margin-top: 0;">Resource Allocation Summary (12 Total):</h3>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin: 15px 0;">
+                <div>
+                    <strong>Management (2):</strong><br/>
+                    • 1 Project Manager<br/>
+                    • 1 Business Analyst
+                </div>
+                <div>
+                    <strong>Quality Assurance (2):</strong><br/>
+                    • 1 QA Lead<br/>
+                    • 1 QA Tester
+                </div>
+                <div>
+                    <strong>Python Development (3):</strong><br/>
+                    • File Processing & Validation<br/>
+                    • Data Transformation<br/>
+                    • Entitlements Processing
+                </div>
+                <div>
+                    <strong>Java Development (4):</strong><br/>
+                    • Backend Services & Storage<br/>
+                    • Business Logic & Infrastructure<br/>
+                    • Workflow Engine<br/>
+                    • Entitlements & Audit
+                </div>
+                <div>
+                    <strong>UI Development (3):</strong><br/>
+                    • Exception Management UI<br/>
+                    • Reporting & Analytics UI<br/>
+                    • Workflow Screens<br/>
+                    • React/Angular/TypeScript
+                </div>
+            </div>
+            
+            <h3>Key Timeline Benefits:</h3>
+            <ul style="margin: 10px 0; padding-left: 20px;">
+                <li><strong>Optimized Team Size:</strong> 12 resources perfectly balanced across technology stacks</li>
+                <li><strong>Separate Start/End Dates:</strong> Clear timeline tracking for each work stream</li>
+                <li><strong>Resource Optimization:</strong> Multi-skilled developers handling multiple components</li>
+                <li><strong>Parallel Execution:</strong> UI development starts with mock data while backend is being built</li>
+                <li><strong>Light Color Scheme:</strong> Professional, easy-to-read colors for presentations</li>
+                <li><strong>Go-Live Target:</strong> 15-Aug-2026 achievable with this optimized resource plan</li>
+                <li><strong>Excel Ready:</strong> Copy both tables directly for project tracking and analysis</li>
+            </ul>
+        </div>
+    </div>
+</body>
+</html>
