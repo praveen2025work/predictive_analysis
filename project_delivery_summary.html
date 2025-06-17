@@ -1,0 +1,763 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Exception Management System - Work Stream Progress</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f8fafc;
+            padding: 20px;
+            color: #1e293b;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #4f46e5, #7c3aed);
+            color: white;
+            padding: 25px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 1.8rem;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        .content {
+            padding: 20px;
+            overflow-x: auto;
+        }
+
+        .progress-table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 1200px;
+        }
+
+        .progress-table th {
+            background: #f1f5f9;
+            color: #374151;
+            padding: 12px 8px;
+            text-align: center;
+            border: 1px solid #e2e8f0;
+            font-weight: 600;
+            font-size: 0.9rem;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .progress-table th.workstream-header {
+            background: #4f46e5;
+            color: white;
+            text-align: left;
+            padding-left: 15px;
+            min-width: 200px;
+            max-width: 200px;
+        }
+
+        .progress-table td {
+            padding: 8px;
+            border: 1px solid #e2e8f0;
+            text-align: center;
+            vertical-align: middle;
+            height: 60px;
+        }
+
+        .workstream-name {
+            background: #f8fafc;
+            color: #1e293b;
+            font-weight: 600;
+            text-align: left;
+            padding-left: 15px;
+            font-size: 0.9rem;
+            border-right: 2px solid #4f46e5;
+        }
+
+        .progress-cell {
+            position: relative;
+            background: #f8fafc;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background: #e2e8f0;
+            border-radius: 10px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .progress-fill {
+            height: 100%;
+            border-radius: 10px;
+            transition: width 1s ease-in-out;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: white;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+        }
+
+        .progress-percentage {
+            font-size: 0.7rem;
+            color: #64748b;
+            margin-top: 4px;
+        }
+
+        /* Progress levels */
+        .progress-0 { background: #e2e8f0; width: 0%; }
+        .progress-25 { background: #f59e0b; width: 25%; }
+        .progress-50 { background: #3b82f6; width: 50%; }
+        .progress-75 { background: #10b981; width: 75%; }
+        .progress-100 { background: #059669; width: 100%; }
+
+        /* Work stream colors */
+        .ws-file { background-color: #fef3c7; }
+        .ws-backend { background-color: #d1fae5; }
+        .ws-frontend { background-color: #dbeafe; }
+        .ws-workflow { background-color: #f3e8ff; }
+        .ws-entitlement { background-color: #fce7f3; }
+        .ws-reporting { background-color: #ecfdf5; }
+
+        .month-header {
+            writing-mode: horizontal-tb;
+            font-size: 0.85rem;
+            min-width: 80px;
+        }
+
+        .current-month {
+            background: #fef3c7 !important;
+            color: #92400e !important;
+        }
+
+        .completed-month {
+            background: #dcfce7 !important;
+            color: #166534 !important;
+        }
+
+        .future-month {
+            background: #f1f5f9 !important;
+            color: #64748b !important;
+        }
+
+        @media (max-width: 768px) {
+            .content {
+                padding: 10px;
+            }
+            
+            .progress-table th,
+            .progress-table td {
+                padding: 6px 4px;
+                font-size: 0.8rem;
+            }
+            
+            .month-header {
+                font-size: 0.75rem;
+                min-width: 60px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Exception Management System</h1>
+            <p>Work Stream Progress by Month</p>
+        </div>
+
+        <div class="content">
+            <table class="progress-table">
+                <thead>
+                    <tr>
+                        <th class="workstream-header">Work Stream</th>
+                        <th class="month-header completed-month">Jul 25</th>
+                        <th class="month-header completed-month">Aug 25</th>
+                        <th class="month-header completed-month">Sep 25</th>
+                        <th class="month-header completed-month">Oct 25</th>
+                        <th class="month-header completed-month">Nov 25</th>
+                        <th class="month-header current-month">Dec 25</th>
+                        <th class="month-header future-month">Jan 26</th>
+                        <th class="month-header future-month">Feb 26</th>
+                        <th class="month-header future-month">Mar 26</th>
+                        <th class="month-header future-month">Apr 26</th>
+                        <th class="month-header future-month">May 26</th>
+                        <th class="month-header future-month">Jun 26</th>
+                        <th class="month-header future-month">Jul 26</th>
+                        <th class="month-header future-month">Aug 26</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- File Ingestion Work Stream -->
+                    <tr>
+                        <td class="workstream-name ws-file">File Ingestion</td>
+                        <td class="progress-cell">
+                            <div class="progress-bar">
+                                <div class="progress-fill progress-75">75%</div>
+                            </div>
+                            <div class="progress-percentage">File Watcher</div>
+                        </td>
+                        <td class="progress-cell">
+                            <div class="progress-bar">
+                                <div class="progress-fill progress-100">100%</div>
+                            </div>
+                            <div class="progress-percentage">Validation</div>
+                        </td>
+                        <td class="progress-cell">
+                            <div class="progress-bar">
+                                <div class="progress-fill progress-100">100%</div>
+                            </div>
+                            <div class="progress-percentage">Complete</div>
+                        </td>
+                        <td class="progress-cell">
+                            <div class="progress-bar">
+                                <div class="progress-fill progress-0"></div>
+                            </div>
+                            <div class="progress-percentage">-</div>
+                        </td>
+                        <td class="progress-cell">
+                            <div class="progress-bar">
+                                <div class="progress-fill progress-0"></div>
+                            </div>
+                            <div class="progress-percentage">-</div>
+                        </td>
+                        <td class="progress-cell">
+                            <div class="progress-bar">
+                                <div class="progress-fill progress-0"></div>
+                            </div>
+                            <div class="progress-percentage">-</div>
+                        </td>
+                        <td class="progress-cell">
+                            <div class="progress-bar">
+                                <div class="progress-fill progress-25">25%</div>
+                            </div>
+                            <div class="progress-percentage">Real Data</div>
+                        </td>
+                        <td class="progress-cell">
+                            <div class="progress-bar">
+                                <div class="progress-fill progress-50">50%</div>
+                            </div>
+                            <div class="progress-percentage">Integration</div>
+                        </td>
+                        <td class="progress-cell">
+                            <div class="progress-bar">
+                                <div class="progress-fill progress-75">75%</div>
+                            </div>
+                            <div class="progress-percentage">Testing</div>
+                        </td>
+                        <td class="progress-cell">
+                            <div class="progress-bar">
+                                <div class="progress-fill progress-0"></div>
+                            </div>
+                            <div class="progress-percentage">Downstream</div>
+                        </td>
+                        <td class="progress-cell">
+                            <div class="progress-bar">
+                                <div class="progress-fill progress-0"></div>
+                            </div>
+                            <div class="progress-percentage">Final Test</div>
+                        </td>
+                        <td class="progress-cell">
+                            <div class="progress-bar">
+                                <div class="progress-fill progress-0"></div>
+                            </div>
+                            <div class="progress-percentage">UAT</div>
+                        </td>
+                        <td class="progress-cell">
+                            <div class="progress-bar">
+                                <div class="progress-fill progress-0"></div>
+                            </div>
+                            <div class="progress-percentage">UAT</div>
+                        </td>
+                        <td class="progress-cell">
+                            <div class="progress-bar">
+                                <div class="progress-fill progress-0"></div>
+                            </div>
+                            <div class="progress-percentage">Go-Live</div>
+                        </td>
+                    </tr>
+
+                    <!-- Backend Services Work Stream -->
+                    <tr>
+                        <td class="workstream-name ws-backend">Backend Services</td>
+                        <td class="progress-cell">
+                            <div class="progress-bar">
+                                <div class="progress-fill progress-50">50%</div>
+                            </div>
+                            <div class="progress-percentage">Setup</div>
+                        </td>
+                        <td class="progress-cell">
+                            <div class="progress-bar">
+                                <div class="progress-fill progress-100">100%</div>
+                            </div>
+                            <div class="progress-percentage">Transform</div>
+                        </td>
+                        <td class="progress-cell">
+                            <div class="progress-bar">
+                                <div class="progress-fill progress-100">100%</div>
+                            </div>
+                            <div class="progress-percentage">Storage</div>
+                        </td>
+                        <td class="progress-cell">
+                            <div class="progress-bar">
+                                <div class="progress-fill progress-100">100%</div>
+                            </div>
+                            <div class="progress-percentage">Aging Logic</div>
+                        </td>
+                        <td class="progress-cell">
+                            <div class="progress-bar">
+                                <div class="progress-fill progress-75">75%</div>
+                            </div>
+                            <div class="progress-percentage">Services</div>
+                        </td>
+                        <td class="progress-cell">
+                            <div class="progress-bar">
+                                <div class="progress-fill progress-50">50%</div>
+                            </div>
+                            <div class="progress-percentage">Audit/Log</div>
+                        </td>
+                        <td class="progress-cell">
+                            <div class="progress-bar">
+                                <div class="progress-fill progress-75">75%</div>
+                            </div>
+                            <div class="progress-percentage">Real Data</div>
+                        </td>
+                        <td class="progress-cell">
+                            <div class="progress-bar">
+                                <div class="progress-fill progress-50">50%</div>
+                            </div>
+                            <div class="progress-percentage">Integration</div>
+                        </td>
+                        <td class="progress-cell">
+                            <div class="progress-bar">
+                                <div class="progress-fill progress-25">25%</div>
+                            </div>
+                            <div class="progress-percentage">Testing</div>
+                        </td>
+                        <td class="progress-cell">
+                            <div class="progress-bar">
+                                <div class="progress-fill progress-0"></div>
+                            </div>
+                            <div class="progress-percentage">UAT Prep</div>
+                        </td>
+                        <td class="progress-cell">
+                            <div class="progress-bar">
+                                <div class="progress-fill progress-0"></div>
+                            </div>
+                            <div class="progress-percentage">UAT</div>
+                        </td>
+                        <td class="progress-cell">
+                            <div class="progress-bar">
+                                <div class="progress-fill progress-0"></div>
+                            </div>
+                            <div class="progress-percentage">UAT</div>
+                        </td>
+                        <td class="progress-cell">
+                            <div class="progress-bar">
+                                <div class="progress-fill progress-0"></div>
+                            </div>
+                            <div class="progress-percentage">UAT</div>
+                        </td>
+                        <td class="progress-cell">
+                            <div class="progress-bar">
+                                <div class="progress-fill progress-0"></div>
+                            </div>
+                            <div class="progress-percentage">Go-Live</div>
+                        </td>
+                    </tr>
+
+                    <!-- Frontend UI Work Stream -->
+                    <tr>
+                        <td class="workstream-name ws-frontend">Frontend UI</td>
+                        <td class="progress-cell">
+                            <div class="progress-bar">
+                                <div class="progress-fill progress-0"></div>
+                            </div>
+                            <div class="progress-percentage">-</div>
+                        </td>
+                        <td class="progress-cell">
+                            <div class="progress-bar">
+                                <div class="progress-fill progress-50">50%</div>
+                            </div>
+                            <div class="progress-percentage">Exception UI</div>
+                        </td>
+                        <td class="progress-cell">
+                            <div class="progress-bar">
+                                <div class="progress-fill progress-75">75%</div>
+                            </div>
+                            <div class="progress-percentage">Mock Data</div>
+                        </td>
+                        <td class="progress-cell">
+                            <div class="progress-bar">
+                                <div class="progress-fill progress-100">100%</div>
+                            </div>
+                            <div class="progress-percentage">Management</div>
+                        </td>
+                        <td class="progress-cell">
+                            <div class="progress-bar">
+                                <div class="progress-fill progress-75">75%</div>
+                            </div>
+                            <div class="progress-percentage">Risk Screen</div>
+                        </td>
+                        <td class="progress-cell">
+                            <div class="progress-bar">
+                                <div class="progress-fill progress-100">100%</div>
+                            </div>
+                            <div class="progress-percentage">Front Office</div>
+                        </td>
+                        <td class="progress-cell">
+                            <div class="progress-bar">
+                                <div class="progress-fill progress-100">100%</div>
+                            </div>
+                            <div class="progress-percentage">Analytics</div>
+                        </td>
+                        <td class="progress-cell">
+                            <div class="progress-bar">
+                                <div class="progress-fill progress-75">75%</div>
+                            </div>
+                            <div class="progress-percentage">Workflow</div>
+                        </td>
+                        <td class="progress-cell">
+                            <div class="progress-bar">
+                                <div class="progress-fill progress-50">50%</div>
+                            </div>
+                            <div class="progress-percentage">Real Data</div>
+                        </td>
+                        <td class="progress-cell">
+                            <div class="progress-bar">
+                                <div class="progress-fill progress-25">25%</div>
+                            </div>
+                            <div class="progress-percentage">Integration</div>
+                        </td>
+                        <td class="progress-cell">
+                            <div class="progress-bar">
+                                <div class="progress-fill progress-0"></div>
+                            </div>
+                            <div class="progress-percentage">Testing</div>
+                        </td>
+                        <td class="progress-cell">
+                            <div class="progress-bar">
+                                <div class="progress-fill progress-0"></div>
+                            </div>
+                            <div class="progress-percentage">UAT</div>
+                        </td>
+                        <td class="progress-cell">
+                            <div class="progress-bar">
+                                <div class="progress-fill progress-0"></div>
+                            </div>
+                            <div class="progress-percentage">UAT</div>
+                        </td>
+                        <td class="progress-cell">
+                            <div class="progress-bar">
+                                <div class="progress-fill progress-0"></div>
+                            </div>
+                            <div class="progress-percentage">Go-Live</div>
+                        </td>
+                    </tr>
+
+                    <!-- Workflow Integration Work Stream -->
+                    <tr>
+                        <td class="workstream-name ws-workflow">Workflow Integration</td>
+                        <td class="progress-cell">
+                            <div class="progress-bar">
+                                <div class="progress-fill progress-0"></div>
+                            </div>
+                            <div class="progress-percentage">-</div>
+                        </td>
+                        <td class="progress-cell">
+                            <div class="progress-bar">
+                                <div class="progress-fill progress-0"></div>
+                            </div>
+                            <div class="progress-percentage">-</div>
+                        </td>
+                        <td class="progress-cell">
+                            <div class="progress-bar">
+                                <div class="progress-fill progress-50">50%</div>
+                            </div>
+                            <div class="progress-percentage">Engine</div>
+                        </td>
+                        <td class="progress-cell">
+                            <div class="progress-bar">
+                                <div class="progress-fill progress-75">75%</div>
+                            </div>
+                            <div class="progress-percentage">Risk</div>
+                        </td>
+                        <td class="progress-cell">
+                            <div class="progress-bar">
+                                <div class="progress-fill progress-100">100%</div>
+                            </div>
+                            <div class="progress-percentage">Integration</div>
+                        </td>
+                        <td class="progress-cell">
+                            <div class="progress-bar">
+                                <div class="progress-fill progress-75">75%</div>
+                            </div>
+                            <div class="progress-percentage">Screens</div>
+                        </td>
+                        <td class="progress-cell">
+                            <div class="progress-bar">
+                                <div class="progress-fill progress-25">25%</div>
+                            </div>
+                            <div class="progress-percentage">Testing</div>
+                        </td>
+                        <td class="progress-cell">
+                            <div class="progress-bar">
+                                <div class="progress-fill progress-50">50%</div>
+                            </div>
+                            <div class="progress-percentage">Real Data</div>
+                        </td>
+                        <td class="progress-cell">
+                            <div class="progress-bar">
+                                <div class="progress-fill progress-75">75%</div>
+                            </div>
+                            <div class="progress-percentage">Integration</div>
+                        </td>
+                        <td class="progress-cell">
+                            <div class="progress-bar">
+                                <div class="progress-fill progress-50">50%</div>
+                            </div>
+                            <div class="progress-percentage">Cross-System</div>
+                        </td>
+                        <td class="progress-cell">
+                            <div class="progress-bar">
+                                <div class="progress-fill progress-25">25%</div>
+                            </div>
+                            <div class="progress-percentage">Testing</div>
+                        </td>
+                        <td class="progress-cell">
+                            <div class="progress-bar">
+                                <div class="progress-fill progress-0"></div>
+                            </div>
+                            <div class="progress-percentage">UAT</div>
+                        </td>
+                        <td class="progress-cell">
+                            <div class="progress-bar">
+                                <div class="progress-fill progress-0"></div>
+                            </div>
+                            <div class="progress-percentage">UAT</div>
+                        </td>
+                        <td class="progress-cell">
+                            <div class="progress-bar">
+                                <div class="progress-fill progress-0"></div>
+                            </div>
+                            <div class="progress-percentage">Go-Live</div>
+                        </td>
+                    </tr>
+
+                    <!-- Entitlements Work Stream -->
+                    <tr>
+                        <td class="workstream-name ws-entitlement">Entitlements</td>
+                        <td class="progress-cell">
+                            <div class="progress-bar">
+                                <div class="progress-fill progress-0"></div>
+                            </div>
+                            <div class="progress-percentage">-</div>
+                        </td>
+                        <td class="progress-cell">
+                            <div class="progress-bar">
+                                <div class="progress-fill progress-0"></div>
+                            </div>
+                            <div class="progress-percentage">-</div>
+                        </td>
+                        <td class="progress-cell">
+                            <div class="progress-bar">
+                                <div class="progress-fill progress-25">25%</div>
+                            </div>
+                            <div class="progress-percentage">File Proc</div>
+                        </td>
+                        <td class="progress-cell">
+                            <div class="progress-bar">
+                                <div class="progress-fill progress-75">75%</div>
+                            </div>
+                            <div class="progress-percentage">Processing</div>
+                        </td>
+                        <td class="progress-cell">
+                            <div class="progress-bar">
+                                <div class="progress-fill progress-100">100%</div>
+                            </div>
+                            <div class="progress-percentage">Mapping</div>
+                        </td>
+                        <td class="progress-cell">
+                            <div class="progress-bar">
+                                <div class="progress-fill progress-75">75%</div>
+                            </div>
+                            <div class="progress-percentage">Workflow</div>
+                        </td>
+                        <td class="progress-cell">
+                            <div class="progress-bar">
+                                <div class="progress-fill progress-50">50%</div>
+                            </div>
+                            <div class="progress-percentage">Real Data</div>
+                        </td>
+                        <td class="progress-cell">
+                            <div class="progress-bar">
+                                <div class="progress-fill progress-25">25%</div>
+                            </div>
+                            <div class="progress-percentage">Integration</div>
+                        </td>
+                        <td class="progress-cell">
+                            <div class="progress-bar">
+                                <div class="progress-fill progress-0"></div>
+                            </div>
+                            <div class="progress-percentage">Testing</div>
+                        </td>
+                        <td class="progress-cell">
+                            <div class="progress-bar">
+                                <div class="progress-fill progress-0"></div>
+                            </div>
+                            <div class="progress-percentage">UAT Prep</div>
+                        </td>
+                        <td class="progress-cell">
+                            <div class="progress-bar">
+                                <div class="progress-fill progress-0"></div>
+                            </div>
+                            <div class="progress-percentage">UAT</div>
+                        </td>
+                        <td class="progress-cell">
+                            <div class="progress-bar">
+                                <div class="progress-fill progress-0"></div>
+                            </div>
+                            <div class="progress-percentage">UAT</div>
+                        </td>
+                        <td class="progress-cell">
+                            <div class="progress-bar">
+                                <div class="progress-fill progress-0"></div>
+                            </div>
+                            <div class="progress-percentage">UAT</div>
+                        </td>
+                        <td class="progress-cell">
+                            <div class="progress-bar">
+                                <div class="progress-fill progress-0"></div>
+                            </div>
+                            <div class="progress-percentage">Go-Live</div>
+                        </td>
+                    </tr>
+
+                    <!-- Reporting Work Stream -->
+                    <tr>
+                        <td class="workstream-name ws-reporting">Reporting</td>
+                        <td class="progress-cell">
+                            <div class="progress-bar">
+                                <div class="progress-fill progress-0"></div>
+                            </div>
+                            <div class="progress-percentage">-</div>
+                        </td>
+                        <td class="progress-cell">
+                            <div class="progress-bar">
+                                <div class="progress-fill progress-0"></div>
+                            </div>
+                            <div class="progress-percentage">-</div>
+                        </td>
+                        <td class="progress-cell">
+                            <div class="progress-bar">
+                                <div class="progress-fill progress-0"></div>
+                            </div>
+                            <div class="progress-percentage">-</div>
+                        </td>
+                        <td class="progress-cell">
+                            <div class="progress-bar">
+                                <div class="progress-fill progress-25">25%</div>
+                            </div>
+                            <div class="progress-percentage">Planning</div>
+                        </td>
+                        <td class="progress-cell">
+                            <div class="progress-bar">
+                                <div class="progress-fill progress-50">50%</div>
+                            </div>
+                            <div class="progress-percentage">Analytics</div>
+                        </td>
+                        <td class="progress-cell">
+                            <div class="progress-bar">
+                                <div class="progress-fill progress-75">75%</div>
+                            </div>
+                            <div class="progress-percentage">Services</div>
+                        </td>
+                        <td class="progress-cell">
+                            <div class="progress-bar">
+                                <div class="progress-fill progress-100">100%</div>
+                            </div>
+                            <div class="progress-percentage">UI Complete</div>
+                        </td>
+                        <td class="progress-cell">
+                            <div class="progress-bar">
+                                <div class="progress-fill progress-50">50%</div>
+                            </div>
+                            <div class="progress-percentage">Real Data</div>
+                        </td>
+                        <td class="progress-cell">
+                            <div class="progress-bar">
+                                <div class="progress-fill progress-25">25%</div>
+                            </div>
+                            <div class="progress-percentage">Integration</div>
+                        </td>
+                        <td class="progress-cell">
+                            <div class="progress-bar">
+                                <div class="progress-fill progress-0"></div>
+                            </div>
+                            <div class="progress-percentage">Testing</div>
+                        </td>
+                        <td class="progress-cell">
+                            <div class="progress-bar">
+                                <div class="progress-fill progress-0"></div>
+                            </div>
+                            <div class="progress-percentage">UAT</div>
+                        </td>
+                        <td class="progress-cell">
+                            <div class="progress-bar">
+                                <div class="progress-fill progress-0"></div>
+                            </div>
+                            <div class="progress-percentage">UAT</div>
+                        </td>
+                        <td class="progress-cell">
+                            <div class="progress-bar">
+                                <div class="progress-fill progress-0"></div>
+                            </div>
+                            <div class="progress-percentage">UAT</div>
+                        </td>
+                        <td class="progress-cell">
+                            <div class="progress-bar">
+                                <div class="progress-fill progress-0"></div>
+                            </div>
+                            <div class="progress-percentage">Go-Live</div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        // Animate progress bars on load
+        window.addEventListener('load', () => {
+            const progressBars = document.querySelectorAll('.progress-fill');
+            progressBars.forEach((bar, index) => {
+                const originalWidth = getComputedStyle(bar).width;
+                bar.style.width = '0%';
+                setTimeout(() => {
+                    bar.style.width = originalWidth;
+                }, index * 50 + 300);
+            });
+        });
+    </script>
+</body>
+</html>
