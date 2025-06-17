@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resource Allocation Matrix - 17 Resources</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 10px;
+            background: #f5f5f5;
+        }
+        
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        
+        .summary {
+            text-align: center;
+            margin-bottom: 20px;
+            padding: 10px;
+            background: #e3f2fd;
+            border-radius: 5px;
+        }
+        
+        .table-container {
+            overflow-x: auto;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 11px;
+        }
+        
+        th {
+            background: #34495e;
+            color: white;
+            padding: 8px 4px;
+            text-align: center;
+            border: 1px solid #2c3e50;
+            font-weight: bold;
+        }
+        
+        td {
+            border: 1px solid #bdc3c7;
+            padding: 6px 3px;
+            text-align: center;
+        }
+        
+        .resource-name {
+            text-align: left;
+            font-weight: bold;
+            background: #f8f9fa;
+            padding: 8px;
+        }
+        
+        .role {
+            text-align: left;
+            background: #f8f9fa;
+            font-style: italic;
+            padding: 8px;
+        }
+        
+        .foundation { background: #fff3cd; color: #856404; font-weight: bold; }
+        .parallel { background: #d1ecf1; color: #0c5460; font-weight: bold; }
+        .integration { background: #d4edda; color: #155724; font-weight: bold; }
+        .uat { background: #f8d7da; color: #721c24; font-weight: bold; }
+        .support { background: #e2e3e5; color: #383d41; font-weight: bold; }
+        .available { background: #f8f9fa; color: #6c757d; }
+        
+        .month-header {
+            background: #2980b9 !important;
+            color: white;
+        }
+        
+        .legend {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 5px;
+        }
+        
+        .legend-item {
+            display: inline-block;
+            margin: 5px 10px;
+            padding: 5px 10px;
+            border-radius: 3px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Resource Allocation Matrix</h1>
+        <div class="summary">
+            <strong>Exception Management System Project</strong><br>
+            <strong>17 Total Resources</strong> | July 2025 - August 2026 | Go-Live: August 15, 2026
+        </div>
+        
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th rowspan="2">Resource</th>
+                        <th rowspan="2">Role</th>
+                        <th colspan="2" class="month-header">Jul 25</th>
+                        <th colspan="2" class="month-header">Aug 25</th>
+                        <th colspan="2" class="month-header">Sep 25</th>
+                        <th colspan="2" class="month-header">Oct 25</th>
+                        <th colspan="2" class="month-header">Nov 25</th>
+                        <th colspan="2" class="month-header">Dec 25</th>
+                        <th colspan="2" class="month-header">Jan 26</th>
+                        <th colspan="2" class="month-header">Feb 26</th>
+                        <th colspan="2" class="month-header">Mar 26</th>
+                        <th colspan="2" class="month-header">Apr 26</th>
+                        <th colspan="2" class="month-header">May 26</th>
+                        <th colspan="2" class="month-header">Jun 26</th>
+                        <th colspan="2" class="month-header">Jul 26</th>
+                        <th colspan="2" class="month-header">Aug 26</th>
+                    </tr>
+                    <tr>
+                        <th>S</th><th>E</th>
+                        <th>S</th><th>E</th>
+                        <th>S</th><th>E</th>
+                        <th>S</th><th>E</th>
+                        <th>S</th><th>E</th>
+                        <th>S</th><th>E</th>
+                        <th>S</th><th>E</th>
+                        <th>S</th><th>E</th>
+                        <th>S</th><th>E</th>
+                        <th>S</th><th>E</th>
+                        <th>S</th><th>E</th>
+                        <th>S</th><th>E</th>
+                        <th>S</th><th>E</th>
+                        <th>S</th><th>E</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Resource 1: PM Lead -->
+                    <tr>
+                        <td class="resource-name">PM Lead</td>
+                        <td class="role">Project Manager</td>
+                        <td class="foundation">15</td><td class="foundation">31</td>
+                        <td class="foundation">01</td><td class="foundation">31</td>
+                        <td class="foundation">01</td><td class="foundation">30</td>
+                        <td class="parallel">01</td><td class="parallel">31</td>
+                        <td class="parallel">01</td><td class="parallel">30</td>
+                        <td class="parallel">01</td><td class="parallel">31</td>
+                        <td class="integration">01</td><td class="integration">31</td>
+                        <td class="integration">01</td><td class="integration">28</td>
+                        <td class="integration">01</td><td class="integration">31</td>
+                        <td class="uat">01</td><td class="uat">30</td>
+                        <td class="uat">01</td><td class="uat">31</td>
+                        <td class="uat">01</td><td class="uat">30</td>
+                        <td class="uat">01</td><td class="uat">31</td>
+                        <td class="support">01</td><td class="support">15</td>
+                    </tr>
+                    
+                    <!-- Resource 2: BA Lead -->
+                    <tr>
+                        <td class="resource-name">BA Lead</td>
+                        <td class="role">Business Analyst</td>
+                        <td class="foundation">15</td><td class="foundation">31</td>
+                        <td class="foundation">01</td><td class="foundation">31</td>
+                        <td class="foundation">01</td><td class="foundation">30</td>
+                        <td class="parallel">01</td><td class="parallel">31</td>
+                        <td class="parallel">01</td><td class="parallel">30</td>
+                        <td class="parallel">01</td><td class="parallel">31</td>
+                        <td class="integration">01</td><td class="integration">31</td>
+                        <td class="integration">01</td><td class="integration">28</td>
+                        <td class="integration">01</td><td class="integration">31</td>
+                        <td class="uat">01</td><td class="uat">30</td>
+                        <td class="uat">01</td><td class="uat">31</td>
+                        <td class="uat">01</td><td class="uat">30</td>
+                        <td class="uat">01</td><td class="uat">31</td>
+                        <td class="support">01</td><td class="support">15</td>
+                    </tr>
+                    
+                    <!-- Resource 3: BA Analyst -->
+                    <tr>
+                        <td class="resource-name">BA Analyst</td>
+                        <td class="role">Senior BA</td>
+                        <td class="available">-</td><td class="available">-</td>
+                        <td class="foundation">15</td><td class="foundation">31</td>
+                        <td class="foundation">01</td><td class="foundation">30</td>
+                        <td class="parallel">01</td><td class="parallel">31</td>
+                        <td class="parallel">01</td><td class="parallel">30</td>
+                        <td class="parallel">01</td><td class="parallel">31</td>
+                        <td class="integration">01</td><td class="integration">31</td>
+                        <td class="integration">01</td><td class="integration">28</td>
+                        <td class="integration">01</td><td class="integration">31</td>
+                        <td class="uat">01</td><td class="uat">30</td>
+                        <td class="uat">01</td><td class="uat">31</td>
+                        <td class="uat">01</td><td class="uat">30</td>
+                        <td class="uat">01</td><td class="uat">31</td>
+                        <td class="support">01</td><td class="support">15</td>
+                    </tr>
+                    
+                    <!-- Resource 4: QA Lead -->
+                    <tr>
+                        <td class="resource-name">QA Lead</td>
+                        <td class="role">QA Manager</td>
+                        <td class="foundation">15</td><td class="foundation">31</td>
+                        <td class="foundation">01</td><td class="foundation">31</td>
+                        <td class="foundation">01</td><td class="foundation">30</td>
+                        <td class="parallel">01</td><td class="parallel">31</td>
+                        <td class="parallel">01</td><td class="parallel">30</td>
+                        <td class="parallel">01</td><td class="parallel">31</td>
+                        <td class="integration">01</td><td class="integration">31</td>
+                        <td class="integration">01</td><td class="integration">28</td>
+                        <td class="integration">01</td><td class="integration">31</td>
+                        <td class="uat">01</td><td class="uat">30</td>
+                        <td class="uat">01</td><td class="uat">31</td>
+                        <td class="uat">01</td><td class="uat">30</td>
+                        <td class="uat">01</td><td class="uat">31</td>
+                        <td class="support">01</td><td class="support">15</td>
+                    </tr>
+                    
+                    <!-- Resource 5: QA Engineer -->
+                    <tr>
+                        <td class="resource-name">QA Engineer</td>
+                        <td class="role">QA Tester</td>
+                        <td class="foundation">15</td><td class="foundation">31</td>
+                        <td class="foundation">01</td><td class="foundation">31</td>
+                        <td class="foundation">01</td><td class="foundation">30</td>
+                        <td class="parallel">01</td><td class="parallel">31</td>
+                        <td class="parallel">01</td><td class="parallel">30</td>
+                        <td class="parallel">01</td><td class="parallel">31</td>
+                        <td class="integration">01</td><td class="integration">31</td>
+                        <td class="integration">01</td><td class="integration">28</td>
+                        <td class="integration">01</td><td class="integration">31</td>
+                        <td class="uat">01</td><td class="uat">30</td>
+                        <td class="uat">01</td><td class="uat">31</td>
+                        <td class="uat">01</td><td class="uat">30</td>
+                        <td class="uat">01</td><td class="uat">31</td>
+                        <td class="support">01</td><td class="support">15</td>
+                    </tr>
+                    
+                    <!-- Resource 6: Python Dev A -->
+                    <tr>
+                        <td class="resource-name">Python Dev A</td>
+                        <td class="role">Senior Python</td>
+                        <td class="foundation">15</td><td class="foundation">31</td>
+                        <td class="foundation">01</td><td class="foundation">15</td>
+                        <td class="available">-</td><td class="available">-</td>
+                        <td class="available">-</td><td class="available">-</td>
+                        <td class="available">-</td><td class="available">-</td>
+                        <td class="available">-</td><td class="available">-</td>
+                        <td class="available">-</td><td class="available">-</td>
+                        <td class="available">-</td><td class="available">-</td>
+                        <td class="available">-</td><td class="available">-</td>
+                        <td class="integration">16</td><td class="integration">30</td>
+                        <td class="integration">01</td><td class="integration">15</td>
+                        <td class="available">-</td><td class="available">-</td>
+                        <td class="uat">01</td><td class="uat">15</td>
+                        <td class="support">01</td><td class="support">15</td>
+                    </tr>
+                    
+                    <!-- Resource 7: Python Dev B -->
+                    <tr>
+                        <td class="resource-name">Python Dev B</td>
+                        <td class="role">Python Dev</td>
+                        <td class="foundation">15</td><td class="foundation">31</td>
+                        <td class="foundation">01</td><td class="foundation">15</td>
+                        <td class="foundation">16</td><td class="foundation">30</td>
+                        <td class="available">-</td><td class="available">-</td>
+                        <td class="available">-</td><td class="available">-</td>
+                        <td class="available">-</td><td class="available">-</td>
+                        <td class="integration">15</td><td class="integration">31</td>
+                        <td class="integration">01</td><td class="integration">28</td>
+                        <td class="integration">01</td><td class="integration">15</td>
+                        <td class="available">-</td><td class="available">-</td>
+                        <td class="available">-</td><td class="available">-</td>
+                        <td class="available">-</td><td class="available">-</td>
+                        <td class="available">-</td><td class="available">-</td>
+                        <td class="support">01</td><td class="support">15</td>
+                    </tr>
+                    
+                    <!-- Resource 8: Python Dev C -->
+                    <tr>
+                        <td class="resource-name">Python Dev C</td>
+                        <td class="role">Python Dev</td>
+                        <td class="available">-</td><td class="available">-</td>
+                        <td class="foundation">16</td><td class="foundation">31</td>
+                        <td class="foundation">01</td><td class="foundation">15</td>
+                        <td class="parallel">15</td><td class="parallel">31</td>
+                        <td class="parallel">01</td><td class="parallel">15</td>
+                        <td class="available">-</td><td class="available">-</td>
+                        <td class="integration">15</td><td class="integration">31</td>
+                        <td class="integration">01</td><td class="integration">28</td>
+                        <td class="integration">01</td><td class="integration">15</td>
+                        <td class="available">-</td><td class="available">-</td>
+                        <td class="available">-</td><td class="available">-</td>
+                        <td class="available">-</td><td class="available">-</td>
+                        <td class="available">-</td><td class="available">-</td>
+                        <td class="support">01</td><td class="support">15</td>
+                    </tr>
+                    
+                    <!-- Resource 9: Java Dev A -->
+                    <tr>
+                        <td class="resource-name">Java Dev A</td>
+                        <td class="role">Senior Java</td>
+                        <td class="foundation">15</td><td class="foundation">31</td>
+                        <td class="foundation">16</td><td class="foundation">31</td>
+                        <td class="foundation">01</td><td class="foundation">15</td>
+                        <td class="parallel">16</td><td class="parallel">31</td>
+                        <td class="parallel">01</td><td class="parallel">15</td>
+                        <td class="available">-</td><td class="available">-</td>
+                        <td class="integration">15</td><td class="integration">31</td>
+                        <td class="integration">01</td><td class="integration">28</td>
+                        <td class="integration">01</td><td class="integration">15</td>
+                        <td class="available">-</td><td class="available">-</td>
+                        <td class="available">-</td><td class="available">-</td>
+                        <td class="available">-</td><td class="available">-</td>
+                        <td class="available">-</td><td class="available">-</td>
+                        <td class="support">01</td><td class="support">15</td>
+                    </tr>
+                    
+                    <!-- Resource 10: Java Dev B -->
+                    <tr>
+                        <td class="resource-name">Java Dev B</td>
+                        <td class="role">Java Dev</td>
+                        <td class="foundation">15</td><td class="foundation">31</td>
+                        <td class="foundation">16</td><td class="foundation">31</td>
+                        <td class="foundation">01</td><td class="foundation">15</td>
+                        <td class="parallel">15</td><td class="parallel">31</td>
+                        <td class="parallel">16</td><td class="parallel">30</td>
+                        <td class="available">-</td><td class="available">-</td>
+                        <td class="integration">15</td><td class="integration">31</td>
+                        <td class="integration">01</td><td class="integration">28</td>
+                        <td class="integration">01</td><td class="integration">15</td>
+                        <td class="available">-</td><td class="available">-</td>
+                        <td class="available">-</td><td class="available">-</td>
+                        <td class="available">-</td><td class="available">-</td>
+                        <td class="available">-</td><td class="available">-</td>
+                        <td class="support">01</td><td class="support">15</td>
+                    </tr>
+                    
+                    <!-- Resource 11: Java Dev C -->
+                    <tr>
+                        <td class="resource-name">Java Dev C</td>
+                        <td class="role">Java Dev</td>
+                        <td class="available">-</td><td class="available">-</td>
+                        <td class="available">-</td><td class="available">-</td>
+                        <td class="foundation">15</td><td class="foundation">30</td>
+                        <td class="foundation">01</td><td class="foundation">15</td>
+                        <td class="parallel">16</td><td class="parallel">30</td>
+                        <td class="parallel">01</td><td class="parallel">15</td>
+                        <td class="available">-</td><td class="available">-</td>
+                        <td class="integration">16</td><td class="integration">28</td>
+                        <td class="integration">01</td><td class="integration">31</td>
+                        <td class="integration">01</td><td class="integration">15</td>
+                        <td class="available">-</td><td class="available">-</td>
+                        <td class="available">-</td><td class="available">-</td>
+                        <td class="available">-</td><td class="available">-</td>
+                        <td class="support">01</td><td class="support">15</td>
+                    </tr>
+                    
+                    <!-- Resource 12: Java Dev D -->
+                    <tr>
+                        <td class="resource-name">Java Dev D</td>
+                        <td class="role">Java Dev</td>
+                        <td class="available">-</td><td class="available">-</td>
+                        <td class="available">-</td><td class="available">-</td>
+                        <td class="foundation">15</td><td class="foundation">30</td>
+                        <td class="foundation">01</td><td class="foundation">15</td>
+                        <td class="parallel">15</td><td class="parallel">30</td>
+                        <td class="parallel">01</td><td class="parallel">31</td>
+                        <td class="available">-</td><td class="available">-</td>
+                        <td class="integration">16</td><td class="integration">28</td>
+                        <td class="integration">01</td><td class="integration">31</td>
+                        <td class="integration">01</td><td class="integration">15</td>
+                        <td class="available">-</td><td class="available">-</td>
+                        <td class="available">-</td><td class="available">-</td>
+                        <td class="available">-</td><td class="available">-</td>
+                        <td class="support">01</td><td class="support">15</td>
+                    </tr>
+                    
+                    <!-- Resource 13: Java Dev E -->
+                    <tr>
+                        <td class="resource-name">Java Dev E</td>
+                        <td class="role">Java Dev</td>
+                        <td class="available">-</td><td class="available">-</td>
+                        <td class="available">-</td><td class="available">-</td>
+                        <td class="available">-</td><td class="available">-</td>
+                        <td class="parallel">16</td><td class="parallel">31</td>
+                        <td class="parallel">01</td><td class="parallel">30</td>
+                        <td class="parallel">01</td><td class="parallel">15</td>
+                        <td class="available">-</td><td class="available">-</td>
+                        <td class="integration">16</td><td class="integration">28</td>
+                        <td class="integration">01</td><td class="integration">31</td>
+                        <td class="integration">01</td><td class="integration">15</td>
+                        <td class="available">-</td><td class="available">-</td>
+                        <td class="available">-</td><td class="available">-</td>
+                        <td class="available">-</td><td class="available">-</td>
+                        <td class="support">01</td><td class="support">15</td>
+                    </tr>
+                    
+                    <!-- Resource 14: UI Dev A -->
+                    <tr>
+                        <td class="resource-name">UI Dev A</td>
+                        <td class="role">Senior UI</td>
+                        <td class="available">-</td><td class="available">-</td>
+                        <td class="parallel">15</td><td class="parallel">31</td>
+                        <td class="parallel">01</td><td class="parallel">31</td>
+                        <td class="parallel">16</td><td class="parallel">30</td>
+                        <td class="parallel">01</td><td class="parallel">15</td>
+                        <td class="available">-</td><td class="available">-</td>
+                        <td class="integration">16</td><td class="integration">28</td>
+                        <td class="integration">01</td><td class="integration">31</td>
+                        <td class="integration">01</td><td class="integration">15</td>
+                        <td class="uat">01</td><td class="uat">31</td>
+                        <td class="uat">01</td><td class="uat">15</td>
+                        <td class="available">-</td><td class="available">-</td>
+                        <td class="available">-</td><td class="available">-</td>
+                        <td class="support">01</td><td class="support">15</td>
+                    </tr>
+                    
+                    <!-- Resource 15: UI Dev B -->
+                    <tr>
+                        <td class="resource-name">UI Dev B</td>
+                        <td class="role">UI Dev</td>
+                        <td class="available">-</td><td class="available">-</td>
+                        <td class="parallel">15</td><td class="parallel">31</td>
+                        <td class="parallel">01</td><td class="parallel">31</td>
+                        <td class="parallel">15</td><td class="parallel">30</td>
+                        <td class="parallel">01</td><td class="parallel">15</td>
+                        <td class="parallel">01</td><td class="parallel">31</td>
+                        <td class="available">-</td><td class="available">-</td>
+                        <td class="integration">16</td><td class="integration">28</td>
+                        <td class="integration">01</td><td class="integration">31</td>
+                        <td class="integration">01</td><td class="integration">15</td>
+                        <td class="uat">01</td><td class="uat">30</td>
+                        <td class="available">-</td><td class="available">-</td>
+                        <td class="available">-</td><td class="available">-</td>
+                        <td class="support">01</td><td class="support">15</td>
+                    </tr>
+                    
+                    <!-- Resource 16: UI Dev C -->
+                    <tr>
+                        <td class="resource-name">UI Dev C</td>
+                        <td class="role">UI Dev</td>
+                        <td class="available">-</td><td class="available">-</td>
+                        <td class="available">-</td><td class="available">-</td>
+                        <td class="parallel">15</td><td class="parallel">30</td>
+                        <td class="parallel">16</td><td class="parallel">31</td>
+                        <td class="parallel">01</td><td class="parallel">30</td>
+                        <td class="parallel">01</td><td class="parallel">31</td>
+                        <td class="parallel">01</td><td class="parallel">28</td>
+                        <td class="integration">16</td><td class="integration">28</td>
+                        <td class="integration">01</td><td class="integration">31</td>
+                        <td class="integration">01</td><td class="integration">31</td>
+                        <td class="uat">01</td><td class="uat">30</td>
+                        <td class="available">-</td><td class="available">-</td>
+                        <td class="available">-</td><td class="available">-</td>
+                        <td class="support">01</td><td class="support">15</td>
+                    </tr>
+                    
+                    <!-- Resource 17: DBA Lead -->
+                    <tr>
+                        <td class="resource-name">DBA Lead</td>
+                        <td class="role">Database Admin</td>
+                        <td class="foundation">15</td><td class="foundation">31</td>
+                        <td class="foundation">16</td><td class="foundation">31</td>
+                        <td class="foundation">01</td><td class="foundation">15</td>
+                        <td class="available">-</td><td class="available">-</td>
+                        <td class="available">-</td><td class="available">-</td>
+                        <td class="available">-</td><td class="available">-</td>
+                        <td class="integration">15</td><td class="integration">31</td>
+                        <td class="integration">01</td><td class="integration">28</td>
+                        <td class="integration">01</td><td class="integration">31</td>
+                        <td class="integration">01</td><td class="integration">15</td>
+                        <td class="available">-</td><td class="available">-</td>
+                        <td class="available">-</td><td class="available">-</td>
+                        <td class="available">-</td><td class="available">-</td>
+                        <td class="support">01</td><td class="support">15</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        
+        <div class="legend">
+            <h3>Legend & Resource Summary (17 Total):</h3>
+            <div style="margin-bottom: 15px;">
+                <span class="legend-item foundation">Foundation</span>
+                <span class="legend-item parallel">Parallel Dev</span>
+                <span class="legend-item integration">Integration</span>
+                <span class="legend-item uat">UAT</span>
+                <span class="legend-item support">Support</span>
+                <span class="legend-item available">Available</span>
+            </div>
+            
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                <div>
+                    <strong>Management (3):</strong><br>
+                    • PM Lead<br>
+                    • BA Lead<br>
+                    • BA Analyst
+                </div>
+                <div>
+                    <strong>QA Team (2):</strong>
