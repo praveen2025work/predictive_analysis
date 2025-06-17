@@ -1,0 +1,998 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resource Allocation Matrix</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #fafafa;
+            color: #2d3748;
+            line-height: 1.5;
+            padding: 1rem;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 2rem;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 1.1rem;
+        }
+
+        .content {
+            padding: 2rem;
+        }
+
+        .resource-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 11px;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .resource-table th {
+            background: #4a5568;
+            color: white;
+            padding: 0.75rem 0.5rem;
+            text-align: center;
+            font-weight: 600;
+            font-size: 10px;
+            border: none;
+        }
+
+        .resource-table td {
+            padding: 0.5rem 0.25rem;
+            text-align: center;
+            border-bottom: 1px solid #e2e8f0;
+            vertical-align: middle;
+            font-size: 10px;
+        }
+
+        .resource-table tr:hover {
+            background: #f7fafc;
+        }
+
+        /* Resource Info */
+        .resource-info {
+            text-align: left;
+            padding: 0.75rem;
+        }
+
+        .resource-name {
+            font-weight: 600;
+            color: #2d3748;
+            font-size: 11px;
+        }
+
+        .resource-role {
+            color: #718096;
+            font-size: 9px;
+            margin-top: 2px;
+        }
+
+        .resource-skills {
+            color: #a0aec0;
+            font-size: 8px;
+            margin-top: 2px;
+        }
+
+        /* Month Headers */
+        .month-header {
+            background: #2d3748 !important;
+            color: white;
+            font-weight: 600;
+            font-size: 9px;
+        }
+
+        /* Date Cells */
+        .date-cell {
+            font-size: 9px;
+            font-weight: 500;
+            padding: 0.4rem 0.2rem;
+        }
+
+        .start-date {
+            background: #c6f6d5;
+            color: #22543d;
+            border-left: 2px solid #38a169;
+            font-weight: 600;
+        }
+
+        .end-date {
+            background: #fed7d7;
+            color: #742a2a;
+            border-right: 2px solid #e53e3e;
+            font-weight: 600;
+        }
+
+        /* Phase Colors */
+        .phase-foundation { 
+            background: #fef5e7; 
+            color: #c05621; 
+            font-weight: 500;
+        }
+        .phase-parallel { 
+            background: #ebf8ff; 
+            color: #2b6cb0; 
+            font-weight: 500;
+        }
+        .phase-integration { 
+            background: #f0fff4; 
+            color: #22543d; 
+            font-weight: 500;
+        }
+        .phase-uat { 
+            background: #fed7e2; 
+            color: #97266d; 
+            font-weight: 500;
+        }
+        .phase-support { 
+            background: #e6fffa; 
+            color: #285e61; 
+            font-weight: 500;
+        }
+        .phase-available { 
+            background: #f7fafc; 
+            color: #a0aec0; 
+            font-style: italic;
+        }
+
+        /* Team Colors */
+        .team-management { background: #fef5e7; }
+        .team-qa { background: #f0fff4; }
+        .team-python { background: #ebf8ff; }
+        .team-java { background: #fed7e2; }
+        .team-ui { background: #e6fffa; }
+        .team-infra { background: #faf5ff; }
+
+        /* Stats */
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1rem;
+            margin: 2rem 0;
+        }
+
+        .stat-card {
+            background: #f7fafc;
+            padding: 1.5rem;
+            border-radius: 8px;
+            text-align: center;
+            border: 1px solid #e2e8f0;
+        }
+
+        .stat-number {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #667eea;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-label {
+            color: #718096;
+            font-size: 0.875rem;
+        }
+
+        /* Legend */
+        .legend {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin: 2rem 0;
+            padding: 1.5rem;
+            background: #f7fafc;
+            border-radius: 8px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .legend-color {
+            width: 16px;
+            height: 16px;
+            border-radius: 4px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .legend-text {
+            font-size: 0.875rem;
+            color: #4a5568;
+        }
+
+        @media (max-width: 1400px) {
+            .resource-table { font-size: 10px; }
+            .resource-table th, .resource-table td { padding: 0.4rem 0.2rem; }
+        }
+
+        @media (max-width: 1200px) {
+            body { padding: 0.5rem; }
+            .resource-table { font-size: 9px; }
+            .content { padding: 1rem; }
+        }
+
+        @media (max-width: 768px) {
+            .header h1 { font-size: 1.5rem; }
+            .header p { font-size: 1rem; }
+            .stats { grid-template-columns: repeat(2, 1fr); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Resource Allocation Matrix</h1>
+            <p>Exception Management System • 17 Resources • July 2025 - August 2026</p>
+        </div>
+
+        <div class="content">
+            <div class="stats">
+                <div class="stat-card">
+                    <div class="stat-number">17</div>
+                    <div class="stat-label">Total Resources</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">13</div>
+                    <div class="stat-label">Months Duration</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">3</div>
+                    <div class="stat-label">Development Phases</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">94%</div>
+                    <div class="stat-label">Average Utilization</div>
+                </div>
+            </div>
+
+            <div class="legend">
+                <div class="legend-item">
+                    <div class="legend-color phase-foundation"></div>
+                    <span class="legend-text">Foundation Phase</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color phase-parallel"></div>
+                    <span class="legend-text">Parallel Development</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color phase-integration"></div>
+                    <span class="legend-text">Integration & Testing</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color phase-uat"></div>
+                    <span class="legend-text">User Acceptance Testing</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color phase-support"></div>
+                    <span class="legend-text">Production Support</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color phase-available"></div>
+                    <span class="legend-text">Available</span>
+                </div>
+            </div>
+
+            <table class="resource-table">
+                <thead>
+                    <tr>
+                        <th style="width: 12%;">Resource & Role</th>
+                        <th style="width: 6%;">Skills</th>
+                        <th colspan="2" class="month-header">Jul 2025</th>
+                        <th colspan="2" class="month-header">Aug 2025</th>
+                        <th colspan="2" class="month-header">Sep 2025</th>
+                        <th colspan="2" class="month-header">Oct 2025</th>
+                        <th colspan="2" class="month-header">Nov 2025</th>
+                        <th colspan="2" class="month-header">Dec 2025</th>
+                        <th colspan="2" class="month-header">Jan 2026</th>
+                        <th colspan="2" class="month-header">Feb 2026</th>
+                        <th colspan="2" class="month-header">Mar 2026</th>
+                        <th colspan="2" class="month-header">Apr 2026</th>
+                        <th colspan="2" class="month-header">May 2026</th>
+                        <th colspan="2" class="month-header">Jun 2026</th>
+                        <th colspan="2" class="month-header">Jul 2026</th>
+                        <th colspan="2" class="month-header">Aug 2026</th>
+                    </tr>
+                    <tr>
+                        <th></th>
+                        <th></th>
+                        <th style="width: 3%;">S</th>
+                        <th style="width: 3%;">E</th>
+                        <th style="width: 3%;">S</th>
+                        <th style="width: 3%;">E</th>
+                        <th style="width: 3%;">S</th>
+                        <th style="width: 3%;">E</th>
+                        <th style="width: 3%;">S</th>
+                        <th style="width: 3%;">E</th>
+                        <th style="width: 3%;">S</th>
+                        <th style="width: 3%;">E</th>
+                        <th style="width: 3%;">S</th>
+                        <th style="width: 3%;">E</th>
+                        <th style="width: 3%;">S</th>
+                        <th style="width: 3%;">E</th>
+                        <th style="width: 3%;">S</th>
+                        <th style="width: 3%;">E</th>
+                        <th style="width: 3%;">S</th>
+                        <th style="width: 3%;">E</th>
+                        <th style="width: 3%;">S</th>
+                        <th style="width: 3%;">E</th>
+                        <th style="width: 3%;">S</th>
+                        <th style="width: 3%;">E</th>
+                        <th style="width: 3%;">S</th>
+                        <th style="width: 3%;">E</th>
+                        <th style="width: 3%;">S</th>
+                        <th style="width: 3%;">E</th>
+                        <th style="width: 3%;">S</th>
+                        <th style="width: 3%;">E</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Management Team -->
+                    <tr class="team-management">
+                        <td class="resource-info">
+                            <div class="resource-name">PM Lead</div>
+                            <div class="resource-role">Project Manager</div>
+                        </td>
+                        <td class="resource-skills">Agile, Risk Mgmt</td>
+                        <td class="date-cell phase-available">-</td>
+                        <td class="date-cell start-date phase-support">01</td>
+                        <td class="date-cell end-date phase-support">15</td>
+                    </tr>
+
+                    <tr class="team-python">
+                        <td class="resource-info">
+                            <div class="resource-name">Python Dev C</div>
+                            <div class="resource-role">Python Dev</div>
+                        </td>
+                        <td class="resource-skills">Transformation</td>
+                        <td class="date-cell phase-available">-</td>
+                        <td class="date-cell phase-available">-</td>
+                        <td class="date-cell start-date phase-foundation">16</td>
+                        <td class="date-cell end-date phase-foundation">31</td>
+                        <td class="date-cell start-date phase-foundation">01</td>
+                        <td class="date-cell end-date phase-foundation">15</td>
+                        <td class="date-cell start-date phase-parallel">15</td>
+                        <td class="date-cell end-date phase-parallel">31</td>
+                        <td class="date-cell start-date phase-parallel">01</td>
+                        <td class="date-cell end-date phase-parallel">15</td>
+                        <td class="date-cell phase-available">-</td>
+                        <td class="date-cell phase-available">-</td>
+                        <td class="date-cell start-date phase-integration">15</td>
+                        <td class="date-cell end-date phase-integration">31</td>
+                        <td class="date-cell start-date phase-integration">01</td>
+                        <td class="date-cell end-date phase-integration">28</td>
+                        <td class="date-cell start-date phase-integration">01</td>
+                        <td class="date-cell end-date phase-integration">15</td>
+                        <td class="date-cell phase-available">-</td>
+                        <td class="date-cell phase-available">-</td>
+                        <td class="date-cell phase-available">-</td>
+                        <td class="date-cell phase-available">-</td>
+                        <td class="date-cell phase-available">-</td>
+                        <td class="date-cell phase-available">-</td>
+                        <td class="date-cell start-date phase-support">01</td>
+                        <td class="date-cell end-date phase-support">15</td>
+                    </tr>
+
+                    <!-- Java Developers -->
+                    <tr class="team-java">
+                        <td class="resource-info">
+                            <div class="resource-name">Java Dev A</div>
+                            <div class="resource-role">Senior Java</div>
+                        </td>
+                        <td class="resource-skills">Spring Boot</td>
+                        <td class="date-cell start-date phase-foundation">15</td>
+                        <td class="date-cell end-date phase-foundation">31</td>
+                        <td class="date-cell start-date phase-foundation">16</td>
+                        <td class="date-cell end-date phase-foundation">31</td>
+                        <td class="date-cell start-date phase-foundation">01</td>
+                        <td class="date-cell end-date phase-foundation">15</td>
+                        <td class="date-cell start-date phase-parallel">16</td>
+                        <td class="date-cell end-date phase-parallel">31</td>
+                        <td class="date-cell start-date phase-parallel">01</td>
+                        <td class="date-cell end-date phase-parallel">15</td>
+                        <td class="date-cell phase-available">-</td>
+                        <td class="date-cell phase-available">-</td>
+                        <td class="date-cell start-date phase-integration">15</td>
+                        <td class="date-cell end-date phase-integration">31</td>
+                        <td class="date-cell start-date phase-integration">01</td>
+                        <td class="date-cell end-date phase-integration">28</td>
+                        <td class="date-cell start-date phase-integration">01</td>
+                        <td class="date-cell end-date phase-integration">15</td>
+                        <td class="date-cell phase-available">-</td>
+                        <td class="date-cell phase-available">-</td>
+                        <td class="date-cell phase-available">-</td>
+                        <td class="date-cell phase-available">-</td>
+                        <td class="date-cell phase-available">-</td>
+                        <td class="date-cell phase-available">-</td>
+                        <td class="date-cell start-date phase-support">01</td>
+                        <td class="date-cell end-date phase-support">15</td>
+                    </tr>
+
+                    <tr class="team-java">
+                        <td class="resource-info">
+                            <div class="resource-name">Java Dev B</div>
+                            <div class="resource-role">Java Dev</div>
+                        </td>
+                        <td class="resource-skills">Database</td>
+                        <td class="date-cell start-date phase-foundation">15</td>
+                        <td class="date-cell end-date phase-foundation">31</td>
+                        <td class="date-cell start-date phase-foundation">16</td>
+                        <td class="date-cell end-date phase-foundation">31</td>
+                        <td class="date-cell start-date phase-foundation">01</td>
+                        <td class="date-cell end-date phase-foundation">15</td>
+                        <td class="date-cell start-date phase-parallel">15</td>
+                        <td class="date-cell end-date phase-parallel">31</td>
+                        <td class="date-cell start-date phase-parallel">16</td>
+                        <td class="date-cell end-date phase-parallel">15</td>
+                        <td class="date-cell phase-available">-</td>
+                        <td class="date-cell phase-available">-</td>
+                        <td class="date-cell start-date phase-integration">15</td>
+                        <td class="date-cell end-date phase-integration">31</td>
+                        <td class="date-cell start-date phase-integration">01</td>
+                        <td class="date-cell end-date phase-integration">28</td>
+                        <td class="date-cell start-date phase-integration">01</td>
+                        <td class="date-cell end-date phase-integration">15</td>
+                        <td class="date-cell phase-available">-</td>
+                        <td class="date-cell phase-available">-</td>
+                        <td class="date-cell phase-available">-</td>
+                        <td class="date-cell phase-available">-</td>
+                        <td class="date-cell phase-available">-</td>
+                        <td class="date-cell phase-available">-</td>
+                        <td class="date-cell start-date phase-support">01</td>
+                        <td class="date-cell end-date phase-support">15</td>
+                    </tr>
+
+                    <tr class="team-java">
+                        <td class="resource-info">
+                            <div class="resource-name">Java Dev C</div>
+                            <div class="resource-role">Java Dev</div>
+                        </td>
+                        <td class="resource-skills">Business Logic</td>
+                        <td class="date-cell phase-available">-</td>
+                        <td class="date-cell phase-available">-</td>
+                        <td class="date-cell phase-available">-</td>
+                        <td class="date-cell phase-available">-</td>
+                        <td class="date-cell start-date phase-foundation">15</td>
+                        <td class="date-cell end-date phase-foundation">30</td>
+                        <td class="date-cell start-date phase-foundation">01</td>
+                        <td class="date-cell end-date phase-foundation">15</td>
+                        <td class="date-cell start-date phase-parallel">16</td>
+                        <td class="date-cell end-date phase-parallel">30</td>
+                        <td class="date-cell start-date phase-parallel">01</td>
+                        <td class="date-cell end-date phase-parallel">15</td>
+                        <td class="date-cell phase-available">-</td>
+                        <td class="date-cell phase-available">-</td>
+                        <td class="date-cell start-date phase-integration">16</td>
+                        <td class="date-cell end-date phase-integration">28</td>
+                        <td class="date-cell start-date phase-integration">01</td>
+                        <td class="date-cell end-date phase-integration">31</td>
+                        <td class="date-cell start-date phase-integration">01</td>
+                        <td class="date-cell end-date phase-integration">15</td>
+                        <td class="date-cell phase-available">-</td>
+                        <td class="date-cell phase-available">-</td>
+                        <td class="date-cell phase-available">-</td>
+                        <td class="date-cell phase-available">-</td>
+                        <td class="date-cell start-date phase-support">01</td>
+                        <td class="date-cell end-date phase-support">15</td>
+                    </tr>
+
+                    <tr class="team-java">
+                        <td class="resource-info">
+                            <div class="resource-name">Java Dev D</div>
+                            <div class="resource-role">Java Dev</div>
+                        </td>
+                        <td class="resource-skills">Workflow APIs</td>
+                        <td class="date-cell phase-available">-</td>
+                        <td class="date-cell phase-available">-</td>
+                        <td class="date-cell phase-available">-</td>
+                        <td class="date-cell phase-available">-</td>
+                        <td class="date-cell start-date phase-foundation">15</td>
+                        <td class="date-cell end-date phase-foundation">30</td>
+                        <td class="date-cell start-date phase-foundation">01</td>
+                        <td class="date-cell end-date phase-foundation">15</td>
+                        <td class="date-cell start-date phase-parallel">15</td>
+                        <td class="date-cell end-date phase-parallel">30</td>
+                        <td class="date-cell start-date phase-parallel">01</td>
+                        <td class="date-cell end-date phase-parallel">31</td>
+                        <td class="date-cell phase-available">-</td>
+                        <td class="date-cell phase-available">-</td>
+                        <td class="date-cell start-date phase-integration">16</td>
+                        <td class="date-cell end-date phase-integration">28</td>
+                        <td class="date-cell start-date phase-integration">01</td>
+                        <td class="date-cell end-date phase-integration">31</td>
+                        <td class="date-cell start-date phase-integration">01</td>
+                        <td class="date-cell end-date phase-integration">15</td>
+                        <td class="date-cell phase-available">-</td>
+                        <td class="date-cell phase-available">-</td>
+                        <td class="date-cell phase-available">-</td>
+                        <td class="date-cell phase-available">-</td>
+                        <td class="date-cell start-date phase-support">01</td>
+                        <td class="date-cell end-date phase-support">15</td>
+                    </tr>
+
+                    <tr class="team-java">
+                        <td class="resource-info">
+                            <div class="resource-name">Java Dev E</div>
+                            <div class="resource-role">Java Dev</div>
+                        </td>
+                        <td class="resource-skills">Security</td>
+                        <td class="date-cell phase-available">-</td>
+                        <td class="date-cell phase-available">-</td>
+                        <td class="date-cell phase-available">-</td>
+                        <td class="date-cell phase-available">-</td>
+                        <td class="date-cell phase-available">-</td>
+                        <td class="date-cell phase-available">-</td>
+                        <td class="date-cell start-date phase-parallel">16</td>
+                        <td class="date-cell end-date phase-parallel">31</td>
+                        <td class="date-cell start-date phase-parallel">01</td>
+                        <td class="date-cell end-date phase-parallel">30</td>
+                        <td class="date-cell start-date phase-parallel">01</td>
+                        <td class="date-cell end-date phase-parallel">15</td>
+                        <td class="date-cell phase-available">-</td>
+                        <td class="date-cell phase-available">-</td>
+                        <td class="date-cell start-date phase-integration">16</td>
+                        <td class="date-cell end-date phase-integration">28</td>
+                        <td class="date-cell start-date phase-integration">01</td>
+                        <td class="date-cell end-date phase-integration">31</td>
+                        <td class="date-cell start-date phase-integration">01</td>
+                        <td class="date-cell end-date phase-integration">15</td>
+                        <td class="date-cell phase-available">-</td>
+                        <td class="date-cell phase-available">-</td>
+                        <td class="date-cell phase-available">-</td>
+                        <td class="date-cell phase-available">-</td>
+                        <td class="date-cell start-date phase-support">01</td>
+                        <td class="date-cell end-date phase-support">15</td>
+                    </tr>
+
+                    <!-- UI Developers -->
+                    <tr class="team-ui">
+                        <td class="resource-info">
+                            <div class="resource-name">UI Dev A</div>
+                            <div class="resource-role">Senior UI</div>
+                        </td>
+                        <td class="resource-skills">React</td>
+                        <td class="date-cell phase-available">-</td>
+                        <td class="date-cell phase-available">-</td>
+                        <td class="date-cell start-date phase-parallel">15</td>
+                        <td class="date-cell end-date phase-parallel">31</td>
+                        <td class="date-cell start-date phase-parallel">01</td>
+                        <td class="date-cell end-date phase-parallel">31</td>
+                        <td class="date-cell start-date phase-parallel">16</td>
+                        <td class="date-cell end-date phase-parallel">30</td>
+                        <td class="date-cell start-date phase-parallel">01</td>
+                        <td class="date-cell end-date phase-parallel">15</td>
+                        <td class="date-cell phase-available">-</td>
+                        <td class="date-cell phase-available">-</td>
+                        <td class="date-cell start-date phase-integration">16</td>
+                        <td class="date-cell end-date phase-integration">28</td>
+                        <td class="date-cell start-date phase-integration">01</td>
+                        <td class="date-cell end-date phase-integration">31</td>
+                        <td class="date-cell start-date phase-integration">01</td>
+                        <td class="date-cell end-date phase-integration">15</td>
+                        <td class="date-cell start-date phase-uat">01</td>
+                        <td class="date-cell end-date phase-uat">31</td>
+                        <td class="date-cell start-date phase-uat">01</td>
+                        <td class="date-cell end-date phase-uat">15</td>
+                        <td class="date-cell phase-available">-</td>
+                        <td class="date-cell phase-available">-</td>
+                        <td class="date-cell start-date phase-support">01</td>
+                        <td class="date-cell end-date phase-support">15</td>
+                    </tr>
+
+                    <tr class="team-ui">
+                        <td class="resource-info">
+                            <div class="resource-name">UI Dev B</div>
+                            <div class="resource-role">UI Dev</div>
+                        </td>
+                        <td class="resource-skills">Angular</td>
+                        <td class="date-cell phase-available">-</td>
+                        <td class="date-cell phase-available">-</td>
+                        <td class="date-cell start-date phase-parallel">15</td>
+                        <td class="date-cell end-date phase-parallel">31</td>
+                        <td class="date-cell start-date phase-parallel">01</td>
+                        <td class="date-cell end-date phase-parallel">31</td>
+                        <td class="date-cell start-date phase-parallel">15</td>
+                        <td class="date-cell end-date phase-parallel">30</td>
+                        <td class="date-cell start-date phase-parallel">01</td>
+                        <td class="date-cell end-date phase-parallel">15</td>
+                        <td class="date-cell start-date phase-parallel">01</td>
+                        <td class="date-cell end-date phase-parallel">31</td>
+                        <td class="date-cell phase-available">-</td>
+                        <td class="date-cell phase-available">-</td>
+                        <td class="date-cell start-date phase-integration">16</td>
+                        <td class="date-cell end-date phase-integration">28</td>
+                        <td class="date-cell start-date phase-integration">01</td>
+                        <td class="date-cell end-date phase-integration">31</td>
+                        <td class="date-cell start-date phase-integration">01</td>
+                        <td class="date-cell end-date phase-integration">15</td>
+                        <td class="date-cell start-date phase-uat">01</td>
+                        <td class="date-cell end-date phase-uat">30</td>
+                        <td class="date-cell phase-available">-</td>
+                        <td class="date-cell phase-available">-</td>
+                        <td class="date-cell start-date phase-support">01</td>
+                        <td class="date-cell end-date phase-support">15</td>
+                    </tr>
+
+                    <tr class="team-ui">
+                        <td class="resource-info">
+                            <div class="resource-name">UI Dev C</div>
+                            <div class="resource-role">UI Dev</div>
+                        </td>
+                        <td class="resource-skills">Forms & Workflow</td>
+                        <td class="date-cell phase-available">-</td>
+                        <td class="date-cell phase-available">-</td>
+                        <td class="date-cell phase-available">-</td>
+                        <td class="date-cell phase-available">-</td>
+                        <td class="date-cell start-date phase-parallel">15</td>
+                        <td class="date-cell end-date phase-parallel">30</td>
+                        <td class="date-cell start-date phase-parallel">16</td>
+                        <td class="date-cell end-date phase-parallel">31</td>
+                        <td class="date-cell start-date phase-parallel">01</td>
+                        <td class="date-cell end-date phase-parallel">30</td>
+                        <td class="date-cell start-date phase-parallel">01</td>
+                        <td class="date-cell end-date phase-parallel">31</td>
+                        <td class="date-cell start-date phase-parallel">01</td>
+                        <td class="date-cell end-date phase-parallel">28</td>
+                        <td class="date-cell start-date phase-integration">16</td>
+                        <td class="date-cell end-date phase-integration">28</td>
+                        <td class="date-cell start-date phase-integration">01</td>
+                        <td class="date-cell end-date phase-integration">31</td>
+                        <td class="date-cell start-date phase-integration">01</td>
+                        <td class="date-cell end-date phase-integration">31</td>
+                        <td class="date-cell start-date phase-uat">01</td>
+                        <td class="date-cell end-date phase-uat">30</td>
+                        <td class="date-cell phase-available">-</td>
+                        <td class="date-cell phase-available">-</td>
+                        <td class="date-cell start-date phase-support">01</td>
+                        <td class="date-cell end-date phase-support">15</td>
+                    </tr>
+
+                    <!-- Infrastructure -->
+                    <tr class="team-infra">
+                        <td class="resource-info">
+                            <div class="resource-name">DBA Lead</div>
+                            <div class="resource-role">Database Admin</div>
+                        </td>
+                        <td class="resource-skills">Oracle, Performance</td>
+                        <td class="date-cell start-date phase-foundation">15</td>
+                        <td class="date-cell end-date phase-foundation">31</td>
+                        <td class="date-cell start-date phase-foundation">16</td>
+                        <td class="date-cell end-date phase-foundation">31</td>
+                        <td class="date-cell start-date phase-foundation">01</td>
+                        <td class="date-cell end-date phase-foundation">15</td>
+                        <td class="date-cell phase-available">-</td>
+                        <td class="date-cell phase-available">-</td>
+                        <td class="date-cell phase-available">-</td>
+                        <td class="date-cell phase-available">-</td>
+                        <td class="date-cell phase-available">-</td>
+                        <td class="date-cell phase-available">-</td>
+                        <td class="date-cell start-date phase-integration">15</td>
+                        <td class="date-cell end-date phase-integration">31</td>
+                        <td class="date-cell start-date phase-integration">01</td>
+                        <td class="date-cell end-date phase-integration">28</td>
+                        <td class="date-cell start-date phase-integration">01</td>
+                        <td class="date-cell end-date phase-integration">31</td>
+                        <td class="date-cell start-date phase-integration">01</td>
+                        <td class="date-cell end-date phase-integration">15</td>
+                        <td class="date-cell phase-available">-</td>
+                        <td class="date-cell phase-available">-</td>
+                        <td class="date-cell phase-available">-</td>
+                        <td class="date-cell phase-available">-</td>
+                        <td class="date-cell start-date phase-support">01</td>
+                        <td class="date-cell end-date phase-support">15</td>
+                    </tr>
+
+                    <tr class="team-infra">
+                        <td class="resource-info">
+                            <div class="resource-name">Solutions Architect</div>
+                            <div class="resource-role">Technical Lead</div>
+                        </td>
+                        <td class="resource-skills">Java, .NET, Design</td>
+                        <td class="date-cell start-date phase-foundation">15</td>
+                        <td class="date-cell end-date phase-foundation">31</td>
+                        <td class="date-cell start-date phase-foundation">01</td>
+                        <td class="date-cell end-date phase-foundation">31</td>
+                        <td class="date-cell start-date phase-foundation">01</td>
+                        <td class="date-cell end-date phase-foundation">30</td>
+                        <td class="date-cell start-date phase-parallel">01</td>
+                        <td class="date-cell end-date phase-parallel">31</td>
+                        <td class="date-cell start-date phase-parallel">01</td>
+                        <td class="date-cell end-date phase-parallel">30</td>
+                        <td class="date-cell start-date phase-parallel">01</td>
+                        <td class="date-cell end-date phase-parallel">31</td>
+                        <td class="date-cell start-date phase-integration">01</td>
+                        <td class="date-cell end-date phase-integration">31</td>
+                        <td class="date-cell start-date phase-integration">01</td>
+                        <td class="date-cell end-date phase-integration">28</td>
+                        <td class="date-cell start-date phase-integration">01</td>
+                        <td class="date-cell end-date phase-integration">31</td>
+                        <td class="date-cell start-date phase-uat">01</td>
+                        <td class="date-cell end-date phase-uat">30</td>
+                        <td class="date-cell start-date phase-uat">01</td>
+                        <td class="date-cell end-date phase-uat">31</td>
+                        <td class="date-cell start-date phase-uat">01</td>
+                        <td class="date-cell end-date phase-uat">30</td>
+                        <td class="date-cell start-date phase-uat">01</td>
+                        <td class="date-cell end-date phase-uat">31</td>
+                        <td class="date-cell start-date phase-support">01</td>
+                        <td class="date-cell end-date phase-support">15</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</body>
+</html> start-date phase-foundation">15</td>
+                        <td class="date-cell end-date phase-foundation">31</td>
+                        <td class="date-cell start-date phase-foundation">01</td>
+                        <td class="date-cell end-date phase-foundation">31</td>
+                        <td class="date-cell start-date phase-foundation">01</td>
+                        <td class="date-cell end-date phase-foundation">30</td>
+                        <td class="date-cell start-date phase-parallel">01</td>
+                        <td class="date-cell end-date phase-parallel">31</td>
+                        <td class="date-cell start-date phase-parallel">01</td>
+                        <td class="date-cell end-date phase-parallel">30</td>
+                        <td class="date-cell start-date phase-parallel">01</td>
+                        <td class="date-cell end-date phase-parallel">31</td>
+                        <td class="date-cell start-date phase-integration">01</td>
+                        <td class="date-cell end-date phase-integration">31</td>
+                        <td class="date-cell start-date phase-integration">01</td>
+                        <td class="date-cell end-date phase-integration">28</td>
+                        <td class="date-cell start-date phase-integration">01</td>
+                        <td class="date-cell end-date phase-integration">31</td>
+                        <td class="date-cell start-date phase-uat">01</td>
+                        <td class="date-cell end-date phase-uat">30</td>
+                        <td class="date-cell start-date phase-uat">01</td>
+                        <td class="date-cell end-date phase-uat">31</td>
+                        <td class="date-cell start-date phase-uat">01</td>
+                        <td class="date-cell end-date phase-uat">30</td>
+                        <td class="date-cell start-date phase-uat">01</td>
+                        <td class="date-cell end-date phase-uat">31</td>
+                        <td class="date-cell start-date phase-support">01</td>
+                        <td class="date-cell end-date phase-support">15</td>
+                    </tr>
+
+                    <tr class="team-management">
+                        <td class="resource-info">
+                            <div class="resource-name">BA Lead</div>
+                            <div class="resource-role">Business Analyst</div>
+                        </td>
+                        <td class="resource-skills">Requirements, UAT</td>
+                        <td class="date-cell start-date phase-foundation">15</td>
+                        <td class="date-cell end-date phase-foundation">31</td>
+                        <td class="date-cell start-date phase-foundation">01</td>
+                        <td class="date-cell end-date phase-foundation">31</td>
+                        <td class="date-cell start-date phase-foundation">01</td>
+                        <td class="date-cell end-date phase-foundation">30</td>
+                        <td class="date-cell start-date phase-parallel">01</td>
+                        <td class="date-cell end-date phase-parallel">31</td>
+                        <td class="date-cell start-date phase-parallel">01</td>
+                        <td class="date-cell end-date phase-parallel">30</td>
+                        <td class="date-cell start-date phase-parallel">01</td>
+                        <td class="date-cell end-date phase-parallel">31</td>
+                        <td class="date-cell start-date phase-integration">01</td>
+                        <td class="date-cell end-date phase-integration">31</td>
+                        <td class="date-cell start-date phase-integration">01</td>
+                        <td class="date-cell end-date phase-integration">28</td>
+                        <td class="date-cell start-date phase-integration">01</td>
+                        <td class="date-cell end-date phase-integration">31</td>
+                        <td class="date-cell start-date phase-uat">01</td>
+                        <td class="date-cell end-date phase-uat">30</td>
+                        <td class="date-cell start-date phase-uat">01</td>
+                        <td class="date-cell end-date phase-uat">31</td>
+                        <td class="date-cell start-date phase-uat">01</td>
+                        <td class="date-cell end-date phase-uat">30</td>
+                        <td class="date-cell start-date phase-uat">01</td>
+                        <td class="date-cell end-date phase-uat">31</td>
+                        <td class="date-cell start-date phase-support">01</td>
+                        <td class="date-cell end-date phase-support">15</td>
+                    </tr>
+
+                    <tr class="team-management">
+                        <td class="resource-info">
+                            <div class="resource-name">BA Analyst</div>
+                            <div class="resource-role">Senior BA</div>
+                        </td>
+                        <td class="resource-skills">Data Analysis</td>
+                        <td class="date-cell phase-available">-</td>
+                        <td class="date-cell phase-available">-</td>
+                        <td class="date-cell start-date phase-foundation">15</td>
+                        <td class="date-cell end-date phase-foundation">31</td>
+                        <td class="date-cell start-date phase-foundation">01</td>
+                        <td class="date-cell end-date phase-foundation">30</td>
+                        <td class="date-cell start-date phase-parallel">01</td>
+                        <td class="date-cell end-date phase-parallel">31</td>
+                        <td class="date-cell start-date phase-parallel">01</td>
+                        <td class="date-cell end-date phase-parallel">30</td>
+                        <td class="date-cell start-date phase-parallel">01</td>
+                        <td class="date-cell end-date phase-parallel">31</td>
+                        <td class="date-cell start-date phase-integration">01</td>
+                        <td class="date-cell end-date phase-integration">31</td>
+                        <td class="date-cell start-date phase-integration">01</td>
+                        <td class="date-cell end-date phase-integration">28</td>
+                        <td class="date-cell start-date phase-integration">01</td>
+                        <td class="date-cell end-date phase-integration">31</td>
+                        <td class="date-cell start-date phase-uat">01</td>
+                        <td class="date-cell end-date phase-uat">30</td>
+                        <td class="date-cell start-date phase-uat">01</td>
+                        <td class="date-cell end-date phase-uat">31</td>
+                        <td class="date-cell start-date phase-uat">01</td>
+                        <td class="date-cell end-date phase-uat">30</td>
+                        <td class="date-cell start-date phase-uat">01</td>
+                        <td class="date-cell end-date phase-uat">31</td>
+                        <td class="date-cell start-date phase-support">01</td>
+                        <td class="date-cell end-date phase-support">15</td>
+                    </tr>
+
+                    <!-- QA Team -->
+                    <tr class="team-qa">
+                        <td class="resource-info">
+                            <div class="resource-name">QA Lead</div>
+                            <div class="resource-role">QA Manager</div>
+                        </td>
+                        <td class="resource-skills">Test Strategy</td>
+                        <td class="date-cell start-date phase-foundation">15</td>
+                        <td class="date-cell end-date phase-foundation">31</td>
+                        <td class="date-cell start-date phase-foundation">01</td>
+                        <td class="date-cell end-date phase-foundation">31</td>
+                        <td class="date-cell start-date phase-foundation">01</td>
+                        <td class="date-cell end-date phase-foundation">30</td>
+                        <td class="date-cell start-date phase-parallel">01</td>
+                        <td class="date-cell end-date phase-parallel">31</td>
+                        <td class="date-cell start-date phase-parallel">01</td>
+                        <td class="date-cell end-date phase-parallel">30</td>
+                        <td class="date-cell start-date phase-parallel">01</td>
+                        <td class="date-cell end-date phase-parallel">31</td>
+                        <td class="date-cell start-date phase-integration">01</td>
+                        <td class="date-cell end-date phase-integration">31</td>
+                        <td class="date-cell start-date phase-integration">01</td>
+                        <td class="date-cell end-date phase-integration">28</td>
+                        <td class="date-cell start-date phase-integration">01</td>
+                        <td class="date-cell end-date phase-integration">31</td>
+                        <td class="date-cell start-date phase-uat">01</td>
+                        <td class="date-cell end-date phase-uat">30</td>
+                        <td class="date-cell start-date phase-uat">01</td>
+                        <td class="date-cell end-date phase-uat">31</td>
+                        <td class="date-cell start-date phase-uat">01</td>
+                        <td class="date-cell end-date phase-uat">30</td>
+                        <td class="date-cell start-date phase-uat">01</td>
+                        <td class="date-cell end-date phase-uat">31</td>
+                        <td class="date-cell start-date phase-support">01</td>
+                        <td class="date-cell end-date phase-support">15</td>
+                    </tr>
+
+                    <tr class="team-qa">
+                        <td class="resource-info">
+                            <div class="resource-name">QA Engineer</div>
+                            <div class="resource-role">QA Tester</div>
+                        </td>
+                        <td class="resource-skills">Manual Testing</td>
+                        <td class="date-cell start-date phase-foundation">15</td>
+                        <td class="date-cell end-date phase-foundation">31</td>
+                        <td class="date-cell start-date phase-foundation">01</td>
+                        <td class="date-cell end-date phase-foundation">31</td>
+                        <td class="date-cell start-date phase-foundation">01</td>
+                        <td class="date-cell end-date phase-foundation">30</td>
+                        <td class="date-cell start-date phase-parallel">01</td>
+                        <td class="date-cell end-date phase-parallel">31</td>
+                        <td class="date-cell start-date phase-parallel">01</td>
+                        <td class="date-cell end-date phase-parallel">30</td>
+                        <td class="date-cell start-date phase-parallel">01</td>
+                        <td class="date-cell end-date phase-parallel">31</td>
+                        <td class="date-cell start-date phase-integration">01</td>
+                        <td class="date-cell end-date phase-integration">31</td>
+                        <td class="date-cell start-date phase-integration">01</td>
+                        <td class="date-cell end-date phase-integration">28</td>
+                        <td class="date-cell start-date phase-integration">01</td>
+                        <td class="date-cell end-date phase-integration">31</td>
+                        <td class="date-cell start-date phase-uat">01</td>
+                        <td class="date-cell end-date phase-uat">30</td>
+                        <td class="date-cell start-date phase-uat">01</td>
+                        <td class="date-cell end-date phase-uat">31</td>
+                        <td class="date-cell start-date phase-uat">01</td>
+                        <td class="date-cell end-date phase-uat">30</td>
+                        <td class="date-cell start-date phase-uat">01</td>
+                        <td class="date-cell end-date phase-uat">31</td>
+                        <td class="date-cell start-date phase-support">01</td>
+                        <td class="date-cell end-date phase-support">15</td>
+                    </tr>
+
+                    <!-- Python Developers -->
+                    <tr class="team-python">
+                        <td class="resource-info">
+                            <div class="resource-name">Python Dev A</div>
+                            <div class="resource-role">Senior Python</div>
+                        </td>
+                        <td class="resource-skills">File Processing</td>
+                        <td class="date-cell start-date phase-foundation">15</td>
+                        <td class="date-cell end-date phase-foundation">31</td>
+                        <td class="date-cell start-date phase-foundation">01</td>
+                        <td class="date-cell end-date phase-foundation">15</td>
+                        <td class="date-cell phase-available">-</td>
+                        <td class="date-cell phase-available">-</td>
+                        <td class="date-cell phase-available">-</td>
+                        <td class="date-cell phase-available">-</td>
+                        <td class="date-cell phase-available">-</td>
+                        <td class="date-cell phase-available">-</td>
+                        <td class="date-cell phase-available">-</td>
+                        <td class="date-cell phase-available">-</td>
+                        <td class="date-cell phase-available">-</td>
+                        <td class="date-cell phase-available">-</td>
+                        <td class="date-cell phase-available">-</td>
+                        <td class="date-cell phase-available">-</td>
+                        <td class="date-cell phase-available">-</td>
+                        <td class="date-cell phase-available">-</td>
+                        <td class="date-cell start-date phase-integration">16</td>
+                        <td class="date-cell end-date phase-integration">30</td>
+                        <td class="date-cell start-date phase-integration">01</td>
+                        <td class="date-cell end-date phase-integration">15</td>
+                        <td class="date-cell phase-available">-</td>
+                        <td class="date-cell phase-available">-</td>
+                        <td class="date-cell start-date phase-uat">01</td>
+                        <td class="date-cell end-date phase-uat">15</td>
+                        <td class="date-cell start-date phase-support">01</td>
+                        <td class="date-cell end-date phase-support">15</td>
+                    </tr>
+
+                    <tr class="team-python">
+                        <td class="resource-info">
+                            <div class="resource-name">Python Dev B</div>
+                            <div class="resource-role">Python Dev</div>
+                        </td>
+                        <td class="resource-skills">Data Validation</td>
+                        <td class="date-cell start-date phase-foundation">15</td>
+                        <td class="date-cell end-date phase-foundation">31</td>
+                        <td class="date-cell start-date phase-foundation">01</td>
+                        <td class="date-cell end-date phase-foundation">15</td>
+                        <td class="date-cell start-date phase-foundation">16</td>
+                        <td class="date-cell end-date phase-foundation">15</td>
+                        <td class="date-cell phase-available">-</td>
+                        <td class="date-cell phase-available">-</td>
+                        <td class="date-cell phase-available">-</td>
+                        <td class="date-cell phase-available">-</td>
+                        <td class="date-cell phase-available">-</td>
+                        <td class="date-cell phase-available">-</td>
+                        <td class="date-cell start-date phase-integration">15</td>
+                        <td class="date-cell end-date phase-integration">31</td>
+                        <td class="date-cell start-date phase-integration">01</td>
+                        <td class="date-cell end-date phase-integration">28</td>
+                        <td class="date-cell start-date phase-integration">01</td>
+                        <td class="date-cell end-date phase-integration">15</td>
+                        <td class="date-cell phase-available">-</td>
+                        <td class="date-cell phase-available">-</td>
+                        <td class="date-cell phase-available">-</td>
+                        <td class="date-cell phase-available">-</td>
+                        <td class="date-cell phase-available">-</td>
+                        <td class="date-cell phase-available">-</td>
+                        <td class="date-cell phase-available">-</td>
+                        <td class="date-cell
