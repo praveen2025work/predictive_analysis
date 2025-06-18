@@ -1,0 +1,855 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Exception Management System - Architecture Deck</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+
+        .presentation {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .slide {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+            margin-bottom: 30px;
+            padding: 40px;
+            min-height: 600px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .slide-header {
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+        }
+
+        .slide-title {
+            font-size: 2.2rem;
+            color: #2c3e50;
+            margin: 0;
+            font-weight: 700;
+        }
+
+        .slide-subtitle {
+            font-size: 1.1rem;
+            color: #7f8c8d;
+            margin: 8px 0 0 0;
+        }
+
+        .diagram-container {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .mermaid {
+            width: 100%;
+            height: 100%;
+        }
+
+        .content-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin: 20px 0;
+        }
+
+        .content-section {
+            background: #f8f9fa;
+            padding: 25px;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+
+        .section-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 15px;
+        }
+
+        .tech-stack {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .tech-item {
+            background: #667eea;
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            font-weight: 600;
+        }
+
+        .highlight-box {
+            background: #e8f4fd;
+            border: 2px solid #667eea;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .benefits-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .benefits-list li {
+            padding: 12px 0;
+            border-bottom: 1px solid #ecf0f1;
+            position: relative;
+            padding-left: 25px;
+        }
+
+        .benefits-list li:before {
+            content: "✓";
+            color: #27ae60;
+            font-weight: bold;
+            position: absolute;
+            left: 0;
+        }
+
+        .navigation {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 1000;
+        }
+
+        .nav-btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 25px;
+            margin: 0 5px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .nav-btn:hover {
+            background: #5a6fd8;
+            transform: translateY(-2px);
+        }
+
+        .slide-counter {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 10px 15px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        @media (max-width: 768px) {
+            .content-grid {
+                grid-template-columns: 1fr;
+            }
+            .tech-stack {
+                grid-template-columns: 1fr;
+            }
+            .slide {
+                padding: 20px;
+            }
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.6.1/mermaid.min.js"></script>
+</head>
+<body>
+    <div class="presentation">
+        <!-- Slide 1: Title -->
+        <div class="slide" id="slide-1">
+            <div class="slide-header">
+                <h1 class="slide-title">Exception Management System</h1>
+                <p class="slide-subtitle">Architecture Design & Implementation Strategy</p>
+            </div>
+            <div style="flex: 1; display: flex; flex-direction: column; justify-content: center; text-align: center;">
+                <div style="font-size: 3rem; color: #667eea; margin-bottom: 30px;">🏗️</div>
+                <h2 style="color: #2c3e50; margin-bottom: 20px;">Project Design Architecture Review</h2>
+                <div class="highlight-box">
+                    <h3 style="margin-top: 0;">Project Overview</h3>
+                    <p>A comprehensive system for managing daily exception reports with automated file processing, workflow management, and user entitlements.</p>
+                    <p><strong>Timeline:</strong> 14 months | <strong>Go-Live:</strong> August 2026</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 2: System Overview -->
+        <div class="slide hidden" id="slide-2">
+            <div class="slide-header">
+                <h1 class="slide-title">System Architecture Overview</h1>
+                <p class="slide-subtitle">High-Level System Design</p>
+            </div>
+            <div class="diagram-container">
+                <div style="background: white; padding: 20px; border-radius: 8px; text-align: center;">
+                    <svg width="800" height="500" viewBox="0 0 800 500">
+                        <!-- External Layer -->
+                        <rect x="50" y="50" width="700" height="80" fill="#ffebee" stroke="#d32f2f" stroke-width="2" rx="5"/>
+                        <text x="400" y="75" text-anchor="middle" font-size="14" font-weight="bold" fill="#d32f2f">External Systems</text>
+                        <rect x="150" y="90" width="120" height="30" fill="#f44336" rx="5"/>
+                        <text x="210" y="110" text-anchor="middle" font-size="12" fill="white">Atlas System</text>
+                        <rect x="300" y="90" width="120" height="30" fill="#f44336" rx="5"/>
+                        <text x="360" y="110" text-anchor="middle" font-size="12" fill="white">Exception Files</text>
+                        
+                        <!-- Processing Layer -->
+                        <rect x="50" y="150" width="700" height="80" fill="#e8f5e9" stroke="#388e3c" stroke-width="2" rx="5"/>
+                        <text x="400" y="175" text-anchor="middle" font-size="14" font-weight="bold" fill="#388e3c">File Processing Layer</text>
+                        <rect x="100" y="190" width="120" height="30" fill="#4caf50" rx="5"/>
+                        <text x="160" y="210" text-anchor="middle" font-size="12" fill="white">File Watcher</text>
+                        <rect x="250" y="190" width="120" height="30" fill="#4caf50" rx="5"/>
+                        <text x="310" y="210" text-anchor="middle" font-size="12" fill="white">Validation</text>
+                        <rect x="400" y="190" width="120" height="30" fill="#4caf50" rx="5"/>
+                        <text x="460" y="210" text-anchor="middle" font-size="12" fill="white">Transformation</text>
+                        
+                        <!-- Database Layer -->
+                        <rect x="50" y="250" width="700" height="60" fill="#e3f2fd" stroke="#1976d2" stroke-width="2" rx="5"/>
+                        <text x="400" y="275" text-anchor="middle" font-size="14" font-weight="bold" fill="#1976d2">Data Layer</text>
+                        <rect x="300" y="285" width="200" height="20" fill="#2196f3" rx="5"/>
+                        <text x="400" y="298" text-anchor="middle" font-size="12" fill="white">Exception Database</text>
+                        
+                        <!-- Service Layer -->
+                        <rect x="50" y="330" width="700" height="80" fill="#f3e5f5" stroke="#7b1fa2" stroke-width="2" rx="5"/>
+                        <text x="400" y="355" text-anchor="middle" font-size="14" font-weight="bold" fill="#7b1fa2">Service Layer</text>
+                        <rect x="100" y="370" width="100" height="30" fill="#9c27b0" rx="5"/>
+                        <text x="150" y="390" text-anchor="middle" font-size="10" fill="white">Entitlements</text>
+                        <rect x="220" y="370" width="100" height="30" fill="#9c27b0" rx="5"/>
+                        <text x="270" y="390" text-anchor="middle" font-size="10" fill="white">Workflow</text>
+                        <rect x="340" y="370" width="100" height="30" fill="#9c27b0" rx="5"/>
+                        <text x="390" y="390" text-anchor="middle" font-size="10" fill="white">Step Execution</text>
+                        <rect x="460" y="370" width="100" height="30" fill="#9c27b0" rx="5"/>
+                        <text x="510" y="390" text-anchor="middle" font-size="10" fill="white">Reporting</text>
+                        
+                        <!-- UI Layer -->
+                        <rect x="50" y="430" width="700" height="60" fill="#fff3e0" stroke="#f57c00" stroke-width="2" rx="5"/>
+                        <text x="400" y="455" text-anchor="middle" font-size="14" font-weight="bold" fill="#f57c00">Frontend UI Layer</text>
+                        <rect x="150" y="465" width="100" height="20" fill="#ff9800" rx="5"/>
+                        <text x="200" y="478" text-anchor="middle" font-size="10" fill="white">Exception UI</text>
+                        <rect x="270" y="465" width="100" height="20" fill="#ff9800" rx="5"/>
+                        <text x="320" y="478" text-anchor="middle" font-size="10" fill="white">Workflow UI</text>
+                        <rect x="390" y="465" width="100" height="20" fill="#ff9800" rx="5"/>
+                        <text x="440" y="478" text-anchor="middle" font-size="10" fill="white">Reports</text>
+                        
+                        <!-- Arrows -->
+                        <defs>
+                            <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+                                <polygon points="0 0, 10 3.5, 0 7" fill="#666"/>
+                            </marker>
+                        </defs>
+                        <line x1="360" y1="130" x2="360" y2="150" stroke="#666" stroke-width="2" marker-end="url(#arrowhead)"/>
+                        <line x1="360" y1="230" x2="400" y2="250" stroke="#666" stroke-width="2" marker-end="url(#arrowhead)"/>
+                        <line x1="400" y1="310" x2="400" y2="330" stroke="#666" stroke-width="2" marker-end="url(#arrowhead)"/>
+                        <line x1="400" y1="410" x2="400" y2="430" stroke="#666" stroke-width="2" marker-end="url(#arrowhead)"/>
+                    </svg>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 3: Detailed Workflow -->
+        <div class="slide hidden" id="slide-3">
+            <div class="slide-header">
+                <h1 class="slide-title">Exception Processing Workflow</h1>
+                <p class="slide-subtitle">End-to-End Process Flow</p>
+            </div>
+            <div class="diagram-container">
+                <div style="background: white; padding: 20px; border-radius: 8px; text-align: center;">
+                    <svg width="900" height="600" viewBox="0 0 900 600">
+                        <!-- Start -->
+                        <rect x="50" y="50" width="120" height="40" fill="#e1f5fe" stroke="#01579b" stroke-width="2" rx="5"/>
+                        <text x="110" y="75" text-anchor="middle" font-size="12" fill="#01579b">Daily Exception Files</text>
+                        
+                        <!-- Validation Decision -->
+                        <polygon points="150,150 200,120 250,150 200,180" fill="#fff3e0" stroke="#ef6c00"/>
+                        <text x="200" y="155" text-anchor="middle" font-size="10" fill="#ef6c00">Valid?</text>
+                        
+                        <!-- Error Path -->
+                        <rect x="300" y="130" width="100" height="40" fill="#ffebee" stroke="#d32f2f" stroke-width="2" rx="5"/>
+                        <text x="350" y="155" text-anchor="middle" font-size="12" fill="#d32f2f">Error Alert</text>
+                        
+                        <!-- Main Processing Path -->
+                        <rect x="120" y="220" width="100" height="40" fill="#e8f5e9" stroke="#388e3c" stroke-width="2" rx="5"/>
+                        <text x="170" y="245" text-anchor="middle" font-size="12" fill="#388e3c">Load Database</text>
+                        
+                        <rect x="120" y="300" width="100" height="40" fill="#e8f5e9" stroke="#388e3c" stroke-width="2" rx="5"/>
+                        <text x="170" y="325" text-anchor="middle" font-size="12" fill="#388e3c">Calculate Aging</text>
+                        
+                        <rect x="120" y="380" width="100" height="40" fill="#e8f5e9" stroke="#388e3c" stroke-width="2" rx="5"/>
+                        <text x="170" y="405" text-anchor="middle" font-size="12" fill="#388e3c">Apply Entitlements</text>
+                        
+                        <!-- User Interface -->
+                        <rect x="350" y="380" width="120" height="40" fill="#f3e5f5" stroke="#7b1fa2" stroke-width="2" rx="5"/>
+                        <text x="410" y="405" text-anchor="middle" font-size="12" fill="#7b1fa2">Exception Dashboard</text>
+                        
+                        <!-- User Actions -->
+                        <polygon points="450,500 500,470 550,500 500,530" fill="#fff3e0" stroke="#ef6c00"/>
+                        <text x="500" y="505" text-anchor="middle" font-size="10" fill="#ef6c00">Action?</text>
+                        
+                        <!-- Action Options -->
+                        <rect x="300" y="550" width="80" height="30" fill="#e3f2fd" stroke="#1976d2" stroke-width="2" rx="5"/>
+                        <text x="340" y="570" text-anchor="middle" font-size="10" fill="#1976d2">View Only</text>
+                        
+                        <rect x="420" y="550" width="80" height="30" fill="#e3f2fd" stroke="#1976d2" stroke-width="2" rx="5"/>
+                        <text x="460" y="570" text-anchor="middle" font-size="10" fill="#1976d2">Reassign</text>
+                        
+                        <rect x="540" y="550" width="80" height="30" fill="#e3f2fd" stroke="#1976d2" stroke-width="2" rx="5"/>
+                        <text x="580" y="570" text-anchor="middle" font-size="10" fill="#1976d2">Update</text>
+                        
+                        <!-- Workflow Steps -->
+                        <rect x="650" y="300" width="80" height="30" fill="#fff8e1" stroke="#f57c00" stroke-width="2" rx="5"/>
+                        <text x="690" y="320" text-anchor="middle" font-size="10" fill="#f57c00">Risk Screen</text>
+                        
+                        <rect x="650" y="350" width="80" height="30" fill="#fff8e1" stroke="#f57c00" stroke-width="2" rx="5"/>
+                        <text x="690" y="370" text-anchor="middle" font-size="10" fill="#f57c00">Trade Valid</text>
+                        
+                        <rect x="650" y="400" width="80" height="30" fill="#fff8e1" stroke="#f57c00" stroke-width="2" rx="5"/>
+                        <text x="690" y="420" text-anchor="middle" font-size="10" fill="#f57c00">Approvals</text>
+                        
+                        <rect x="650" y="450" width="80" height="30" fill="#fff8e1" stroke="#f57c00" stroke-width="2" rx="5"/>
+                        <text x="690" y="470" text-anchor="middle" font-size="10" fill="#f57c00">Execute</text>
+                        
+                        <!-- Final Steps -->
+                        <rect x="750" y="380" width="100" height="40" fill="#e8f5e9" stroke="#388e3c" stroke-width="2" rx="5"/>
+                        <text x="800" y="405" text-anchor="middle" font-size="12" fill="#388e3c">Update Systems</text>
+                        
+                        <!-- Arrows -->
+                        <defs>
+                            <marker id="arrow" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+                                <polygon points="0 0, 10 3.5, 0 7" fill="#666"/>
+                            </marker>
+                        </defs>
+                        
+                        <!-- Main flow arrows -->
+                        <line x1="110" y1="90" x2="180" y2="130" stroke="#666" stroke-width="2" marker-end="url(#arrow)"/>
+                        <line x1="200" y1="180" x2="170" y2="220" stroke="#666" stroke-width="2" marker-end="url(#arrow)"/>
+                        <line x1="170" y1="260" x2="170" y2="300" stroke="#666" stroke-width="2" marker-end="url(#arrow)"/>
+                        <line x1="170" y1="340" x2="170" y2="380" stroke="#666" stroke-width="2" marker-end="url(#arrow)"/>
+                        <line x1="220" y1="400" x2="350" y2="400" stroke="#666" stroke-width="2" marker-end="url(#arrow)"/>
+                        <line x1="410" y1="420" x2="480" y2="470" stroke="#666" stroke-width="2" marker-end="url(#arrow)"/>
+                        
+                        <!-- Error path -->
+                        <line x1="230" y1="140" x2="300" y2="150" stroke="#d32f2f" stroke-width="2" marker-end="url(#arrow)"/>
+                        <text x="265" y="135" text-anchor="middle" font-size="10" fill="#d32f2f">No</text>
+                        
+                        <!-- Workflow path -->
+                        <line x1="520" y1="500" x2="650" y2="420" stroke="#666" stroke-width="2" marker-end="url(#arrow)"/>
+                        <line x1="730" y1="420" x2="750" y2="400" stroke="#666" stroke-width="2" marker-end="url(#arrow)"/>
+                        
+                        <text x="130" y="135" text-anchor="middle" font-size="10" fill="#388e3c">Yes</text>
+                    </svg>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 4: Technology Stack -->
+        <div class="slide hidden" id="slide-4">
+            <div class="slide-header">
+                <h1 class="slide-title">Technology Stack & Architecture</h1>
+                <p class="slide-subtitle">Modern, Scalable Technology Choices</p>
+            </div>
+            <div class="content-grid">
+                <div class="content-section">
+                    <h3 class="section-title">Backend Technologies</h3>
+                    <div class="tech-stack">
+                        <div class="tech-item">Java Spring Boot</div>
+                        <div class="tech-item">Python</div>
+                        <div class="tech-item">REST APIs</div>
+                        <div class="tech-item">PostgreSQL</div>
+                    </div>
+                </div>
+                <div class="content-section">
+                    <h3 class="section-title">Frontend Technologies</h3>
+                    <div class="tech-stack">
+                        <div class="tech-item">React.js / Angular</div>
+                        <div class="tech-item">TypeScript</div>
+                        <div class="tech-item">Modern UI/UX</div>
+                        <div class="tech-item">Responsive Design</div>
+                    </div>
+                </div>
+            </div>
+            <div class="highlight-box">
+                <h3>Architecture Principles</h3>
+                <ul class="benefits-list">
+                    <li><strong>Microservices Architecture:</strong> Modular, independently deployable services</li>
+                    <li><strong>Event-Driven Design:</strong> Asynchronous processing for better performance</li>
+                    <li><strong>API-First Approach:</strong> RESTful APIs for system integration</li>
+                    <li><strong>Security by Design:</strong> Role-based access control and audit trails</li>
+                    <li><strong>Cloud-Native:</strong> Containerized deployment with scalability</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Slide 5: System Components -->
+        <div class="slide hidden" id="slide-5">
+            <div class="slide-header">
+                <h1 class="slide-title">Core System Components</h1>
+                <p class="slide-subtitle">Detailed Component Architecture</p>
+            </div>
+            <div class="diagram-container">
+                <div style="background: white; padding: 20px; border-radius: 8px;">
+                    <svg width="1000" height="600" viewBox="0 0 1000 600">
+                        <!-- File Processing Components -->
+                        <g>
+                            <rect x="50" y="50" width="200" height="120" fill="#e3f2fd" stroke="#1976d2" stroke-width="2" rx="8"/>
+                            <text x="150" y="75" text-anchor="middle" font-size="14" font-weight="bold" fill="#1976d2">File Processing</text>
+                            
+                            <rect x="70" y="90" width="160" height="25" fill="#2196f3" rx="4"/>
+                            <text x="150" y="107" text-anchor="middle" font-size="11" fill="white">File Watcher Service</text>
+                            
+                            <rect x="70" y="120" width="160" height="25" fill="#2196f3" rx="4"/>
+                            <text x="150" y="137" text-anchor="middle" font-size="11" fill="white">Schema Validator</text>
+                            
+                            <rect x="70" y="150" width="160" height="15" fill="#64b5f6" rx="4"/>
+                            <text x="150" y="160" text-anchor="middle" font-size="10" fill="white">Quality Checker</text>
+                        </g>
+                        
+                        <!-- Business Logic Components -->
+                        <g>
+                            <rect x="300" y="50" width="200" height="120" fill="#e8f5e9" stroke="#388e3c" stroke-width="2" rx="8"/>
+                            <text x="400" y="75" text-anchor="middle" font-size="14" font-weight="bold" fill="#388e3c">Business Logic</text>
+                            
+                            <rect x="320" y="90" width="160" height="25" fill="#4caf50" rx="4"/>
+                            <text x="400" y="107" text-anchor="middle" font-size="11" fill="white">Exception Manager</text>
+                            
+                            <rect x="320" y="120" width="160" height="25" fill="#4caf50" rx="4"/>
+                            <text x="400" y="137" text-anchor="middle" font-size="11" fill="white">Aging Calculator</text>
+                            
+                            <rect x="320" y="150" width="160" height="15" fill="#81c784" rx="4"/>
+                            <text x="400" y="160" text-anchor="middle" font-size="10" fill="white">Status Tracker</text>
+                        </g>
+                        
+                        <!-- Workflow Engine -->
+                        <g>
+                            <rect x="550" y="50" width="200" height="120" fill="#f3e5f5" stroke="#7b1fa2" stroke-width="2" rx="8"/>
+                            <text x="650" y="75" text-anchor="middle" font-size="14" font-weight="bold" fill="#7b1fa2">Workflow Engine</text>
+                            
+                            <rect x="570" y="90" width="160" height="25" fill="#9c27b0" rx="4"/>
+                            <text x="650" y="107" text-anchor="middle" font-size="11" fill="white">Step Orchestrator</text>
+                            
+                            <rect x="570" y="120" width="160" height="25" fill="#9c27b0" rx="4"/>
+                            <text x="650" y="137" text-anchor="middle" font-size="11" fill="white">UI Generator</text>
+                            
+                            <rect x="570" y="150" width="160" height="15" fill="#ba68c8" rx="4"/>
+                            <text x="650" y="160" text-anchor="middle" font-size="10" fill="white">Approval Manager</text>
+                        </g>
+                        
+                        <!-- Security & Entitlements -->
+                        <g>
+                            <rect x="800" y="50" width="150" height="120" fill="#fff3e0" stroke="#f57c00" stroke-width="2" rx="8"/>
+                            <text x="875" y="75" text-anchor="middle" font-size="14" font-weight="bold" fill="#f57c00">Security</text>
+                            
+                            <rect x="820" y="90" width="110" height="25" fill="#ff9800" rx="4"/>
+                            <text x="875" y="107" text-anchor="middle" font-size="10" fill="white">Entitlement Engine</text>
+                            
+                            <rect x="820" y="120" width="110" height="25" fill="#ff9800" rx="4"/>
+                            <text x="875" y="137" text-anchor="middle" font-size="10" fill="white">Access Control</text>
+                            
+                            <rect x="820" y="150" width="110" height="15" fill="#ffb74d" rx="4"/>
+                            <text x="875" y="160" text-anchor="middle" font-size="10" fill="white">Audit Logger</text>
+                        </g>
+                        
+                        <!-- Data Layer -->
+                        <g>
+                            <rect x="50" y="250" width="900" height="100" fill="#fafafa" stroke="#616161" stroke-width="2" rx="8"/>
+                            <text x="500" y="275" text-anchor="middle" font-size="16" font-weight="bold" fill="#424242">Data Layer</text>
+                            
+                            <rect x="150" y="290" width="180" height="40" fill="#607d8b" rx="6"/>
+                            <text x="240" y="315" text-anchor="middle" font-size="12" fill="white">Exception Database</text>
+                            
+                            <rect x="360" y="290" width="140" height="40" fill="#607d8b" rx="6"/>
+                            <text x="430" y="315" text-anchor="middle" font-size="12" fill="white">Audit Database</text>
+                            
+                            <rect x="530" y="290" width="140" height="40" fill="#607d8b" rx="6"/>
+                            <text x="600" y="315" text-anchor="middle" font-size="12" fill="white">Config Database</text>
+                            
+                            <rect x="700" y="290" width="180" height="40" fill="#607d8b" rx="6"/>
+                            <text x="790" y="315" text-anchor="middle" font-size="12" fill="white">Entitlement Store</text>
+                        </g>
+                        
+                        <!-- Integration Services -->
+                        <g>
+                            <rect x="50" y="400" width="900" height="150" fill="#e8eaf6" stroke="#3f51b5" stroke-width="2" rx="8"/>
+                            <text x="500" y="425" text-anchor="middle" font-size="16" font-weight="bold" fill="#3f51b5">Integration Layer</text>
+                            
+                            <rect x="100" y="450" width="150" height="35" fill="#3f51b5" rx="6"/>
+                            <text x="175" y="472" text-anchor="middle" font-size="11" fill="white">External Workflow API</text>
+                            
+                            <rect x="280" y="450" width="120" height="35" fill="#3f51b5" rx="6"/>
+                            <text x="340" y="472" text-anchor="middle" font-size="11" fill="white">Motif TETB</text>
+                            
+                            <rect x="430" y="450" width="120" height="35" fill="#3f51b5" rx="6"/>
+                            <text x="490" y="472" text-anchor="middle" font-size="11" fill="white">Axiom EBA</text>
+                            
+                            <rect x="580" y="450" width="120" height="35" fill="#3f51b5" rx="6"/>
+                            <text x="640" y="472" text-anchor="middle" font-size="11" fill="white">Report Engine</text>
+                            
+                            <rect x="730" y="450" width="150" height="35" fill="#3f51b5" rx="6"/>
+                            <text x="805" y="472" text-anchor="middle" font-size="11" fill="white">Notification Service</text>
+                            
+                            <!-- REST APIs -->
+                            <rect x="200" y="500" width="100" height="25" fill="#5c6bc0" rx="4"/>
+                            <text x="250" y="517" text-anchor="middle" font-size="10" fill="white">REST APIs</text>
+                            
+                            <rect x="350" y="500" width="100" height="25" fill="#5c6bc0" rx="4"/>
+                            <text x="400" y="517" text-anchor="middle" font-size="10" fill="white">Message Queue</text>
+                            
+                            <rect x="500" y="500" width="100" height="25" fill="#5c6bc0" rx="4"/>
+                            <text x="550" y="517" text-anchor="middle" font-size="10" fill="white">Event Stream</text>
+                        </g>
+                        
+                        <!-- Connection arrows -->
+                        <defs>
+                            <marker id="componentArrow" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+                                <polygon points="0 0, 8 3, 0 6" fill="#666"/>
+                            </marker>
+                        </defs>
+                        
+                        <!-- Vertical connections -->
+                        <line x1="150" y1="170" x2="240" y2="250" stroke="#666" stroke-width="2" marker-end="url(#componentArrow)"/>
+                        <line x1="400" y1="170" x2="430" y2="250" stroke="#666" stroke-width="2" marker-end="url(#componentArrow)"/>
+                        <line x1="650" y1="170" x2="600" y2="250" stroke="#666" stroke-width="2" marker-end="url(#componentArrow)"/>
+                        <line x1="875" y1="170" x2="790" y2="250" stroke="#666" stroke-width="2" marker-end="url(#componentArrow)"/>
+                        
+                        <!-- Database to Integration -->
+                        <line x1="500" y1="350" x2="500" y2="400" stroke="#666" stroke-width="3" marker-end="url(#componentArrow)"/>
+                        
+                        <!-- Horizontal connections between components -->
+                        <line x1="250" y1="110" x2="300" y2="110" stroke="#666" stroke-width="2" marker-end="url(#componentArrow)"/>
+                        <line x1="500" y1="110" x2="550" y2="110" stroke="#666" stroke-width="2" marker-end="url(#componentArrow)"/>
+                        <line x1="750" y1="110" x2="800" y2="110" stroke="#666" stroke-width="2" marker-end="url(#componentArrow)"/>
+                    </svg>
+                </div>
+            </div>
+        </div>            A[File Watcher] --> B[Schema Validator]
+                            B --> C[Data Parser]
+                            C --> D[Quality Checker]
+                        end
+                        
+                        subgraph "Business Logic"
+                            E[Exception Manager]
+                            F[Aging Calculator]
+                            G[Status Tracker]
+                            H[Entitlement Engine]
+                        end
+                        
+                        subgraph "Workflow Engine"
+                            I[Step Orchestrator]
+                            J[User Interface Generator]
+                            K[Approval Manager]
+                            L[Notification Service]
+                        end
+                        
+                        subgraph "Data Layer"
+                            M[(Exception DB)]
+                            N[(Audit DB)]
+                            O[(Config DB)]
+                        end
+                        
+                        subgraph "Integration Services"
+                            P[Workflow API]
+                            Q[External Systems API]
+                            R[Reporting Engine]
+                        end
+                        
+                        D --> E
+                        E --> F
+                        F --> G
+                        H --> I
+                        I --> J
+                        J --> K
+                        K --> L
+                        
+                        E --> M
+                        G --> N
+                        H --> O
+                        
+                        I --> P
+                        R --> Q
+                        
+                        style M fill:#bbf,stroke:#333,stroke-width:2px
+                        style N fill:#bbf,stroke:#333,stroke-width:2px
+                        style O fill:#bbf,stroke:#333,stroke-width:2px
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 6: Data Flow -->
+        <div class="slide hidden" id="slide-6">
+            <div class="slide-header">
+                <h1 class="slide-title">Data Flow Architecture</h1>
+                <p class="slide-subtitle">Information Flow & Data Management</p>
+            </div>
+            <div class="diagram-container">
+                <div class="mermaid">
+                    sequenceDiagram
+                        participant Atlas as Atlas System
+                        participant FW as File Watcher
+                        participant FV as File Validator
+                        participant DT as Data Transformer
+                        participant DB as Database
+                        participant WF as Workflow Engine
+                        participant UI as User Interface
+                        participant EXT as External Systems
+                        
+                        Atlas->>FW: Daily Exception Files
+                        FW->>FV: Detected Files
+                        FV->>FV: Validate Control File
+                        FV->>DT: Valid Data
+                        DT->>DT: Transform & Enrich
+                        DT->>DB: Store Exceptions
+                        DB->>DB: Calculate Aging
+                        DB->>WF: Trigger Workflows
+                        WF->>UI: Generate User Screens
+                        UI->>WF: User Actions
+                        WF->>DB: Update Status
+                        DB->>EXT: Export Data
+                        EXT->>EXT: Generate Reports
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 7: Security & Entitlements -->
+        <div class="slide hidden" id="slide-7">
+            <div class="slide-header">
+                <h1 class="slide-title">Security & Entitlements Framework</h1>
+                <p class="slide-subtitle">Role-Based Access Control & Security</p>
+            </div>
+            <div class="content-grid">
+                <div class="content-section">
+                    <h3 class="section-title">Security Features</h3>
+                    <ul class="benefits-list">
+                        <li>Role-based access control (RBAC)</li>
+                        <li>Dynamic entitlements from file feeds</li>
+                        <li>Workflow step-level permissions</li>
+                        <li>Comprehensive audit logging</li>
+                        <li>Data encryption at rest and in transit</li>
+                        <li>Session management and timeout</li>
+                    </ul>
+                </div>
+                <div class="content-section">
+                    <h3 class="section-title">User Roles</h3>
+                    <div style="space-y: 10px;">
+                        <div style="background: #e3f2fd; padding: 15px; border-radius: 8px; margin-bottom: 10px;">
+                            <strong>Viewers:</strong> Read-only access to exceptions
+                        </div>
+                        <div style="background: #f3e5f5; padding: 15px; border-radius: 8px; margin-bottom: 10px;">
+                            <strong>Editors:</strong> Can update exception details
+                        </div>
+                        <div style="background: #e8f5e8; padding: 15px; border-radius: 8px; margin-bottom: 10px;">
+                            <strong>Approvers:</strong> Workflow approval rights
+                        </div>
+                        <div style="background: #fff3e0; padding: 15px; border-radius: 8px;">
+                            <strong>Administrators:</strong> Full system access
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="diagram-container" style="height: 300px;">
+                <div class="mermaid">
+                    graph LR
+                        A[User Login] --> B{Authentication}
+                        B --> C[Load Entitlements]
+                        C --> D[Role Assignment]
+                        D --> E[Permission Matrix]
+                        E --> F[UI Rendering]
+                        E --> G[API Access Control]
+                        
+                        H[Entitlement Files] --> C
+                        I[LDAP/AD] --> B
+                        
+                        style A fill:#e1f5fe
+                        style E fill:#f3e5f5
+                        style F fill:#e8f5e8
+                        style G fill:#e8f5e8
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 8: Implementation Timeline -->
+        <div class="slide hidden" id="slide-8">
+            <div class="slide-header">
+                <h1 class="slide-title">Implementation Timeline</h1>
+                <p class="slide-subtitle">Phased Delivery Approach</p>
+            </div>
+            <div class="content-grid">
+                <div class="content-section">
+                    <h3 class="section-title">Phase 1: Foundation (Jul-Sep 2025)</h3>
+                    <ul class="benefits-list">
+                        <li>File ingestion & validation services</li>
+                        <li>Database setup & data transformation</li>
+                        <li>Core backend services</li>
+                        <li>Infrastructure setup</li>
+                    </ul>
+                </div>
+                <div class="content-section">
+                    <h3 class="section-title">Phase 2: Parallel Development (Aug 2025-Feb 2026)</h3>
+                    <ul class="benefits-list">
+                        <li>Frontend UI with mock data</li>
+                        <li>Workflow engine integration</li>
+                        <li>Entitlements system</li>
+                        <li>User interface screens</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="highlight-box">
+                <h3>Phase 3: Integration & Testing (Jan-Jul 2026)</h3>
+                <p>Real data integration, end-to-end testing, user acceptance testing, and production deployment preparation.</p>
+                <p><strong>Go-Live Target:</strong> August 15, 2026</p>
+            </div>
+        </div>
+
+        <!-- Slide 9: Benefits & Value -->
+        <div class="slide hidden" id="slide-9">
+            <div class="slide-header">
+                <h1 class="slide-title">Business Benefits & Value Proposition</h1>
+                <p class="slide-subtitle">ROI & Strategic Advantages</p>
+            </div>
+            <div class="content-grid">
+                <div class="content-section">
+                    <h3 class="section-title">Operational Benefits</h3>
+                    <ul class="benefits-list">
+                        <li>Automated exception processing reduces manual effort by 70%</li>
+                        <li>Real-time tracking and aging improves response times</li>
+                        <li>Standardized workflows ensure compliance</li>
+                        <li>Enhanced audit trail for regulatory requirements</li>
+                        <li>Reduced operational risk through systematic processing</li>
+                    </ul>
+                </div>
+                <div class="content-section">
+                    <h3 class="section-title">Technical Advantages</h3>
+                    <ul class="benefits-list">
+                        <li>Scalable microservices architecture</li>
+                        <li>Modern tech stack ensures maintainability</li>
+                        <li>API-first design enables future integrations</li>
+                        <li>Cloud-native deployment for flexibility</li>
+                        <li>Comprehensive monitoring and alerting</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="highlight-box">
+                <h3>Strategic Impact</h3>
+                <p>This system positions the organization for digital transformation by creating a modern, efficient exception management platform that can adapt to changing business requirements and integrate with future financial systems.</p>
+            </div>
+        </div>
+
+        <!-- Slide 10: Next Steps -->
+        <div class="slide hidden" id="slide-10">
+            <div class="slide-header">
+                <h1 class="slide-title">Next Steps & Recommendations</h1>
+                <p class="slide-subtitle">Path Forward</p>
+            </div>
+            <div style="flex: 1; display: flex; flex-direction: column; justify-content: center;">
+                <div class="content-grid">
+                    <div class="content-section">
+                        <h3 class="section-title">Immediate Actions</h3>
+                        <ul class="benefits-list">
+                            <li>Approve architecture design</li>
+                            <li>Finalize resource allocation (17 team members)</li>
+                            <li>Set up development infrastructure</li>
+                            <li>Begin Phase 1 development</li>
+                        </ul>
+                    </div>
+                    <div class="content-section">
+                        <h3 class="section-title">Success Criteria</h3>
+                        <ul class="benefits-list">
+                            <li>On-time delivery by August 2026</li>
+                            <li>Zero critical security vulnerabilities</li>
+                            <li>99.9% system availability</li>
+                            <li>User acceptance > 95%</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="highlight-box" style="text-align: center; margin-top: 30px;">
+                    <h2 style="color: #667eea; margin-bottom: 15px;">Ready for Approval</h2>
+                    <p style="font-size: 1.1rem; margin-bottom: 0;">Architecture design complete • Team identified • Timeline confirmed</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="slide-counter">
+        <span id="current-slide">1</span> / <span id="total-slides">10</span>
+    </div>
+
+    <div class="navigation">
+        <button class="nav-btn" onclick="prevSlide()">← Previous</button>
+        <button class="nav-btn" onclick="nextSlide()">Next →</button>
+    </div>
+
+    <script>
+        let currentSlide = 1;
+        const totalSlides = 10;
+
+        function showSlide(n) {
+            document.querySelectorAll('.slide').forEach(slide => slide.classList.add('hidden'));
+            document.getElementById(`slide-${n}`).classList.remove('hidden');
+            document.getElementById('current-slide').textContent = n;
+            
+            // Reinitialize mermaid for the current slide
+            mermaid.init();
+        }
+
+        function nextSlide() {
+            if (currentSlide < totalSlides) {
+                currentSlide++;
+                showSlide(currentSlide);
+            }
+        }
+
+        function prevSlide() {
+            if (currentSlide > 1) {
+                currentSlide--;
+                showSlide(currentSlide);
+            }
+        }
+
+        // Keyboard navigation
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'ArrowRight' || e.key === ' ') {
+                nextSlide();
+            } else if (e.key === 'ArrowLeft') {
+                prevSlide();
+            }
+        });
+
+        // Initialize
+        mermaid.initialize({ 
+            startOnLoad: true,
+            theme: 'default',
+            flowchart: {
+                useMaxWidth: true,
+                htmlLabels: true,
+                curve: 'basis'
+            }
+        });
+        
+        document.getElementById('total-slides').textContent = totalSlides;
+    </script>
+</body>
+</html>
