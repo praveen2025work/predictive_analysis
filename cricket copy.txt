@@ -1,16 +1,1 @@
-Subject: Update on CDW Wijmo Grid License Renewal
 
-Dear Sunny, Bunty, and Montey,
-
-I hope this message finds you well. I am writing to update you on the CDW Wijmo Grid license renewal following our recent DCP call, during which Montey provisionally approved our request.
-
-I appreciate Sunny’s suggestion to explore Tableau as an alternative. After discussions with Bunty, I understand that, given our budget constraints, a full migration to Tableau is not feasible at this time. However, we can consider it as part of our long-term strategy when budget allows.
-
-In the meantime, I recommend proceeding with the renewal of the Wijmo license to ensure we continue to meet our operational needs.
-
-I welcome any thoughts or questions you may have, as your feedback is invaluable.
-
-Thank you for your consideration.
-
-Best regards,  
-[Your Name]
