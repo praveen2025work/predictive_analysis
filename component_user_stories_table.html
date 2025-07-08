@@ -1,0 +1,999 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Component-wise User Stories - Exception Management System (Updated Scope)</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background: #f5f5f5;
+        }
+        
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .scope-update {
+            background: #e8f4fd;
+            border: 2px solid #3498db;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .scope-update h3 {
+            color: #2980b9;
+            margin-top: 0;
+        }
+        
+        h2 {
+            color: #34495e;
+            background: #ecf0f1;
+            padding: 10px;
+            border-left: 5px solid #3498db;
+            margin: 30px 0 20px 0;
+        }
+        
+        .table-container {
+            overflow-x: auto;
+            margin-bottom: 30px;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 1400px;
+        }
+        
+        th {
+            background: #34495e;
+            color: white;
+            padding: 12px 8px;
+            text-align: left;
+            border: 1px solid #2c3e50;
+            font-weight: bold;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        
+        td {
+            border: 1px solid #bdc3c7;
+            padding: 10px 8px;
+            vertical-align: top;
+            font-size: 13px;
+            line-height: 1.4;
+        }
+        
+        .story-id {
+            background: #3498db;
+            color: white;
+            font-weight: bold;
+            text-align: center;
+            min-width: 80px;
+        }
+        
+        .component {
+            background: #e8f4fd;
+            font-weight: bold;
+            color: #2980b9;
+            min-width: 150px;
+        }
+        
+        .owner {
+            background: #fff3cd;
+            color: #856404;
+            font-weight: bold;
+            text-align: center;
+            min-width: 120px;
+        }
+        
+        .priority-critical {
+            border-left: 5px solid #e74c3c;
+        }
+        
+        .priority-high {
+            border-left: 5px solid #f39c12;
+        }
+        
+        .priority-medium {
+            border-left: 5px solid #3498db;
+        }
+        
+        .new-scope {
+            background: #d5f4e6 !important;
+            border-left: 5px solid #27ae60 !important;
+        }
+        
+        .phase-header {
+            background: #2c3e50;
+            color: white;
+            text-align: center;
+            font-weight: bold;
+            font-size: 16px;
+        }
+        
+        .user-story {
+            max-width: 300px;
+            font-style: italic;
+        }
+        
+        .acceptance-criteria ul {
+            margin: 0;
+            padding-left: 15px;
+        }
+        
+        .acceptance-criteria li {
+            margin: 3px 0;
+        }
+        
+        .tasks ul {
+            margin: 0;
+            padding-left: 15px;
+        }
+        
+        .tasks li {
+            margin: 2px 0;
+            font-size: 12px;
+        }
+        
+        .input, .output {
+            max-width: 220px;
+        }
+        
+        .action {
+            max-width: 280px;
+            font-weight: 500;
+        }
+        
+        @media print {
+            body { margin: 0; }
+            .container { box-shadow: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Exception Management System - Component-wise User Stories (Updated Scope)</h1>
+        
+        <div class="scope-update">
+            <h3>🔄 Updated Project Scope</h3>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                <div>
+                    <h4>New Upstream Data Sources:</h4>
+                    <ul>
+                        <li><strong>Atlas:</strong> Primary exception files</li>
+                        <li><strong>Reference Data Store:</strong> Market reference data</li>
+                        <li><strong>Trade Store:</strong> Trade details and positions</li>
+                        <li><strong>Finance Store:</strong> Financial data and calculations</li>
+                        <li><strong>Motif:</strong> Risk and market data</li>
+                    </ul>
+                </div>
+        
+        <h2>👥 Resource Allocation Strategy (17 Resources)</h2>
+        
+        <div style="background: #e8f4fd; padding: 20px; border-radius: 8px; margin: 30px 0;">
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px;">
+                <div>
+                    <h4>Java Team (4 Developers)</h4>
+                    <ul>
+                        <li><strong>Java Dev A:</strong> Multi-source connectors, Performance optimization</li>
+                        <li><strong>Java Dev B:</strong> Data enrichment, Downstream integrations</li>
+                        <li><strong>Java Dev C:</strong> Workflow engine, Business logic</li>
+                        <li><strong>Java Dev D:</strong> Entitlements, Security, Monitoring</li>
+                    </ul>
+                    <p><em>Strategy: Sequential development with some overlap in Phase 3</em></p>
+                </div>
+                <div>
+                    <h4>UI Team (3 Developers)</h4>
+                    <ul>
+                        <li><strong>UI Dev A:</strong> Exception views, Data grids, Admin screens</li>
+                        <li><strong>UI Dev B:</strong> Analytics, Reporting, Monitoring dashboards</li>
+                        <li><strong>UI Dev C:</strong> Workflow screens, Risk assessment, Trade validation</li>
+                    </ul>
+                    <p><em>Strategy: Parallel development with mock data, integration in Phase 3</em></p>
+                </div>
+                <div>
+                    <h4>Python Team (3 Developers)</h4>
+                    <ul>
+                        <li><strong>Python Dev A:</strong> File watchers, API connectors</li>
+                        <li><strong>Python Dev B:</strong> File validation, Downstream exports</li>
+                        <li><strong>Python Dev C:</strong> Data transformation, Enrichment</li>
+                    </ul>
+                    <p><em>Strategy: Foundation first, then support integration and advanced features</em></p>
+                </div>
+            </div>
+            
+            <div style="background: #fff3cd; padding: 15px; border-radius: 5px; margin-top: 20px;">
+                <h4>🎯 Workload Management:</h4>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                    <div>
+                        <strong>Critical Path Items:</strong>
+                        <ul>
+                            <li>Multi-source data connector (Java Dev A + Python Dev A)</li>
+                            <li>Data enrichment service (Java Dev B + Python Dev C)</li>
+                            <li>Enhanced exception view (UI Dev A)</li>
+                            <li>Workflow integration (Java Dev C + UI Dev C)</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <strong>Resource Sharing Strategy:</strong>
+                        <ul>
+                            <li>DBA supports all Java developers for database optimization</li>
+                            <li>Tech Lead provides architecture guidance across teams</li>
+                            <li>QA team provides continuous testing support</li>
+                            <li>BA team manages requirements and user acceptance</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+                <div>
+                    <h4>New Downstream Integrations:</h4>
+                    <ul>
+                        <li><strong>Market Risk Systems:</strong> Risk data updates</li>
+                        <li><strong>Trade Store:</strong> Trade corrections and updates</li>
+                        <li><strong>Finance Store:</strong> P&L and valuation updates</li>
+                        <li><strong>Regulatory Systems:</strong> Compliance reporting</li>
+                        <li><strong>Notification Systems:</strong> Alert and status updates</li>
+                    </ul>
+                </div>
+            </div>
+            <h4>Additional Features:</h4>
+            <ul>
+                <li><strong>Entitlement Configuration Screens:</strong> Admin interface for managing user permissions and roles</li>
+                <li><strong>Multi-source Data Integration:</strong> Consolidated view from multiple upstream systems</li>
+                <li><strong>API & File-based Updates:</strong> Flexible downstream integration options</li>
+            </ul>
+        </div>
+        
+        <h2>PHASE 1: FOUNDATION - Multi-Source Data Pipeline (Jul-Sep 2025)</h2>
+        
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Story ID</th>
+                        <th>Component</th>
+                        <th>User Story</th>
+                        <th>Action</th>
+                        <th>Owner</th>
+                        <th>Input</th>
+                        <th>Output</th>
+                        <th>Acceptance Criteria</th>
+                        <th>Tasks</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Multi-Source Data Connector -->
+                    <tr class="priority-critical new-scope">
+                        <td class="story-id">MDC-001</td>
+                        <td class="component">Multi-Source Data Connector</td>
+                        <td class="user-story">As a data architect, I want to connect to multiple upstream data sources, so that exception processing has complete data context</td>
+                        <td class="action">Establish connections to Atlas, Reference Data Store, Trade Store, Finance Store, and Motif systems</td>
+                        <td class="owner">Java Dev A + Python Dev A</td>
+                        <td class="input">• API endpoints<br>• Connection parameters<br>• Authentication credentials<br>• Data schemas</td>
+                        <td class="output">• Data connectors<br>• Connection pooling<br>• Error handling<br>• Connection monitoring</td>
+                        <td class="acceptance-criteria">
+                            <ul>
+                                <li>Connect to all 5 upstream systems</li>
+                                <li>Handle different auth methods</li>
+                                <li>Implement connection pooling</li>
+                                <li>Monitor connection health</li>
+                                <li>Graceful failure handling</li>
+                            </ul>
+                        </td>
+                        <td class="tasks">
+                            <ul>
+                                <li>Design connector architecture</li>
+                                <li>Implement Atlas file connector</li>
+                                <li>Build Reference Data API client</li>
+                                <li>Create Trade Store connector</li>
+                                <li>Add Finance Store integration</li>
+                                <li>Build Motif data connector</li>
+                                <li>Add connection monitoring</li>
+                            </ul>
+                        </td>
+                    </tr>
+                    
+                    <!-- File Watcher Service (Updated) -->
+                    <tr class="priority-critical">
+                        <td class="story-id">FWS-001</td>
+                        <td class="component">File Watcher Service</td>
+                        <td class="user-story">As a system administrator, I want the system to monitor multiple file sources, so that all exception data is captured automatically</td>
+                        <td class="action">Monitor file drops from Atlas and other file-based sources with intelligent routing</td>
+                        <td class="owner">Python Dev A</td>
+                        <td class="input">• Atlas exception files<br>• Reference data files<br>• Trade position files<br>• Finance calculation files</td>
+                        <td class="output">• File detection events<br>• Source identification<br>• Processing triggers<br>• Routing decisions</td>
+                        <td class="acceptance-criteria">
+                            <ul>
+                                <li>Monitor multiple source folders</li>
+                                <li>Identify file source automatically</li>
+                                <li>Route to appropriate processors</li>
+                                <li>Handle multiple formats</li>
+                                <li>Log all file activities</li>
+                            </ul>
+                        </td>
+                        <td class="tasks">
+                            <ul>
+                                <li>Extend monitoring to multiple folders</li>
+                                <li>Add source identification logic</li>
+                                <li>Implement intelligent routing</li>
+                                <li>Add format detection</li>
+                                <li>Enhanced logging and alerts</li>
+                            </ul>
+                        </td>
+                    </tr>
+                    
+                    <!-- Data Enrichment Service -->
+                    <tr class="priority-critical new-scope">
+                        <td class="story-id">DES-001</td>
+                        <td class="component">Data Enrichment Service</td>
+                        <td class="user-story">As a business analyst, I want exception data enriched with reference and trade data, so that users have complete context for decision making</td>
+                        <td class="action">Enrich exception data by fetching related information from reference data, trade store, and finance store</td>
+                        <td class="owner">Java Dev B + Python Dev C</td>
+                        <td class="input">• Exception base data<br>• Trade IDs<br>• Instrument codes<br>• Entity references</td>
+                        <td class="output">• Enriched exceptions<br>• Trade details<br>• Reference data<br>• Financial calculations</td>
+                        <td class="acceptance-criteria">
+                            <ul>
+                                <li>Fetch trade details by ID</li>
+                                <li>Lookup reference data</li>
+                                <li>Get financial calculations</li>
+                                <li>Cache frequently used data</li>
+                                <li>Handle missing data gracefully</li>
+                            </ul>
+                        </td>
+                        <td class="tasks">
+                            <ul>
+                                <li>Design enrichment workflow</li>
+                                <li>Implement trade data lookup</li>
+                                <li>Add reference data fetching</li>
+                                <li>Build finance data integration</li>
+                                <li>Add caching mechanism</li>
+                                <li>Create fallback procedures</li>
+                            </ul>
+                        </td>
+                    </tr>
+                    
+                    <!-- Downstream Integration Framework -->
+                    <tr class="priority-high new-scope">
+                        <td class="story-id">DIF-001</td>
+                        <td class="component">Downstream Integration Framework</td>
+                        <td class="user-story">As a system architect, I want a framework for downstream updates, so that completed workflows update all relevant systems</td>
+                        <td class="action">Create flexible framework supporting both API and file-based downstream updates</td>
+                        <td class="owner">Java Dev A + Python Dev B</td>
+                        <td class="input">• Workflow completion events<br>• Updated exception data<br>• Target system configs<br>• Update rules</td>
+                        <td class="output">• API calls<br>• Export files<br>• Update confirmations<br>• Error notifications</td>
+                        <td class="acceptance-criteria">
+                            <ul>
+                                <li>Support API and file updates</li>
+                                <li>Configure target systems</li>
+                                <li>Map data for each target</li>
+                                <li>Retry failed updates</li>
+                                <li>Audit all updates</li>
+                            </ul>
+                        </td>
+                        <td class="tasks">
+                            <ul>
+                                <li>Design integration framework</li>
+                                <li>Build API client templates</li>
+                                <li>Create file export engine</li>
+                                <li>Add configuration management</li>
+                                <li>Implement retry logic</li>
+                                <li>Build audit trail</li>
+                            </ul>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        
+        <h2>PHASE 2A: EXCEPTION DASHBOARD - Enhanced Data Views (Aug 2025-Feb 2026)</h2>
+        
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Story ID</th>
+                        <th>Component</th>
+                        <th>User Story</th>
+                        <th>Action</th>
+                        <th>Owner</th>
+                        <th>Input</th>
+                        <th>Output</th>
+                        <th>Acceptance Criteria</th>
+                        <th>Tasks</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Enhanced Exception View -->
+                    <tr class="priority-high new-scope">
+                        <td class="story-id">EEV-001</td>
+                        <td class="component">Enhanced Exception View</td>
+                        <td class="user-story">As a business user, I want to see enriched exception data from multiple sources, so I have complete context for each exception</td>
+                        <td class="action">Display enriched exception data with trade details, reference data, and financial information in unified view</td>
+                        <td class="owner">UI Dev A</td>
+                        <td class="input">• Enriched exception data<br>• Trade information<br>• Reference data<br>• Financial calculations<br>• User preferences</td>
+                        <td class="output">• Comprehensive data grid<br>• Expandable detail panels<br>• Cross-reference links<br>• Contextual tooltips</td>
+                        <td class="acceptance-criteria">
+                            <ul>
+                                <li>Show enriched data in grid</li>
+                                <li>Expandable detail sections</li>
+                                <li>Link to source systems</li>
+                                <li>Contextual information tooltips</li>
+                                <li>Performance optimized loading</li>
+                            </ul>
+                        </td>
+                        <td class="tasks">
+                            <ul>
+                                <li>Design enriched data layout</li>
+                                <li>Implement expandable panels</li>
+                                <li>Add cross-system links</li>
+                                <li>Build contextual tooltips</li>
+                                <li>Optimize data loading</li>
+                            </ul>
+                        </td>
+                    </tr>
+                    
+                    <!-- Data Source Analytics -->
+                    <tr class="priority-medium new-scope">
+                        <td class="story-id">DSA-001</td>
+                        <td class="component">Data Source Analytics</td>
+                        <td class="user-story">As a data manager, I want analytics on data quality across sources, so I can identify and address data issues</td>
+                        <td class="action">Provide analytics dashboard showing data quality, completeness, and timeliness by source system</td>
+                        <td class="owner">UI Dev B</td>
+                        <td class="input">• Data quality metrics<br>• Source system stats<br>• Completeness ratios<br>• Timeliness data</td>
+                        <td class="output">• Quality dashboard<br>• Source comparison charts<br>• Trend analysis<br>• Issue alerts</td>
+                        <td class="acceptance-criteria">
+                            <ul>
+                                <li>Quality metrics by source</li>
+                                <li>Completeness tracking</li>
+                                <li>Timeliness monitoring</li>
+                                <li>Trend analysis charts</li>
+                                <li>Automated quality alerts</li>
+                            </ul>
+                        </td>
+                        <td class="tasks">
+                            <ul>
+                                <li>Design quality dashboard</li>
+                                <li>Implement source comparison</li>
+                                <li>Add trend analysis</li>
+                                <li>Build quality alerts</li>
+                                <li>Create drill-down views</li>
+                            </ul>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        
+        <h2>PHASE 2B: ENTITLEMENTS - Configuration & Management (Sep-Dec 2025)</h2>
+        
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Story ID</th>
+                        <th>Component</th>
+                        <th>User Story</th>
+                        <th>Action</th>
+                        <th>Owner</th>
+                        <th>Input</th>
+                        <th>Output</th>
+                        <th>Acceptance Criteria</th>
+                        <th>Tasks</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Entitlement Configuration Screens -->
+                    <tr class="priority-high new-scope">
+                        <td class="story-id">ECS-001</td>
+                        <td class="component">Entitlement Configuration Screens</td>
+                        <td class="user-story">As a security administrator, I want to configure user entitlements through UI screens, so I can manage permissions without file uploads</td>
+                        <td class="action">Provide comprehensive UI for creating, editing, and managing user roles, permissions, and organizational mappings</td>
+                        <td class="owner">UI Dev A + Java Dev D</td>
+                        <td class="input">• User details<br>• Role definitions<br>• Permission matrices<br>• Org structure<br>• Workflow mappings</td>
+                        <td class="output">• User management UI<br>• Role configuration<br>• Permission assignments<br>• Org hierarchy display<br>• Bulk operations</td>
+                        <td class="acceptance-criteria">
+                            <ul>
+                                <li>User CRUD operations</li>
+                                <li>Role creation and editing</li>
+                                <li>Permission matrix management</li>
+                                <li>Org hierarchy configuration</li>
+                                <li>Bulk user operations</li>
+                                <li>Audit trail for changes</li>
+                            </ul>
+                        </td>
+                        <td class="tasks">
+                            <ul>
+                                <li>Design admin interface</li>
+                                <li>Build user management forms</li>
+                                <li>Create role configuration UI</li>
+                                <li>Implement permission matrix</li>
+                                <li>Add org hierarchy display</li>
+                                <li>Build bulk operations</li>
+                                <li>Add change audit trail</li>
+                            </ul>
+                        </td>
+                    </tr>
+                    
+                    <!-- Dynamic Permission Engine -->
+                    <tr class="priority-high new-scope">
+                        <td class="story-id">DPE-001</td>
+                        <td class="component">Dynamic Permission Engine</td>
+                        <td class="user-story">As a workflow user, I want permissions to adapt based on data context, so I can work efficiently within my authorization scope</td>
+                        <td class="action">Implement dynamic permission evaluation based on exception attributes, user roles, and data sensitivity</td>
+                        <td class="owner">Java Dev D</td>
+                        <td class="input">• User context<br>• Exception attributes<br>• Data classification<br>• Business rules<br>• Workflow stage</td>
+                        <td class="output">• Dynamic permissions<br>• Context-aware UI<br>• Access decisions<br>• Permission cache<br>• Audit logs</td>
+                        <td class="acceptance-criteria">
+                            <ul>
+                                <li>Evaluate permissions dynamically</li>
+                                <li>Consider data sensitivity</li>
+                                <li>Adapt to workflow stage</li>
+                                <li>Cache permission decisions</li>
+                                <li>Log all access attempts</li>
+                            </ul>
+                        </td>
+                        <td class="tasks">
+                            <ul>
+                                <li>Design permission engine</li>
+                                <li>Implement dynamic evaluation</li>
+                                <li>Add data classification</li>
+                                <li>Build caching mechanism</li>
+                                <li>Create audit logging</li>
+                            </ul>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        
+        <h2>PHASE 2C: WORKFLOW SCREENS - Enhanced Integration (Sep 2025-Feb 2026)</h2>
+        
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Story ID</th>
+                        <th>Component</th>
+                        <th>User Story</th>
+                        <th>Action</th>
+                        <th>Owner</th>
+                        <th>Input</th>
+                        <th>Output</th>
+                        <th>Acceptance Criteria</th>
+                        <th>Tasks</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Enhanced Risk Screen -->
+                    <tr class="priority-high new-scope">
+                        <td class="story-id">ERS-001</td>
+                        <td class="component">Enhanced Risk Screen</td>
+                        <td class="user-story">As a risk analyst, I want to see risk data from multiple sources, so I can make informed risk assessments</td>
+                        <td class="action">Display integrated risk information from Motif, market data, and internal risk systems with assessment tools</td>
+                        <td class="owner">UI Dev C</td>
+                        <td class="input">• Motif risk data<br>• Market data<br>• Internal risk metrics<br>• Historical patterns<br>• Assessment criteria</td>
+                        <td class="output">• Integrated risk display<br>• Risk assessment forms<br>• Comparison tools<br>• Risk reports<br>• Escalation triggers</td>
+                        <td class="acceptance-criteria">
+                            <ul>
+                                <li>Display multi-source risk data</li>
+                                <li>Risk assessment workflows</li>
+                                <li>Historical comparison tools</li>
+                                <li>Automated risk scoring</li>
+                                <li>Escalation thresholds</li>
+                            </ul>
+                        </td>
+                        <td class="tasks">
+                            <ul>
+                                <li>Design integrated risk view</li>
+                                <li>Implement multi-source display</li>
+                                <li>Add assessment workflows</li>
+                                <li>Build comparison tools</li>
+                                <li>Create risk scoring engine</li>
+                            </ul>
+                        </td>
+                    </tr>
+                    
+                    <!-- Trade Validation with Multi-Source Data -->
+                    <tr class="priority-high new-scope">
+                        <td class="story-id">TVD-001</td>
+                        <td class="component">Trade Validation with Multi-Source Data</td>
+                        <td class="user-story">As a front office trader, I want to validate trades using data from multiple sources, so I can ensure accuracy across all systems</td>
+                        <td class="action">Provide trade validation interface with data comparison across trade store, finance store, and market data</td>
+                        <td class="owner">UI Dev C + Java Dev D</td>
+                        <td class="input">• Trade store data<br>• Finance store data<br>• Market reference data<br>• Exception details<br>• Validation rules</td>
+                        <td class="output">• Multi-source trade view<br>• Variance analysis<br>• Validation results<br>• Correction workflows<br>• Update triggers</td>
+                        <td class="acceptance-criteria">
+                            <ul>
+                                <li>Compare data across sources</li>
+                                <li>Highlight variances</li>
+                                <li>Validate against rules</li>
+                                <li>Support corrections</li>
+                                <li>Trigger downstream updates</li>
+                            </ul>
+                        </td>
+                        <td class="tasks">
+                            <ul>
+                                <li>Design multi-source view</li>
+                                <li>Implement variance analysis</li>
+                                <li>Add validation engine</li>
+                                <li>Build correction workflows</li>
+                                <li>Create update triggers</li>
+                            </ul>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        
+        <h2>PHASE 3: INTEGRATION & DOWNSTREAM UPDATES (Jan-Jul 2026)</h2>
+        
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Story ID</th>
+                        <th>Component</th>
+                        <th>User Story</th>
+                        <th>Action</th>
+                        <th>Owner</th>
+                        <th>Input</th>
+                        <th>Output</th>
+                        <th>Acceptance Criteria</th>
+                        <th>Tasks</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Market Risk Integration -->
+                    <tr class="priority-critical new-scope">
+                        <td class="story-id">MRI-001</td>
+                        <td class="component">Market Risk Integration</td>
+                        <td class="user-story">As a risk manager, I want completed exceptions to update market risk systems, so risk calculations reflect resolved exceptions</td>
+                        <td class="action">Update market risk systems with resolved exception data via API and file exports</td>
+                        <td class="owner">Python Dev A + Java Dev B</td>
+                        <td class="input">• Completed exceptions<br>• Risk adjustments<br>• Market data updates<br>• Calculation triggers</td>
+                        <td class="output">• Risk system updates<br>• API calls<br>• Export files<br>• Confirmation receipts<br>• Error notifications</td>
+                        <td class="acceptance-criteria">
+                            <ul>
+                                <li>Update risk calculations</li>
+                                <li>Support real-time API updates</li>
+                                <li>Generate batch export files</li>
+                                <li>Confirm successful updates</li>
+                                <li>Handle update failures</li>
+                            </ul>
+                        </td>
+                        <td class="tasks">
+                            <ul>
+                                <li>Design risk update API</li>
+                                <li>Implement real-time updates</li>
+                                <li>Build batch export process</li>
+                                <li>Add confirmation handling</li>
+                                <li>Create failure recovery</li>
+                            </ul>
+                        </td>
+                    </tr>
+                    
+                    <!-- Trade Store Updates -->
+                    <tr class="priority-critical new-scope">
+                        <td class="story-id">TSU-001</td>
+                        <td class="component">Trade Store Updates</td>
+                        <td class="user-story">As a trade operations manager, I want trade corrections to update the trade store, so all systems have consistent trade data</td>
+                        <td class="action">Push validated trade corrections back to trade store with proper audit trail and versioning</td>
+                        <td class="owner">Java Dev A + Python Dev B</td>
+                        <td class="input">• Validated corrections<br>• Trade identifiers<br>• Amendment details<br>• Approval records</td>
+                        <td class="output">• Trade store updates<br>• Version history<br>• Audit records<br>• Notification alerts<br>• Reconciliation reports</td>
+                        <td class="acceptance-criteria">
+                            <ul>
+                                <li>Update trade store records</li>
+                                <li>Maintain version history</li>
+                                <li>Create audit trail</li>
+                                <li>Send notifications</li>
+                                <li>Generate reconciliation reports</li>
+                            </ul>
+                        </td>
+                        <td class="tasks">
+                            <ul>
+                                <li>Design trade update API</li>
+                                <li>Implement versioning</li>
+                                <li>Add audit trail</li>
+                                <li>Build notification system</li>
+                                <li>Create reconciliation engine</li>
+                            </ul>
+                        </td>
+                    </tr>
+                    
+                    <!-- Finance Store Integration -->
+                    <tr class="priority-high new-scope">
+                        <td class="story-id">FSI-001</td>
+                        <td class="component">Finance Store Integration</td>
+                        <td class="user-story">As a finance manager, I want P&L and valuation adjustments reflected in finance systems, so financial reporting is accurate</td>
+                        <td class="action">Update finance store with P&L adjustments, valuation changes, and booking corrections from resolved exceptions</td>
+                        <td class="owner">Java Dev B + Python Dev C</td>
+                        <td class="input">• P&L adjustments<br>• Valuation changes<br>• Booking corrections<br>• GL account mappings</td>
+                        <td class="output">• Finance store updates<br>• GL entries<br>• Adjustment reports<br>• Variance analysis<br>• Approval workflows</td>
+                        <td class="acceptance-criteria">
+                            <ul>
+                                <li>Update P&L calculations</li>
+                                <li>Adjust valuations</li>
+                                <li>Create GL entries</li>
+                                <li>Generate adjustment reports</li>
+                                <li>Support approval workflows</li>
+                            </ul>
+                        </td>
+                        <td class="tasks">
+                            <ul>
+                                <li>Design finance update API</li>
+                                <li>Implement P&L adjustments</li>
+                                <li>Build GL entry creation</li>
+                                <li>Add adjustment reporting</li>
+                                <li>Create approval workflows</li>
+                            </ul>
+                        </td>
+                    </tr>
+                    
+                    <!-- Comprehensive Downstream Monitoring -->
+                    <tr class="priority-high new-scope">
+                        <td class="story-id">CDM-001</td>
+                        <td class="component">Comprehensive Downstream Monitoring</td>
+                        <td class="user-story">As a system administrator, I want to monitor all downstream updates, so I can ensure data consistency across all systems</td>
+                        <td class="action">Provide comprehensive monitoring dashboard for all downstream integrations with success/failure tracking and retry mechanisms</td>
+                        <td class="owner">UI Dev B + Java Dev C</td>
+                        <td class="input">• Update requests<br>• System responses<br>• Error messages<br>• Retry attempts<br>• Success confirmations</td>
+                        <td class="output">• Monitoring dashboard<br>• Success/failure metrics<br>• Error analysis<br>• Retry management<br>• Alerting system</td>
+                        <td class="acceptance-criteria">
+                            <ul>
+                                <li>Track all downstream updates</li>
+                                <li>Monitor success/failure rates</li>
+                                <li>Analyze error patterns</li>
+                                <li>Manage retry attempts</li>
+                                <li>Send failure alerts</li>
+                            </ul>
+                        </td>
+                        <td class="tasks">
+                            <ul>
+                                <li>Design monitoring dashboard</li>
+                                <li>Implement tracking system</li>
+                                <li>Add error analysis</li>
+                                <li>Build retry management</li>
+                                <li>Create alerting system</li>
+                            </ul>
+                        </td>
+                    </tr>
+                    
+                    <!-- Regulatory Reporting Updates -->
+                    <tr class="priority-medium new-scope">
+                        <td class="story-id">RRU-001</td>
+                        <td class="component">Regulatory Reporting Updates</td>
+                        <td class="user-story">As a compliance manager, I want regulatory reports updated with exception resolutions, so compliance reporting is accurate and timely</td>
+                        <td class="action">Update regulatory reporting systems with resolved exception data for accurate compliance reporting</td>
+                        <td class="owner">Python Dev C + Java Dev D</td>
+                        <td class="input">• Resolved exceptions<br>• Regulatory mappings<br>• Reporting schedules<br>• Compliance rules</td>
+                        <td class="output">• Regulatory updates<br>• Compliance reports<br>• Filing confirmations<br>• Audit documentation</td>
+                        <td class="acceptance-criteria">
+                            <ul>
+                                <li>Update regulatory systems</li>
+                                <li>Generate compliance reports</li>
+                                <li>Confirm successful filings</li>
+                                <li>Maintain audit documentation</li>
+                                <li>Handle regulatory deadlines</li>
+                            </ul>
+                        </td>
+                        <td class="tasks">
+                            <ul>
+                                <li>Design regulatory API</li>
+                                <li>Implement compliance updates</li>
+                                <li>Build report generation</li>
+                                <li>Add audit documentation</li>
+                                <li>Create deadline management</li>
+                            </ul>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        
+        <h2>PHASE 4: ADVANCED FEATURES & OPTIMIZATION (Mar-Jul 2026)</h2>
+        
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Story ID</th>
+                        <th>Component</th>
+                        <th>User Story</th>
+                        <th>Action</th>
+                        <th>Owner</th>
+                        <th>Input</th>
+                        <th>Output</th>
+                        <th>Acceptance Criteria</th>
+                        <th>Tasks</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Advanced Data Lineage -->
+                    <tr class="priority-medium new-scope">
+                        <td class="story-id">ADL-001</td>
+                        <td class="component">Advanced Data Lineage</td>
+                        <td class="user-story">As a data steward, I want to track data lineage across all systems, so I can understand data flow and dependencies</td>
+                        <td class="action">Implement comprehensive data lineage tracking from upstream sources through to downstream updates</td>
+                        <td class="owner">Java Dev A + UI Dev B</td>
+                        <td class="input">• Data transformation logs<br>• System integration points<br>• Update histories<br>• Dependency mappings</td>
+                        <td class="output">• Lineage visualization<br>• Dependency graphs<br>• Impact analysis<br>• Data flow reports</td>
+                        <td class="acceptance-criteria">
+                            <ul>
+                                <li>Track end-to-end lineage</li>
+                                <li>Visualize data flow</li>
+                                <li>Identify dependencies</li>
+                                <li>Analyze impact of changes</li>
+                                <li>Generate lineage reports</li>
+                            </ul>
+                        </td>
+                        <td class="tasks">
+                            <ul>
+                                <li>Design lineage tracking</li>
+                                <li>Build visualization tools</li>
+                                <li>Implement dependency mapping</li>
+                                <li>Add impact analysis</li>
+                                <li>Create reporting features</li>
+                            </ul>
+                        </td>
+                    </tr>
+                    
+                    <!-- Automated Exception Routing -->
+                    <tr class="priority-medium new-scope">
+                        <td class="story-id">AER-001</td>
+                        <td class="component">Automated Exception Routing</td>
+                        <td class="user-story">As a workflow manager, I want exceptions automatically routed to appropriate teams, so processing is more efficient</td>
+                        <td class="action">Implement intelligent routing based on exception type, data attributes, and team expertise</td>
+                        <td class="owner">Java Dev D + Python Dev A</td>
+                        <td class="input">• Exception attributes<br>• Team capabilities<br>• Workload metrics<br>• Routing rules<br>• Historical patterns</td>
+                        <td class="output">• Auto-routing decisions<br>• Team assignments<br>• Workload balancing<br>• Routing analytics</td>
+                        <td class="acceptance-criteria">
+                            <ul>
+                                <li>Route based on exception type</li>
+                                <li>Consider team expertise</li>
+                                <li>Balance workloads</li>
+                                <li>Learn from patterns</li>
+                                <li>Provide routing analytics</li>
+                            </ul>
+                        </td>
+                        <td class="tasks">
+                            <ul>
+                                <li>Design routing engine</li>
+                                <li>Implement rule system</li>
+                                <li>Add workload balancing</li>
+                                <li>Build learning algorithms</li>
+                                <li>Create analytics dashboard</li>
+                            </ul>
+                        </td>
+                    </tr>
+                    
+                    <!-- Performance Optimization -->
+                    <tr class="priority-high new-scope">
+                        <td class="story-id">POP-001</td>
+                        <td class="component">Performance Optimization</td>
+                        <td class="user-story">As a system user, I want fast response times across all features, so I can work efficiently without delays</td>
+                        <td class="action">Optimize system performance including database queries, API responses, and UI rendering</td>
+                        <td class="owner">All Java Devs + DBA</td>
+                        <td class="input">• Performance metrics<br>• Response times<br>• Database queries<br>• API endpoints<br>• UI components</td>
+                        <td class="output">• Optimized queries<br>• Faster APIs<br>• Responsive UI<br>• Performance reports<br>• Monitoring alerts</td>
+                        <td class="acceptance-criteria">
+                            <ul>
+                                <li>Sub-second page loads</li>
+                                <li>API responses under 500ms</li>
+                                <li>Optimized database queries</li>
+                                <li>Efficient data caching</li>
+                                <li>Performance monitoring</li>
+                            </ul>
+                        </td>
+                        <td class="tasks">
+                            <ul>
+                                <li>Performance testing</li>
+                                <li>Database optimization</li>
+                                <li>API performance tuning</li>
+                                <li>UI optimization</li>
+                                <li>Caching implementation</li>
+                                <li>Monitoring setup</li>
+                            </ul>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        
+        <h2>📊 Resource Requirements & Timeline (Constrained)</h2>
+        
+        <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 30px 0;">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px;">
+                <div>
+                    <h3>Available Team Size: 17 Resources</h3>
+                    <ul>
+                        <li><strong>Management:</strong> 1 PM, 2 BA</li>
+                        <li><strong>Development:</strong> 4 Java, 3 Python, 3 UI</li>
+                        <li><strong>QA:</strong> 2 QA Engineers</li>
+                        <li><strong>Infrastructure:</strong> 1 DBA</li>
+                        <li><strong>Architecture:</strong> 1 Tech Lead</li>
+                    </ul>
+                </div>
+                <div>
+                    <h3>Realistic Timeline: 18 Months</h3>
+                    <ul>
+                        <li><strong>Phase 1:</strong> Jul-Sep 2025 (Foundation)</li>
+                        <li><strong>Phase 2:</strong> Aug 2025-Apr 2026 (Parallel Development)</li>
+                        <li><strong>Phase 3:</strong> Mar-Sep 2026 (Integration)</li>
+                        <li><strong>Phase 4:</strong> Aug-Nov 2026 (Advanced Features)</li>
+                        <li><strong>Go-Live:</strong> December 2026</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div style="background: #fff3cd; padding: 15px; border-radius: 5px; margin-top: 20px;">
+                <h4>⚠️ Resource Constraints Impact:</h4>
+                <ul>
+                    <li><strong>Java Workload:</strong> 4 developers handling 6 Java components (requires sequential development)</li>
+                    <li><strong>UI Workload:</strong> 3 developers handling 4 UI components (overlap in development phases)</li>
+                    <li><strong>Extended Timeline:</strong> +2 months due to resource constraints</li>
+                    <li><strong>Mitigation:</strong> Prioritized delivery with some advanced features in Phase 4</li>
+                </ul>
+            </div>
+        </div>
+        
+        <h2>🔗 Integration Architecture Summary</h2>
+        
+        <div style="background: #e8f4fd; padding: 20px; border-radius: 8px; margin: 30px 0;">
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px;">
+                <div>
+                    <h4>📥 Upstream Sources (5)</h4>
+                    <ul>
+                        <li>Atlas (Files + API)</li>
+                        <li>Reference Data Store (API)</li>
+                        <li>Trade Store (API + DB)</li>
+                        <li>Finance Store (API)</li>
+                        <li>Motif (API + Files)</li>
+                    </ul>
+                </div>
+                <div>
+                    <h4>📤 Downstream Targets (6)</h4>
+                    <ul>
+                        <li>Market Risk Systems</li>
+                        <li>Trade Store Updates</li>
+                        <li>Finance Store Updates</li>
+                        <li>Regulatory Systems</li>
+                        <li>Notification Systems</li>
+                        <li>Audit Systems</li>
+                    </ul>
+                </div>
+                <div>
+                    <h4>🔧 New Components (8)</h4>
+                    <ul>
+                        <li>Multi-Source Data Connector</li>
+                        <li>Data Enrichment Service</li>
+                        <li>Downstream Integration Framework</li>
+                        <li>Entitlement Configuration UI</li>
+                        <li>Dynamic Permission Engine</li>
+                        <li>Advanced Analytics</li>
+                        <li>Performance Optimization</li>
+                        <li>Data Lineage Tracking</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        
+        <div style="background: #fff3cd; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 5px solid #ffc107;">
+            <p><strong>📝 Note:</strong> Green highlighted rows indicate new scope additions. The updated project now includes comprehensive multi-source data integration, enhanced downstream updates, and advanced configuration capabilities, requiring extended timeline and additional resources.</p>
+        </div>
+    </div>
+</body>
+</html>
