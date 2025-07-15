@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sprint 1 - JIRA Stories</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background: #f5f5f5;
+        }
+        
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        
+        th {
+            background: #34495e;
+            color: white;
+            padding: 12px;
+            text-align: left;
+            border: 1px solid #2c3e50;
+        }
+        
+        td {
+            border: 1px solid #bdc3c7;
+            padding: 12px;
+            vertical-align: top;
+        }
+        
+        tr:nth-child(even) {
+            background: #f8f9fa;
+        }
+        
+        .points {
+            text-align: center;
+            font-weight: bold;
+        }
+        
+        .priority-high { background: #ffebee; }
+        .priority-medium { background: #fff3e0; }
+        .priority-low { background: #f3e5f5; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Sprint 1 - Foundation Stories</h1>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Story ID</th>
+                    <th>Summary</th>
+                    <th>Points</th>
+                    <th>Assignee</th>
+                    <th>Role</th>
+                    <th>Component</th>
+                    <th>Description & Use Case</th>
+                    <th>Acceptance Criteria</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>EMS-001</strong></td>
+                    <td>Set up workflow steps database schema and procedures</td>
+                    <td class="points">5</td>
+                    <td>Ashwani Tripathi</td>
+                    <td>PL/SQL Lead</td>
+                    <td>Database</td>
+                    <td><strong>Use Case:</strong> Create database structure for workflow management and step tracking<br><strong>Description:</strong> Design and create database tables for workflow stages, process steps, status tracking, and performance metrics. Include tables for stage definitions, process execution history, step dependencies, and regional configurations (EMEA). Create stored procedures for workflow operations and step transitions.</td>
+                    <td>✓ Workflow tables created<br>✓ Step tracking schema<br>✓ Stored procedures ready</td>
+                </tr>
+                
+                <tr>
+                    <td><strong>EMS-002</strong></td>
+                    <td>Create file watcher service for exception files</td>
+                    <td class="points">5</td>
+                    <td>Priti Pradhan</td>
+                    <td>Python Lead</td>
+                    <td>File Processing</td>
+                    <td><strong>Use Case:</strong> Automatically detect when Atlas drops new exception files<br><strong>Description:</strong> Build a Python service that monitors a local directory for new .dat files. When Atlas system drops exception files, this service should detect them immediately and trigger the processing pipeline. Include file locking to prevent processing incomplete files and handle .dat file format detection.</td>
+                    <td>✓ Monitors local folder<br>✓ Detects .dat files<br>✓ Triggers processing</td>
+                </tr>
+                
+                <tr>
+                    <td><strong>EMS-003</strong></td>
+                    <td>Build file validation engine</td>
+                    <td class="points">5</td>
+                    <td>Nikita Pandey</td>
+                    <td>Python Lead</td>
+                    <td>File Processing</td>
+                    <td><strong>Use Case:</strong> Ensure exception files are valid before processing<br><strong>Description:</strong> Create a validation engine that checks .dat file structure, validates required columns (Book Code, System, Instrument ID, etc.), verifies data types, and checks for missing critical fields. Handle .dat file parsing (delimiter-separated format) and generate detailed validation reports for any errors found.</td>
+                    <td>✓ Validates .dat file schema<br>✓ Checks required fields<br>✓ Returns validation report</td>
+                </tr>
+                
+                <tr>
+                    <td><strong>EMS-004</strong></td>
+                    <td>Implement data transformation and load to staging table</td>
+                    <td class="points">5</td>
+                    <td>Pragati Jha</td>
+                    <td>Python Developer</td>
+                    <td>File Processing</td>
+                    <td><strong>Use Case:</strong> Transform and load validated file data into staging table for processing<br><strong>Description:</strong> Transform validated .dat file data into structured format and load directly into staging table. Parse .dat file format (delimiter-separated), apply basic data transformation (format standardization, data type conversion, field mapping) and insert records into staging table with raw exception data. This is a simple load operation - no aging calculation or status processing.</td>
+                    <td>✓ Parses .dat file format<br>✓ Transforms raw data<br>✓ Loads data to staging table<br>✓ No aging or status calculation</td>
+                </tr>
+                
+                <tr>
+                    <td><strong>EMS-005</strong></td>
+                    <td>Create workflow integration service</td>
+                    <td class="points">5</td>
+                    <td>Hariharan MS</td>
+                    <td>Python Developer</td>
+                    <td>Workflow Integration</td>
+                    <td><strong>Use Case:</strong> Connect exception system to existing workflow processes<br><strong>Description:</strong> Build service to integrate with workflow stages (like PnL calculation workflow). Monitor stage progress (65% complete), track process status (Manual/EMEA), and handle workflow transitions. This enables exception management within broader business processes.</td>
+                    <td>✓ Connects to workflow stages<br>✓ Monitors process status<br>✓ Handles stage transitions</td>
+                </tr>
+                
+                <tr>
+                    <td><strong>EMS-006</strong></td>
+                    <td>Set up H2 with staging table and main exception tables</td>
+                    <td class="points">5</td>
+                    <td>Isha Kumari</td>
+                    <td>Java Architect</td>
+                    <td>Backend Setup</td>
+                    <td><strong>Use Case:</strong> Create database foundation for exception processing workflow<br><strong>Description:</strong> Set up Spring Boot with H2 database including: 1) Staging table for raw file data loads (no status/aging columns), 2) Main exception table with status, aging, calendar date columns for processed exceptions, 3) JPA entities for both tables with proper relationships. The staging table is for raw data input, while main table is for processed exceptions with business logic applied.</td>
+                    <td>✓ H2 database configured<br>✓ Staging table for raw data<br>✓ Main exception table with status/aging<br>✓ JPA entities for both tables</td>
+                </tr>
+                
+                <tr>
+                    <td><strong>EMS-007</strong></td>
+                    <td>Build exception management REST APIs</td>
+                    <td class="points">5</td>
+                    <td>Rahul Ranjan</td>
+                    <td>Java MS Lead</td>
+                    <td>Backend API</td>
+                    <td><strong>Use Case:</strong> Provide APIs for frontend to manage exceptions<br><strong>Description:</strong> Create RESTful APIs for CRUD operations on exceptions. APIs should support creating new exceptions, retrieving exception lists, updating exception status, and deleting exceptions. Include proper error handling and response formatting for frontend consumption.</td>
+                    <td>✓ GET /api/exceptions<br>✓ POST /api/exceptions<br>✓ PUT /api/exceptions/{id}</td>
+                </tr>
+                
+                <tr>
+                    <td><strong>EMS-008</strong></td>
+                    <td>Implement workflow process APIs</td>
+                    <td class="points">5</td>
+                    <td>Abhishek Mishra</td>
+                    <td>Java MS Lead</td>
+                    <td>Backend API</td>
+                    <td><strong>Use Case:</strong> Provide APIs for workflow management and monitoring<br><strong>Description:</strong> Create APIs to manage workflow processes and stages. Support querying process status, updating stage progress, retrieving performance metrics (success rate, duration), and handling regional filtering (EMEA). Enable frontend to display workflow dashboards.</td>
+                    <td>✓ Process status API<br>✓ Stage progress tracking<br>✓ Performance metrics API</td>
+                </tr>
+                
+                <tr>
+                    <td><strong>EMS-009</strong></td>
+                    <td>Set up Angular project with Material UI</td>
+                    <td class="points">5</td>
+                    <td>Supriya Chavan</td>
+                    <td>UI Angular Lead</td>
+                    <td>Frontend Setup</td>
+                    <td><strong>Use Case:</strong> Create modern web application foundation for users<br><strong>Description:</strong> Set up Angular project with Material UI components for professional look and feel. Configure routing for navigation between different screens, set up HTTP client for API calls, and create responsive layout structure. This provides the foundation for all user interfaces.</td>
+                    <td>✓ Angular project created<br>✓ Material UI configured<br>✓ Basic routing setup</td>
+                </tr>
+                
+                <tr>
+                    <td><strong>EMS-010</strong></td>
+                    <td>Create exception list dashboard</td>
+                    <td class="points">5</td>
+                    <td>Kiran Ingale</td>
+                    <td>UI Angular Lead</td>
+                    <td>Frontend</td>
+                    <td><strong>Use Case:</strong> Allow users to view and manage daily exceptions<br><strong>Description:</strong> Build main dashboard showing list of exceptions in a data grid. Users need to see exception details (Book Code, System, Legal Entity, etc.), search for specific exceptions, filter by status/date, and take actions like updating status or reassigning exceptions.</td>
+                    <td>✓ Data grid component<br>✓ Exception list display<br>✓ Search and filter</td>
+                </tr>
+                
+                <tr>
+                    <td><strong>EMS-011</strong></td>
+                    <td>Create hierarchical exception grouping (L6 to L4)</td>
+                    <td class="points">5</td>
+                    <td>Pratik Gupta</td>
+                    <td>UI Angular Developer</td>
+                    <td>Frontend</td>
+                    <td><strong>Use Case:</strong> Help users analyze exceptions by organizational hierarchy<br><strong>Description:</strong> Create component that groups exceptions by L6 level (highest organizational level) showing summary counts. When user clicks on L6 group, expand to show L4 level details. This helps users understand exception distribution across different business units and drill down for details.</td>
+                    <td>✓ Group exceptions by L6 level<br>✓ Expandable rows for L4 details<br>✓ Drill-down functionality</td>
+                </tr>
+                
+                <tr>
+                    <td><strong>EMS-012</strong></td>
+                    <td>Set up automated testing framework</td>
+                    <td class="points">5</td>
+                    <td>Madhuri L</td>
+                    <td>Testing Automation</td>
+                    <td>Testing</td>
+                    <td><strong>Use Case:</strong> Ensure code quality and prevent regressions<br><strong>Description:</strong> Set up automated testing framework for both backend and frontend. Configure unit testing for Java services, Python file processing modules, and Angular components. Include test data setup and basic integration tests that can run locally during development.</td>
+                    <td>✓ Test framework configured<br>✓ Sample unit tests<br>✓ Local test execution</td>
+                </tr>
+                
+                <tr>
+                    <td><strong>EMS-013</strong></td>
+                    <td>Create manual test scenarios</td>
+                    <td class="points">5</td>
+                    <td>Taseen Chowdhary</td>
+                    <td>Testing Manual</td>
+                    <td>Testing</td>
+                    <td><strong>Use Case:</strong> Validate end-to-end functionality from user perspective<br><strong>Description:</strong> Create comprehensive manual test cases covering file processing workflow (upload → validate → transform → store), exception management (view, edit, status update), and user interface functionality. Include test data sets and step-by-step testing procedures.</td>
+                    <td>✓ Test cases documented<br>✓ Test data prepared<br>✓ Manual testing guide</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <p><strong>Total Stories:</strong> 13 | <strong>Total Points:</strong> 65 | <strong>Sprint Duration:</strong> 2 weeks</p>
+    </div>
+</body>
+</html>
