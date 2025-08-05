@@ -1,66 +1,32 @@
--- Corrected query to get hierarchy levels with workflow process data
--- Fixed: uem.HIERARCHY_LEVEL -> uem.HIERARCHYLEVEL
--- Added: Join with WORKFLOW_PROCESS on APP_GROUP_ID
+-- High-Performance Query - Different Approach
+-- Step 1: Get user's direct entitlements first, then build hierarchy path
 
-WITH hierarchy_pivot AS (
-    SELECT 
-        uem.APP_ID,
-        uem.USERNAME,
-        uem.HIERARCHY_ID,
-        h.HIERARCHYNAME,
-        -- Get all hierarchy levels for this user's entitlement
-        MAX(CASE WHEN hd.HIERARCHYLEVEL = 1 THEN hd.COLNAME END) as LEVEL1_COLNAME,
-        MAX(CASE WHEN hd.HIERARCHYLEVEL = 1 THEN hd.COLVALUE END) as LEVEL1_VALUE,
-        MAX(CASE WHEN hd.HIERARCHYLEVEL = 2 THEN hd.COLNAME END) as LEVEL2_COLNAME,
-        MAX(CASE WHEN hd.HIERARCHYLEVEL = 2 THEN hd.COLVALUE END) as LEVEL2_VALUE,
-        MAX(CASE WHEN hd.HIERARCHYLEVEL = 3 THEN hd.COLNAME END) as LEVEL3_COLNAME,
-        MAX(CASE WHEN hd.HIERARCHYLEVEL = 3 THEN hd.COLVALUE END) as LEVEL3_VALUE,
-        MAX(CASE WHEN hd.HIERARCHYLEVEL = 4 THEN hd.COLNAME END) as LEVEL4_COLNAME,
-        MAX(CASE WHEN hd.HIERARCHYLEVEL = 4 THEN hd.COLVALUE END) as LEVEL4_VALUE,
-        MAX(CASE WHEN hd.HIERARCHYLEVEL = 5 THEN hd.COLNAME END) as LEVEL5_COLNAME,
-        MAX(CASE WHEN hd.HIERARCHYLEVEL = 5 THEN hd.COLVALUE END) as LEVEL5_VALUE,
-        -- Get the workflow instance value (last level value)
-        MAX(CASE WHEN hd.HIERARCHYLEVEL = uem.HIERARCHYLEVEL THEN hd.COLVALUE END) as WORKFLOW_INSTANCE_VALUE,
-        uem.HIERARCHYLEVEL as MAX_USER_LEVEL
-    FROM WORKFLOW_USER_ENTITLEMENT_MAP uem
-    INNER JOIN WORKFLOW_HIERARCHY h ON uem.HIERARCHY_ID = h.HIERARCHY_ID
-    INNER JOIN WORKFLOW_HIERARCHY_DATA hd ON h.HIERARCHY_ID = hd.HIERARCHY_ID
-    WHERE uem.USERNAME = :username
-      AND (:app_id IS NULL OR uem.APP_ID = :app_id)
-      AND h.STARTDATE <= SYSTIMESTAMP
-      AND h.EXPIRYDATE > SYSTIMESTAMP
-      AND hd.STARTDATE <= SYSTIMESTAMP
-      AND hd.EXPIRYDATE > SYSTIMESTAMP
-      AND hd.ISACTIVE = 1
-      AND hd.HIERARCHYLEVEL <= uem.HIERARCHYLEVEL  -- Only levels up to user's access
-    -- Build hierarchy path from root to user's accessible level
-    START WITH hd.HIERARCHYLEVEL = 1
-    CONNECT BY PRIOR hd.HIERARCHYLEVEL = hd.PARENTHIERARCHYLEVEL
-           AND PRIOR hd.COLVALUE = hd.PARENTCOLVALUE
-           AND PRIOR hd.HIERARCHY_ID = hd.HIERARCHY_ID
-    GROUP BY 
-        uem.APP_ID,
-        uem.USERNAME,
-        uem.HIERARCHY_ID,
-        h.HIERARCHYNAME,
-        uem.HIERARCHYLEVEL
-)
+-- Approach 1: Direct join with minimal subqueries
 SELECT 
-    hp.APP_ID,
-    hp.USERNAME,
-    hp.LEVEL1_COLNAME,
-    hp.LEVEL1_VALUE,
-    hp.LEVEL2_COLNAME,
-    hp.LEVEL2_VALUE,
-    hp.LEVEL3_COLNAME,
-    hp.LEVEL3_VALUE,
-    hp.LEVEL4_COLNAME,
-    hp.LEVEL4_VALUE,
-    hp.LEVEL5_COLNAME,
-    hp.LEVEL5_VALUE,
-    hp.WORKFLOW_INSTANCE_VALUE,
-    hp.MAX_USER_LEVEL,
-    -- All WORKFLOW_PROCESS data
+    uem.APP_ID,
+    uem.USERNAME,
+    uem.HIERARCHY_ID,
+    uem.HIERARCHYLEVEL,
+    -- Get hierarchy path by direct joins (much faster than CONNECT BY)
+    h1.COLNAME as LEVEL1_COLNAME,
+    h1.COLVALUE as LEVEL1_VALUE,
+    h2.COLNAME as LEVEL2_COLNAME, 
+    h2.COLVALUE as LEVEL2_VALUE,
+    h3.COLNAME as LEVEL3_COLNAME,
+    h3.COLVALUE as LEVEL3_VALUE,
+    h4.COLNAME as LEVEL4_COLNAME,
+    h4.COLVALUE as LEVEL4_VALUE,
+    h5.COLNAME as LEVEL5_COLNAME,
+    h5.COLVALUE as LEVEL5_VALUE,
+    -- Workflow instance value (user's deepest level)
+    CASE 
+        WHEN uem.HIERARCHYLEVEL = 1 THEN h1.COLVALUE
+        WHEN uem.HIERARCHYLEVEL = 2 THEN h2.COLVALUE
+        WHEN uem.HIERARCHYLEVEL = 3 THEN h3.COLVALUE
+        WHEN uem.HIERARCHYLEVEL = 4 THEN h4.COLVALUE
+        WHEN uem.HIERARCHYLEVEL = 5 THEN h5.COLVALUE
+    END as WORKFLOW_INSTANCE_VALUE,
+    -- All workflow process data
     wp.WORKFLOW_PROCESS_ID,
     wp.STATUS,
     wp.BUSINESSDATE,
@@ -94,74 +60,107 @@ SELECT
     wa.NAME as APPLICATION_NAME,
     ws.NAME as STAGE_NAME,
     wss.NAME as SUBSTAGE_NAME
-FROM hierarchy_pivot hp
-INNER JOIN WORKFLOW_PROCESS wp ON hp.APP_ID = wp.APP_ID
-                                AND TO_NUMBER(hp.WORKFLOW_INSTANCE_VALUE) = wp.APP_GROUP_ID
-LEFT JOIN WORKFLOW_APPLICATION wa ON hp.APP_ID = wa.APP_ID
-LEFT JOIN WORKFLOW_STAGE ws ON wp.STAGE_ID = ws.STAGE_ID
-LEFT JOIN WORKFLOW_SUBSTAGE wss ON wp.SUBSTAGE_ID = wss.SUBSTAGE_ID
-WHERE (:business_date IS NULL OR wp.BUSINESSDATE = :business_date)
-ORDER BY 
-    hp.APP_ID, 
-    hp.USERNAME, 
-    wp.APP_GROUP_ID, 
-    wp.STAGE_ID, 
-    wp.SUBSTAGE_ID,
-    wp.DEP_SUB_STAGE_SEQ;
-
--- Alternative simpler query if you want specific business date and user
--- This is more performant for dashboard queries
-
-SELECT 
-    uem.APP_ID,
-    uem.USERNAME,
-    -- Level 1 (Root level)
-    MAX(CASE WHEN hd.HIERARCHYLEVEL = 1 THEN hd.COLNAME END) as LEVEL1_COLNAME,
-    MAX(CASE WHEN hd.HIERARCHYLEVEL = 1 THEN hd.COLVALUE END) as LEVEL1_VALUE,
-    -- Level 2
-    MAX(CASE WHEN hd.HIERARCHYLEVEL = 2 THEN hd.COLNAME END) as LEVEL2_COLNAME,
-    MAX(CASE WHEN hd.HIERARCHYLEVEL = 2 THEN hd.COLVALUE END) as LEVEL2_VALUE,
-    -- Workflow instance value (last accessible level)
-    MAX(CASE WHEN hd.HIERARCHYLEVEL = uem.HIERARCHYLEVEL THEN hd.COLVALUE END) as WORKFLOW_INSTANCE_VALUE,
-    -- Complete workflow process data
-    wp.*,
-    -- Additional metadata
-    wa.NAME as APPLICATION_NAME,
-    wa.DESCRIPTION as APPLICATION_DESCRIPTION,
-    ws.NAME as STAGE_NAME,
-    wss.NAME as SUBSTAGE_NAME,
-    wss.COMPONENTNAME,
-    wss.SERVICELINE
 FROM WORKFLOW_USER_ENTITLEMENT_MAP uem
-INNER JOIN WORKFLOW_HIERARCHY h ON uem.HIERARCHY_ID = h.HIERARCHY_ID
-INNER JOIN WORKFLOW_HIERARCHY_DATA hd ON h.HIERARCHY_ID = hd.HIERARCHY_ID
+-- Join with application
+INNER JOIN WORKFLOW_APPLICATION wa ON uem.APP_ID = wa.APP_ID
+-- Level 1 (always exists)
+LEFT JOIN WORKFLOW_HIERARCHY_DATA h1 ON uem.HIERARCHY_ID = h1.HIERARCHY_ID 
+                                      AND h1.HIERARCHYLEVEL = 1
+                                      AND h1.ISACTIVE = 1
+-- Level 2 (if exists and user has access)
+LEFT JOIN WORKFLOW_HIERARCHY_DATA h2 ON uem.HIERARCHY_ID = h2.HIERARCHY_ID 
+                                      AND h2.HIERARCHYLEVEL = 2
+                                      AND h2.PARENTHIERARCHYLEVEL = 1
+                                      AND h2.PARENTCOLVALUE = h1.COLVALUE
+                                      AND h2.ISACTIVE = 1
+                                      AND uem.HIERARCHYLEVEL >= 2
+-- Level 3 (if exists and user has access)
+LEFT JOIN WORKFLOW_HIERARCHY_DATA h3 ON uem.HIERARCHY_ID = h3.HIERARCHY_ID 
+                                      AND h3.HIERARCHYLEVEL = 3
+                                      AND h3.PARENTHIERARCHYLEVEL = 2
+                                      AND h3.PARENTCOLVALUE = h2.COLVALUE
+                                      AND h3.ISACTIVE = 1
+                                      AND uem.HIERARCHYLEVEL >= 3
+-- Level 4 (if exists and user has access)
+LEFT JOIN WORKFLOW_HIERARCHY_DATA h4 ON uem.HIERARCHY_ID = h4.HIERARCHY_ID 
+                                      AND h4.HIERARCHYLEVEL = 4
+                                      AND h4.PARENTHIERARCHYLEVEL = 3
+                                      AND h4.PARENTCOLVALUE = h3.COLVALUE
+                                      AND h4.ISACTIVE = 1
+                                      AND uem.HIERARCHYLEVEL >= 4
+-- Level 5 (if exists and user has access)
+LEFT JOIN WORKFLOW_HIERARCHY_DATA h5 ON uem.HIERARCHY_ID = h5.HIERARCHY_ID 
+                                      AND h5.HIERARCHYLEVEL = 5
+                                      AND h5.PARENTHIERARCHYLEVEL = 4
+                                      AND h5.PARENTCOLVALUE = h4.COLVALUE
+                                      AND h5.ISACTIVE = 1
+                                      AND uem.HIERARCHYLEVEL >= 5
+-- Join with workflow process using the deepest level value as APP_GROUP_ID
 INNER JOIN WORKFLOW_PROCESS wp ON uem.APP_ID = wp.APP_ID
-                                AND TO_NUMBER(
-                                    CASE WHEN hd.HIERARCHYLEVEL = uem.HIERARCHYLEVEL 
-                                         THEN hd.COLVALUE 
-                                    END
-                                ) = wp.APP_GROUP_ID
-LEFT JOIN WORKFLOW_APPLICATION wa ON uem.APP_ID = wa.APP_ID
+    AND wp.APP_GROUP_ID = CASE 
+        WHEN uem.HIERARCHYLEVEL = 1 THEN TO_NUMBER(h1.COLVALUE)
+        WHEN uem.HIERARCHYLEVEL = 2 THEN TO_NUMBER(h2.COLVALUE)
+        WHEN uem.HIERARCHYLEVEL = 3 THEN TO_NUMBER(h3.COLVALUE)
+        WHEN uem.HIERARCHYLEVEL = 4 THEN TO_NUMBER(h4.COLVALUE)
+        WHEN uem.HIERARCHYLEVEL = 5 THEN TO_NUMBER(h5.COLVALUE)
+    END
+-- Optional joins for stage/substage names
 LEFT JOIN WORKFLOW_STAGE ws ON wp.STAGE_ID = ws.STAGE_ID
 LEFT JOIN WORKFLOW_SUBSTAGE wss ON wp.SUBSTAGE_ID = wss.SUBSTAGE_ID
 WHERE uem.USERNAME = :username
   AND (:app_id IS NULL OR uem.APP_ID = :app_id)
   AND (:business_date IS NULL OR wp.BUSINESSDATE = :business_date)
-  AND h.STARTDATE <= SYSTIMESTAMP
-  AND h.EXPIRYDATE > SYSTIMESTAMP
-  AND hd.STARTDATE <= SYSTIMESTAMP
-  AND hd.EXPIRYDATE > SYSTIMESTAMP
-  AND hd.ISACTIVE = 1
-  AND hd.HIERARCHYLEVEL <= uem.HIERARCHYLEVEL
--- Build the complete hierarchy path
-START WITH hd.HIERARCHYLEVEL = 1
-CONNECT BY PRIOR hd.HIERARCHYLEVEL = hd.PARENTHIERARCHYLEVEL
-       AND PRIOR hd.COLVALUE = hd.PARENTCOLVALUE
-       AND PRIOR hd.HIERARCHY_ID = hd.HIERARCHY_ID
-GROUP BY 
-    uem.APP_ID,
-    uem.USERNAME,
-    uem.HIERARCHYLEVEL,
+  -- Ensure we have the workflow instance value
+  AND CASE 
+      WHEN uem.HIERARCHYLEVEL = 1 THEN h1.COLVALUE
+      WHEN uem.HIERARCHYLEVEL = 2 THEN h2.COLVALUE
+      WHEN uem.HIERARCHYLEVEL = 3 THEN h3.COLVALUE
+      WHEN uem.HIERARCHYLEVEL = 4 THEN h4.COLVALUE
+      WHEN uem.HIERARCHYLEVEL = 5 THEN h5.COLVALUE
+  END IS NOT NULL
+ORDER BY uem.APP_ID, wp.APP_GROUP_ID, wp.STAGE_ID, wp.SUBSTAGE_ID, wp.DEP_SUB_STAGE_SEQ;
+
+-- Approach 2: Even simpler - Two-step approach for maximum performance
+-- Step 1: Get user entitlements with hierarchy data (fast lookup)
+
+WITH user_hierarchy AS (
+    SELECT /*+ INDEX(uem) */
+        uem.APP_ID,
+        uem.USERNAME,
+        uem.HIERARCHY_ID,
+        uem.HIERARCHYLEVEL,
+        hd.COLNAME,
+        hd.COLVALUE,
+        hd.HIERARCHYLEVEL as DATA_LEVEL
+    FROM WORKFLOW_USER_ENTITLEMENT_MAP uem
+    INNER JOIN WORKFLOW_HIERARCHY_DATA hd ON uem.HIERARCHY_ID = hd.HIERARCHY_ID
+                                           AND hd.HIERARCHYLEVEL <= uem.HIERARCHYLEVEL
+                                           AND hd.ISACTIVE = 1
+    WHERE uem.USERNAME = :username
+      AND (:app_id IS NULL OR uem.APP_ID = :app_id)
+),
+hierarchy_pivoted AS (
+    SELECT 
+        APP_ID,
+        USERNAME,
+        HIERARCHY_ID,
+        HIERARCHYLEVEL,
+        MAX(CASE WHEN DATA_LEVEL = 1 THEN COLNAME END) as LEVEL1_COLNAME,
+        MAX(CASE WHEN DATA_LEVEL = 1 THEN COLVALUE END) as LEVEL1_VALUE,
+        MAX(CASE WHEN DATA_LEVEL = 2 THEN COLNAME END) as LEVEL2_COLNAME,
+        MAX(CASE WHEN DATA_LEVEL = 2 THEN COLVALUE END) as LEVEL2_VALUE,
+        MAX(CASE WHEN DATA_LEVEL = 3 THEN COLNAME END) as LEVEL3_COLNAME,
+        MAX(CASE WHEN DATA_LEVEL = 3 THEN COLVALUE END) as LEVEL3_VALUE,
+        MAX(CASE WHEN DATA_LEVEL = 4 THEN COLNAME END) as LEVEL4_COLNAME,
+        MAX(CASE WHEN DATA_LEVEL = 4 THEN COLVALUE END) as LEVEL4_VALUE,
+        MAX(CASE WHEN DATA_LEVEL = 5 THEN COLNAME END) as LEVEL5_COLNAME,
+        MAX(CASE WHEN DATA_LEVEL = 5 THEN COLVALUE END) as LEVEL5_VALUE,
+        MAX(CASE WHEN DATA_LEVEL = HIERARCHYLEVEL THEN COLVALUE END) as WORKFLOW_INSTANCE_VALUE
+    FROM user_hierarchy
+    GROUP BY APP_ID, USERNAME, HIERARCHY_ID, HIERARCHYLEVEL
+)
+SELECT /*+ INDEX(wp) */
+    hp.*,
     wp.WORKFLOW_PROCESS_ID,
     wp.STATUS,
     wp.BUSINESSDATE,
@@ -188,115 +187,84 @@ GROUP BY
     wp.ISLOCKED,
     wp.LOCKEDBY,
     wp.LOCKEDON,
-    wp.ISACTIVE,
+    wp.ISACTIVE as PROCESS_ISACTIVE,
     wp.ADHOC,
     wp.ISALTERYX,
-    wa.NAME,
-    wa.DESCRIPTION,
-    ws.NAME,
-    wss.NAME,
-    wss.COMPONENTNAME,
-    wss.SERVICELINE
-ORDER BY 
-    uem.APP_ID, 
-    wp.APP_GROUP_ID, 
-    wp.STAGE_ID, 
-    wp.SUBSTAGE_ID,
-    wp.DEP_SUB_STAGE_SEQ;
+    wa.NAME as APPLICATION_NAME,
+    ws.NAME as STAGE_NAME,
+    wss.NAME as SUBSTAGE_NAME
+FROM hierarchy_pivoted hp
+INNER JOIN WORKFLOW_PROCESS wp ON hp.APP_ID = wp.APP_ID
+                                AND TO_NUMBER(hp.WORKFLOW_INSTANCE_VALUE) = wp.APP_GROUP_ID
+LEFT JOIN WORKFLOW_APPLICATION wa ON hp.APP_ID = wa.APP_ID
+LEFT JOIN WORKFLOW_STAGE ws ON wp.STAGE_ID = ws.STAGE_ID
+LEFT JOIN WORKFLOW_SUBSTAGE wss ON wp.SUBSTAGE_ID = wss.SUBSTAGE_ID
+WHERE (:business_date IS NULL OR wp.BUSINESSDATE = :business_date)
+ORDER BY hp.APP_ID, wp.APP_GROUP_ID, wp.STAGE_ID, wp.SUBSTAGE_ID, wp.DEP_SUB_STAGE_SEQ;
 
--- Query optimized for React Dashboard data loading
--- Returns data in format ready for UI consumption
+-- Approach 3: Super simple for dashboard - minimal joins
+-- Use this for React dashboard performance
 
 SELECT 
-    main_data.APP_ID,
-    main_data.APPLICATION_NAME,
-    main_data.USERNAME,
-    main_data.LEVEL1_COLNAME,
-    main_data.LEVEL1_VALUE,
-    main_data.LEVEL2_COLNAME,
-    main_data.LEVEL2_VALUE,
-    main_data.WORKFLOW_INSTANCE_VALUE,
-    -- Process summary for dashboard
+    uem.APP_ID,
+    uem.USERNAME,
+    TO_NUMBER(hd_final.COLVALUE) as APP_GROUP_ID,
+    hd_final.COLVALUE as WORKFLOW_INSTANCE_VALUE,
+    -- Get level names/values with simple subqueries
+    (SELECT hd1.COLNAME FROM WORKFLOW_HIERARCHY_DATA hd1 
+     WHERE hd1.HIERARCHY_ID = uem.HIERARCHY_ID AND hd1.HIERARCHYLEVEL = 1 AND hd1.ISACTIVE = 1 AND ROWNUM = 1) as LEVEL1_COLNAME,
+    (SELECT hd1.COLVALUE FROM WORKFLOW_HIERARCHY_DATA hd1 
+     WHERE hd1.HIERARCHY_ID = uem.HIERARCHY_ID AND hd1.HIERARCHYLEVEL = 1 AND hd1.ISACTIVE = 1 AND ROWNUM = 1) as LEVEL1_VALUE,
+    (SELECT hd2.COLNAME FROM WORKFLOW_HIERARCHY_DATA hd2 
+     WHERE hd2.HIERARCHY_ID = uem.HIERARCHY_ID AND hd2.HIERARCHYLEVEL = 2 AND hd2.ISACTIVE = 1 AND ROWNUM = 1) as LEVEL2_COLNAME,
+    (SELECT hd2.COLVALUE FROM WORKFLOW_HIERARCHY_DATA hd2 
+     WHERE hd2.HIERARCHY_ID = uem.HIERARCHY_ID AND hd2.HIERARCHYLEVEL = 2 AND hd2.ISACTIVE = 1 AND ROWNUM = 1) as LEVEL2_VALUE,
+    -- Workflow process count and status summary
     COUNT(*) as TOTAL_PROCESSES,
-    COUNT(CASE WHEN main_data.STATUS = 'COMPLETED' THEN 1 END) as COMPLETED_COUNT,
-    COUNT(CASE WHEN main_data.STATUS = 'IN_PROGRESS' THEN 1 END) as IN_PROGRESS_COUNT,
-    COUNT(CASE WHEN main_data.STATUS = 'FAILED' THEN 1 END) as FAILED_COUNT,
-    COUNT(CASE WHEN main_data.STATUS = 'NOT_STARTED' THEN 1 END) as NOT_STARTED_COUNT,
-    -- Calculate completion percentage
-    ROUND(
-        (COUNT(CASE WHEN main_data.STATUS = 'COMPLETED' THEN 1 END) * 100.0 / COUNT(*)), 2
-    ) as COMPLETION_PERCENTAGE,
-    -- Recent activity
-    MAX(main_data.UPDATEDON) as LAST_UPDATED,
-    MAX(main_data.UPDATEDBY) as LAST_UPDATED_BY,
-    -- JSON array of all processes for detailed view
-    JSON_ARRAYAGG(
-        JSON_OBJECT(
-            'processId' VALUE main_data.WORKFLOW_PROCESS_ID,
-            'status' VALUE main_data.STATUS,
-            'stageName' VALUE main_data.STAGE_NAME,
-            'substageName' VALUE main_data.SUBSTAGE_NAME,
-            'isAuto' VALUE main_data.AUTO,
-            'updatedBy' VALUE main_data.UPDATEDBY,
-            'updatedOn' VALUE main_data.UPDATEDON,
-            'duration' VALUE main_data.DURATION,
-            'message' VALUE main_data.MESSAGE
-        ) ORDER BY main_data.STAGE_ID, main_data.SUBSTAGE_ID, main_data.DEP_SUB_STAGE_SEQ
-    ) as PROCESS_DETAILS
-FROM (
-    SELECT 
-        uem.APP_ID,
-        wa.NAME as APPLICATION_NAME,
-        uem.USERNAME,
-        MAX(CASE WHEN hd.HIERARCHYLEVEL = 1 THEN hd.COLNAME END) as LEVEL1_COLNAME,
-        MAX(CASE WHEN hd.HIERARCHYLEVEL = 1 THEN hd.COLVALUE END) as LEVEL1_VALUE,
-        MAX(CASE WHEN hd.HIERARCHYLEVEL = 2 THEN hd.COLNAME END) as LEVEL2_COLNAME,
-        MAX(CASE WHEN hd.HIERARCHYLEVEL = 2 THEN hd.COLVALUE END) as LEVEL2_VALUE,
-        MAX(CASE WHEN hd.HIERARCHYLEVEL = uem.HIERARCHYLEVEL THEN hd.COLVALUE END) as WORKFLOW_INSTANCE_VALUE,
-        wp.WORKFLOW_PROCESS_ID,
-        wp.STATUS,
-        wp.STAGE_ID,
-        wp.SUBSTAGE_ID,
-        wp.AUTO,
-        wp.UPDATEDBY,
-        wp.UPDATEDON,
-        wp.DURATION,
-        wp.MESSAGE,
-        ws.NAME as STAGE_NAME,
-        wss.NAME as SUBSTAGE_NAME,
-        wp.DEP_SUB_STAGE_SEQ
-    FROM WORKFLOW_USER_ENTITLEMENT_MAP uem
-    INNER JOIN WORKFLOW_HIERARCHY h ON uem.HIERARCHY_ID = h.HIERARCHY_ID
-    INNER JOIN WORKFLOW_HIERARCHY_DATA hd ON h.HIERARCHY_ID = hd.HIERARCHY_ID
-    INNER JOIN WORKFLOW_PROCESS wp ON uem.APP_ID = wp.APP_ID
-    INNER JOIN WORKFLOW_APPLICATION wa ON uem.APP_ID = wa.APP_ID
-    LEFT JOIN WORKFLOW_STAGE ws ON wp.STAGE_ID = ws.STAGE_ID
-    LEFT JOIN WORKFLOW_SUBSTAGE wss ON wp.SUBSTAGE_ID = wss.SUBSTAGE_ID
-    WHERE uem.USERNAME = :username
-      AND (:app_id IS NULL OR uem.APP_ID = :app_id)
-      AND (:business_date IS NULL OR wp.BUSINESSDATE = :business_date)
-      AND TO_NUMBER(hd.COLVALUE) = wp.APP_GROUP_ID
-      AND hd.HIERARCHYLEVEL = uem.HIERARCHYLEVEL  -- Only the deepest level
-      AND h.STARTDATE <= SYSTIMESTAMP
-      AND h.EXPIRYDATE > SYSTIMESTAMP
-      AND hd.STARTDATE <= SYSTIMESTAMP
-      AND hd.EXPIRYDATE > SYSTIMESTAMP
-      AND hd.ISACTIVE = 1
-    GROUP BY 
-        uem.APP_ID, wa.NAME, uem.USERNAME, uem.HIERARCHYLEVEL,
-        wp.WORKFLOW_PROCESS_ID, wp.STATUS, wp.STAGE_ID, wp.SUBSTAGE_ID,
-        wp.AUTO, wp.UPDATEDBY, wp.UPDATEDON, wp.DURATION, wp.MESSAGE,
-        ws.NAME, wss.NAME, wp.DEP_SUB_STAGE_SEQ
-) main_data
+    SUM(CASE WHEN wp.STATUS = 'COMPLETED' THEN 1 ELSE 0 END) as COMPLETED_COUNT,
+    SUM(CASE WHEN wp.STATUS = 'IN_PROGRESS' THEN 1 ELSE 0 END) as IN_PROGRESS_COUNT,
+    SUM(CASE WHEN wp.STATUS = 'FAILED' THEN 1 ELSE 0 END) as FAILED_COUNT,
+    SUM(CASE WHEN wp.STATUS = 'NOT_STARTED' THEN 1 ELSE 0 END) as NOT_STARTED_COUNT,
+    ROUND(SUM(CASE WHEN wp.STATUS = 'COMPLETED' THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 2) as COMPLETION_PERCENTAGE,
+    MAX(wp.UPDATEDON) as LAST_UPDATED,
+    wa.NAME as APPLICATION_NAME
+FROM WORKFLOW_USER_ENTITLEMENT_MAP uem
+-- Get the final level data directly
+INNER JOIN WORKFLOW_HIERARCHY_DATA hd_final ON uem.HIERARCHY_ID = hd_final.HIERARCHY_ID
+                                             AND hd_final.HIERARCHYLEVEL = uem.HIERARCHYLEVEL
+                                             AND hd_final.ISACTIVE = 1
+-- Join with workflow process
+INNER JOIN WORKFLOW_PROCESS wp ON uem.APP_ID = wp.APP_ID
+                                AND TO_NUMBER(hd_final.COLVALUE) = wp.APP_GROUP_ID
+-- Get application name
+LEFT JOIN WORKFLOW_APPLICATION wa ON uem.APP_ID = wa.APP_ID
+WHERE uem.USERNAME = :username
+  AND (:app_id IS NULL OR uem.APP_ID = :app_id)
+  AND (:business_date IS NULL OR wp.BUSINESSDATE = :business_date)
 GROUP BY 
-    main_data.APP_ID,
-    main_data.APPLICATION_NAME,
-    main_data.USERNAME,
-    main_data.LEVEL1_COLNAME,
-    main_data.LEVEL1_VALUE,
-    main_data.LEVEL2_COLNAME,
-    main_data.LEVEL2_VALUE,
-    main_data.WORKFLOW_INSTANCE_VALUE
-ORDER BY 
-    main_data.APP_ID, 
-    main_data.WORKFLOW_INSTANCE_VALUE;
+    uem.APP_ID,
+    uem.USERNAME,
+    uem.HIERARCHY_ID,
+    uem.HIERARCHYLEVEL,
+    hd_final.COLVALUE,
+    wa.NAME
+ORDER BY uem.APP_ID, TO_NUMBER(hd_final.COLVALUE);
+
+-- If you need individual process details, use this separate query:
+SELECT 
+    wp.*,
+    ws.NAME as STAGE_NAME,
+    wss.NAME as SUBSTAGE_NAME
+FROM WORKFLOW_USER_ENTITLEMENT_MAP uem
+INNER JOIN WORKFLOW_HIERARCHY_DATA hd ON uem.HIERARCHY_ID = hd.HIERARCHY_ID
+                                       AND hd.HIERARCHYLEVEL = uem.HIERARCHYLEVEL
+                                       AND hd.ISACTIVE = 1
+INNER JOIN WORKFLOW_PROCESS wp ON uem.APP_ID = wp.APP_ID
+                                AND TO_NUMBER(hd.COLVALUE) = wp.APP_GROUP_ID
+LEFT JOIN WORKFLOW_STAGE ws ON wp.STAGE_ID = ws.STAGE_ID
+LEFT JOIN WORKFLOW_SUBSTAGE wss ON wp.SUBSTAGE_ID = wss.SUBSTAGE_ID
+WHERE uem.USERNAME = :username
+  AND uem.APP_ID = :app_id
+  AND TO_NUMBER(hd.COLVALUE) = :app_group_id
+  AND (:business_date IS NULL OR wp.BUSINESSDATE = :business_date)
+ORDER BY wp.STAGE_ID, wp.SUBSTAGE_ID, wp.DEP_SUB_STAGE_SEQ;
