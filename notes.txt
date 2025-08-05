@@ -108,8 +108,10 @@ INNER JOIN WORKFLOW_PROCESS wp ON uem.APP_ID = wp.APP_ID
 LEFT JOIN WORKFLOW_STAGE ws ON wp.STAGE_ID = ws.STAGE_ID
 LEFT JOIN WORKFLOW_SUBSTAGE wss ON wp.SUBSTAGE_ID = wss.SUBSTAGE_ID
 WHERE uem.USERNAME = :username
-  AND (:app_id IS NULL OR uem.APP_ID = :app_id)
-  AND (:business_date IS NULL OR wp.BUSINESSDATE = :business_date)
+  AND uem.APP_ID = :app_id                    -- REQUIRED: specific app
+  AND wp.BUSINESSDATE = :business_date        -- REQUIRED: specific date
+  AND wp.STATUS = 'IN_PROGRESS'               -- REQUIRED: only in progress
+  AND wp.AUTO = 'N'                          -- REQUIRED: manual processes only
   -- Ensure we have the workflow instance value
   AND CASE 
       WHEN uem.HIERARCHYLEVEL = 1 THEN h1.COLVALUE
@@ -199,7 +201,11 @@ INNER JOIN WORKFLOW_PROCESS wp ON hp.APP_ID = wp.APP_ID
 LEFT JOIN WORKFLOW_APPLICATION wa ON hp.APP_ID = wa.APP_ID
 LEFT JOIN WORKFLOW_STAGE ws ON wp.STAGE_ID = ws.STAGE_ID
 LEFT JOIN WORKFLOW_SUBSTAGE wss ON wp.SUBSTAGE_ID = wss.SUBSTAGE_ID
-WHERE (:business_date IS NULL OR wp.BUSINESSDATE = :business_date)
+WHERE uem.USERNAME = :username
+  AND uem.APP_ID = :app_id                    -- REQUIRED: specific app
+  AND wp.BUSINESSDATE = :business_date        -- REQUIRED: specific date  
+  AND wp.STATUS = 'IN_PROGRESS'               -- REQUIRED: only in progress
+  AND wp.AUTO = 'N'                          -- REQUIRED: manual processes only
 ORDER BY hp.APP_ID, wp.APP_GROUP_ID, wp.STAGE_ID, wp.SUBSTAGE_ID, wp.DEP_SUB_STAGE_SEQ;
 
 -- Approach 3: Super simple for dashboard - minimal joins
@@ -239,8 +245,10 @@ INNER JOIN WORKFLOW_PROCESS wp ON uem.APP_ID = wp.APP_ID
 -- Get application name
 LEFT JOIN WORKFLOW_APPLICATION wa ON uem.APP_ID = wa.APP_ID
 WHERE uem.USERNAME = :username
-  AND (:app_id IS NULL OR uem.APP_ID = :app_id)
-  AND (:business_date IS NULL OR wp.BUSINESSDATE = :business_date)
+  AND uem.APP_ID = :app_id                    -- REQUIRED: specific app
+  AND wp.BUSINESSDATE = :business_date        -- REQUIRED: specific date
+  AND wp.STATUS = 'IN_PROGRESS'               -- REQUIRED: only in progress  
+  AND wp.AUTO = 'N'                          -- REQUIRED: manual processes only
 GROUP BY 
     uem.APP_ID,
     uem.USERNAME,
