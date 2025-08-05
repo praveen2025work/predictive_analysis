@@ -1,18 +1,233 @@
-Hi Team,
+-- Query to get all hierarchy levels in a single row with username filter
+-- This query pivots the hierarchy data to show the complete path from root to leaf level
 
-We’re thrilled to announce the launch of our Brown Bag Session Series, an exciting initiative aimed at promoting knowledge-sharing and collaboration across our teams through engaging presentations.
+WITH hierarchy_path AS (
+    SELECT DISTINCT
+        uem.APP_ID,
+        uem.USERNAME,
+        uem.HIERARCHY_ID,
+        h.HIERARCHYNAME,
+        h.HIERARCHYDESCRIPTION,
+        hd.HIERARCHYLEVEL,
+        hd.COLNAME,
+        hd.COLVALUE,
+        hd.PARENTHIERARCHYLEVEL,
+        hd.PARENTCOLVALUE,
+        hd.ISACTIVE
+    FROM WORKFLOW_USER_ENTITLEMENT_MAP uem
+    INNER JOIN WORKFLOW_HIERARCHY h ON uem.HIERARCHY_ID = h.HIERARCHY_ID
+    INNER JOIN WORKFLOW_HIERARCHY_DATA hd ON h.HIERARCHY_ID = hd.HIERARCHY_ID
+                                           AND uem.HIERARCHY_LEVEL = hd.HIERARCHYLEVEL
+    WHERE uem.USERNAME = :username  -- Parameter for filtering by username
+      AND uem.APP_ID = :app_id     -- Parameter for filtering by application
+      AND h.STARTDATE <= SYSTIMESTAMP
+      AND h.EXPIRYDATE > SYSTIMESTAMP
+      AND hd.STARTDATE <= SYSTIMESTAMP
+      AND hd.EXPIRYDATE > SYSTIMESTAMP
+      AND hd.ISACTIVE = 1
+),
+max_levels AS (
+    SELECT MAX(HIERARCHYLEVEL) as max_level
+    FROM hierarchy_path
+)
+SELECT 
+    hp.APP_ID,
+    hp.USERNAME,
+    hp.HIERARCHY_ID,
+    hp.HIERARCHYNAME,
+    hp.HIERARCHYDESCRIPTION,
+    -- Level 1 (Root level)
+    MAX(CASE WHEN hp.HIERARCHYLEVEL = 1 THEN hp.COLNAME END) as LEVEL1_COLNAME,
+    MAX(CASE WHEN hp.HIERARCHYLEVEL = 1 THEN hp.COLVALUE END) as LEVEL1_VALUE,
+    -- Level 2
+    MAX(CASE WHEN hp.HIERARCHYLEVEL = 2 THEN hp.COLNAME END) as LEVEL2_COLNAME,
+    MAX(CASE WHEN hp.HIERARCHYLEVEL = 2 THEN hp.COLVALUE END) as LEVEL2_VALUE,
+    -- Level 3
+    MAX(CASE WHEN hp.HIERARCHYLEVEL = 3 THEN hp.COLNAME END) as LEVEL3_COLNAME,
+    MAX(CASE WHEN hp.HIERARCHYLEVEL = 3 THEN hp.COLVALUE END) as LEVEL3_VALUE,
+    -- Level 4
+    MAX(CASE WHEN hp.HIERARCHYLEVEL = 4 THEN hp.COLNAME END) as LEVEL4_COLNAME,
+    MAX(CASE WHEN hp.HIERARCHYLEVEL = 4 THEN hp.COLVALUE END) as LEVEL4_VALUE,
+    -- Level 5
+    MAX(CASE WHEN hp.HIERARCHYLEVEL = 5 THEN hp.COLNAME END) as LEVEL5_COLNAME,
+    MAX(CASE WHEN hp.HIERARCHYLEVEL = 5 THEN hp.COLVALUE END) as LEVEL5_VALUE,
+    -- Add more levels as needed based on your hierarchy depth
+    ml.max_level as MAX_HIERARCHY_LEVEL,
+    -- Complete path as concatenated string
+    LISTAGG(hp.COLVALUE, ' > ') WITHIN GROUP (ORDER BY hp.HIERARCHYLEVEL) as HIERARCHY_PATH
+FROM hierarchy_path hp
+CROSS JOIN max_levels ml
+GROUP BY 
+    hp.APP_ID,
+    hp.USERNAME,
+    hp.HIERARCHY_ID,
+    hp.HIERARCHYNAME,
+    hp.HIERARCHYDESCRIPTION,
+    ml.max_level
+ORDER BY hp.APP_ID, hp.USERNAME, hp.HIERARCHY_ID;
 
-🟤 **Session 1 Details**  
-**Topic:** Excel Capabilities with Starburst Connectivity  
-**Presenter:** [Add presenter’s name if available]  
-**Date & Time:** [Add date & time here]  
-**Duration:** Approximately 30 minutes  
-**Format:** Informal, interactive, and open to everyone  
+-- Alternative query for dynamic number of levels (Oracle 11g+)
+-- This version handles variable hierarchy depths more elegantly
 
-In this session, we will explore practical use cases demonstrating how to enhance Excel's functionalities using Starburst for improved data access and reporting.
+WITH RECURSIVE hierarchy_tree AS (
+    -- Base case: Find root level entries for the user
+    SELECT 
+        uem.APP_ID,
+        uem.USERNAME,
+        uem.HIERARCHY_ID,
+        h.HIERARCHYNAME,
+        hd.HIERARCHYLEVEL,
+        hd.COLNAME,
+        hd.COLVALUE,
+        hd.PARENTHIERARCHYLEVEL,
+        hd.PARENTCOLVALUE,
+        CAST(hd.COLVALUE AS VARCHAR2(4000)) as path,
+        1 as level_count
+    FROM WORKFLOW_USER_ENTITLEMENT_MAP uem
+    INNER JOIN WORKFLOW_HIERARCHY h ON uem.HIERARCHY_ID = h.HIERARCHY_ID
+    INNER JOIN WORKFLOW_HIERARCHY_DATA hd ON h.HIERARCHY_ID = hd.HIERARCHY_ID
+    WHERE uem.USERNAME = :username
+      AND uem.APP_ID = :app_id
+      AND hd.HIERARCHYLEVEL = 1  -- Start from root level
+      AND h.STARTDATE <= SYSTIMESTAMP
+      AND h.EXPIRYDATE > SYSTIMESTAMP
+      AND hd.STARTDATE <= SYSTIMESTAMP
+      AND hd.EXPIRYDATE > SYSTIMESTAMP
+      AND hd.ISACTIVE = 1
+    
+    UNION ALL
+    
+    -- Recursive case: Find child levels
+    SELECT 
+        ht.APP_ID,
+        ht.USERNAME,
+        ht.HIERARCHY_ID,
+        ht.HIERARCHYNAME,
+        hd.HIERARCHYLEVEL,
+        hd.COLNAME,
+        hd.COLVALUE,
+        hd.PARENTHIERARCHYLEVEL,
+        hd.PARENTCOLVALUE,
+        ht.path || ' > ' || hd.COLVALUE,
+        ht.level_count + 1
+    FROM hierarchy_tree ht
+    INNER JOIN WORKFLOW_HIERARCHY_DATA hd ON ht.HIERARCHY_ID = hd.HIERARCHY_ID
+                                           AND ht.HIERARCHYLEVEL = hd.PARENTHIERARCHYLEVEL
+                                           AND ht.COLVALUE = hd.PARENTCOLVALUE
+    INNER JOIN WORKFLOW_USER_ENTITLEMENT_MAP uem ON ht.HIERARCHY_ID = uem.HIERARCHY_ID
+                                                   AND hd.HIERARCHYLEVEL = uem.HIERARCHY_LEVEL
+                                                   AND ht.USERNAME = uem.USERNAME
+                                                   AND ht.APP_ID = uem.APP_ID
+    WHERE hd.STARTDATE <= SYSTIMESTAMP
+      AND hd.EXPIRYDATE > SYSTIMESTAMP
+      AND hd.ISACTIVE = 1
+)
+SELECT 
+    APP_ID,
+    USERNAME,
+    HIERARCHY_ID,
+    HIERARCHYNAME,
+    MAX(HIERARCHYLEVEL) as DEEPEST_LEVEL,
+    MAX(path) as COMPLETE_HIERARCHY_PATH,
+    COUNT(*) as TOTAL_LEVELS
+FROM hierarchy_tree
+GROUP BY APP_ID, USERNAME, HIERARCHY_ID, HIERARCHYNAME;
 
-✅ **Action Items for You:**  
-We encourage all team members to nominate yourself to present in an upcoming Brown Bag session. You can choose any topic that is useful, interesting, or innovative — whether it’s related to technology, tools, tips, or techniques.  
-If you’re considering presenting, please connect with your team lead or respond to this email.
+-- Simplified query for getting user's accessible hierarchy paths
+-- This is more practical for UI navigation
 
-Let’s work together to make these sessions enriching and collaborative. We look forward to your active participation!
+SELECT DISTINCT
+    uem.APP_ID,
+    wa.NAME as APPLICATION_NAME,
+    uem.USERNAME,
+    uem.HIERARCHY_ID,
+    h.HIERARCHYNAME,
+    uem.HIERARCHY_LEVEL as USER_ACCESS_LEVEL,
+    -- Build the complete path from root to user's accessible level
+    SUBSTR(
+        SYS_CONNECT_BY_PATH(hd.COLVALUE, ' > '), 4
+    ) as HIERARCHY_PATH,
+    hd.HIERARCHYLEVEL as CURRENT_LEVEL,
+    hd.COLNAME as CURRENT_LEVEL_NAME,
+    hd.COLVALUE as CURRENT_LEVEL_VALUE,
+    -- Check if this is the deepest level user can access
+    CASE 
+        WHEN uem.HIERARCHY_LEVEL = hd.HIERARCHYLEVEL THEN 'Y'
+        ELSE 'N'
+    END as IS_USER_ACCESSIBLE_LEVEL
+FROM WORKFLOW_USER_ENTITLEMENT_MAP uem
+INNER JOIN WORKFLOW_APPLICATION wa ON uem.APP_ID = wa.APP_ID
+INNER JOIN WORKFLOW_HIERARCHY h ON uem.HIERARCHY_ID = h.HIERARCHY_ID
+INNER JOIN WORKFLOW_HIERARCHY_DATA hd ON h.HIERARCHY_ID = hd.HIERARCHY_ID
+WHERE uem.USERNAME = :username
+  AND (:app_id IS NULL OR uem.APP_ID = :app_id)
+  AND h.STARTDATE <= SYSTIMESTAMP
+  AND h.EXPIRYDATE > SYSTIMESTAMP
+  AND hd.STARTDATE <= SYSTIMESTAMP
+  AND hd.EXPIRYDATE > SYSTIMESTAMP
+  AND hd.ISACTIVE = 1
+  AND hd.HIERARCHYLEVEL <= uem.HIERARCHY_LEVEL  -- Only show levels up to user's access
+START WITH hd.HIERARCHYLEVEL = 1
+CONNECT BY PRIOR hd.HIERARCHYLEVEL = hd.PARENTHIERARCHYLEVEL
+       AND PRIOR hd.COLVALUE = hd.PARENTCOLVALUE
+       AND PRIOR hd.HIERARCHY_ID = hd.HIERARCHY_ID
+ORDER BY uem.APP_ID, uem.HIERARCHY_ID, hd.HIERARCHYLEVEL;
+
+-- Query to get navigation breadcrumb data for UI
+-- This gives you the exact data needed for the React dashboard navigation
+
+SELECT 
+    nav_data.APP_ID,
+    nav_data.APPLICATION_NAME,
+    nav_data.USERNAME,
+    nav_data.HIERARCHY_ID,
+    nav_data.HIERARCHYNAME,
+    -- JSON aggregation for easy consumption in UI
+    JSON_ARRAYAGG(
+        JSON_OBJECT(
+            'level' VALUE nav_data.HIERARCHYLEVEL,
+            'name' VALUE nav_data.COLNAME,
+            'value' VALUE nav_data.COLVALUE,
+            'id' VALUE nav_data.HIERARCHYLEVEL || '_' || nav_data.COLVALUE,
+            'isAccessible' VALUE 
+                CASE WHEN nav_data.HIERARCHYLEVEL <= nav_data.USER_ACCESS_LEVEL 
+                     THEN 'true' 
+                     ELSE 'false' 
+                END
+        ) ORDER BY nav_data.HIERARCHYLEVEL
+    ) as NAVIGATION_PATH
+FROM (
+    SELECT DISTINCT
+        uem.APP_ID,
+        wa.NAME as APPLICATION_NAME,
+        uem.USERNAME,
+        uem.HIERARCHY_ID,
+        h.HIERARCHYNAME,
+        uem.HIERARCHY_LEVEL as USER_ACCESS_LEVEL,
+        hd.HIERARCHYLEVEL,
+        hd.COLNAME,
+        hd.COLVALUE
+    FROM WORKFLOW_USER_ENTITLEMENT_MAP uem
+    INNER JOIN WORKFLOW_APPLICATION wa ON uem.APP_ID = wa.APP_ID
+    INNER JOIN WORKFLOW_HIERARCHY h ON uem.HIERARCHY_ID = h.HIERARCHY_ID
+    INNER JOIN WORKFLOW_HIERARCHY_DATA hd ON h.HIERARCHY_ID = hd.HIERARCHY_ID
+    WHERE uem.USERNAME = :username
+      AND (:app_id IS NULL OR uem.APP_ID = :app_id)
+      AND h.STARTDATE <= SYSTIMESTAMP
+      AND h.EXPIRYDATE > SYSTIMESTAMP
+      AND hd.STARTDATE <= SYSTIMESTAMP
+      AND hd.EXPIRYDATE > SYSTIMESTAMP
+      AND hd.ISACTIVE = 1
+      AND hd.HIERARCHYLEVEL <= uem.HIERARCHY_LEVEL
+    START WITH hd.HIERARCHYLEVEL = 1
+    CONNECT BY PRIOR hd.HIERARCHYLEVEL = hd.PARENTHIERARCHYLEVEL
+           AND PRIOR hd.COLVALUE = hd.PARENTCOLVALUE
+           AND PRIOR hd.HIERARCHY_ID = hd.HIERARCHY_ID
+) nav_data
+GROUP BY 
+    nav_data.APP_ID,
+    nav_data.APPLICATION_NAME,
+    nav_data.USERNAME,
+    nav_data.HIERARCHY_ID,
+    nav_data.HIERARCHYNAME
+ORDER BY nav_data.APP_ID, nav_data.HIERARCHY_ID;
