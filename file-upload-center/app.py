@@ -1,20 +1,20 @@
-from flask import Flask, request, send_file, jsonify, render_template, redirect, url_for, flash, make_response
+from flask import Flask, request, send_file, jsonify, render_template, redirect, url_for, make_response
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
-from werkzeug.utils import secure_filename
-from werkzeug.security import check_password_hash
 import os
 import sqlite3
 from datetime import datetime
 import logging
+import requests
 
 app = Flask(__name__)
 app.secret_key = 'super-secret-key'  # Change in production
 
 # Configuration
-UPLOAD_DIR = r'C:\shared\uploads'  # Windows path
-DB_PATH = r'C:\shared\uploads.db'  # Windows path
+UPLOAD_DIR = r'C:\shared\uploads'
+DB_PATH = r'C:\shared\uploads.db'
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'pdf'}
 MAX_FILE_SIZE = 100 * 1024 * 1024  # 100MB
+USER_API_URL = 'https://your-user-api.example.com/user'  # Replace with actual URL
 
 # Setup logging
 logging.basicConfig(level=logging.DEBUG, filename='app.log', filemode='a', format='%(asctime)s - %(levelname)s - %(message)s')
@@ -36,25 +36,55 @@ def init_db():
                 user_id TEXT NOT NULL
             )
         ''')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_user_id ON uploads(user_id)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_upload_time ON uploads(upload_time)')
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS shared_uploads (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                upload_id INTEGER NOT NULL,
+                shared_by TEXT NOT NULL,
+                shared_with TEXT NOT NULL,
+                shared_time TEXT NOT NULL,
+                FOREIGN KEY(upload_id) REFERENCES uploads(id)
+            )
+        ''')
         conn.commit()
-        logging.debug('Initialized SQLite database')
+        logging.debug('Initialized SQLite database with indexes and shared_uploads table')
 
 # Flask-Login setup
 login_manager = LoginManager()
 login_manager.init_app(app)
-login_manager.login_view = 'login'
+login_manager.login_view = 'index'
 
 # Simple user class for Flask-Login
 class User(UserMixin):
-    def __init__(self, id, username, password_hash):
-        self.id = id
+    def __init__(self, id, username, display_name, employee_id):
+        self.id = id  # username from API
         self.username = username
-        self.password_hash = password_hash
+        self.display_name = display_name
+        self.employee_id = employee_id
 
-# Hardcoded user (hash for 'password123')
-users = {
-    'user1': User('user1', 'user1', 'pbkdf2:sha256:600000$XvW4BzvT4V7k3Y8K$5b7b8e8e7c7b7e8e7c7b7e8e7c7b7e8e7c7b7e8e7c7b7e8e7c7b7e8e7c7b7e8e')
-}
+# Global users dict (populated dynamically)
+users = {}
+
+# Fetch user details using bamToken
+def get_user_details(bam_token):
+    try:
+        headers = {'Authorization': f'Bearer {bam_token}'}
+        response = requests.get(USER_API_URL, headers=headers)
+        if response.status_code == 200:
+            data = response.json()
+            return {
+                'username': data.get('username'),
+                'display_name': data.get('displayName'),
+                'employee_id': data.get('employeeId')
+            }
+        else:
+            logging.error('User API call failed: %s', response.text)
+            return None
+    except Exception as e:
+        logging.error('Error fetching user details: %s', str(e))
+        return None
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -65,28 +95,37 @@ def load_user(user_id):
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-# Login route
-@app.route('/login', methods=['GET', 'POST'])
-def login():
-    logging.debug('Accessing login route')
+# Root route with BAM authentication
+@app.route('/')
+def index():
+    logging.debug('Accessing index route')
     if current_user.is_authenticated:
-        logging.debug('User %s already authenticated, redirecting to index', current_user.id)
-        return redirect(url_for('index'))
-    if request.method == 'POST':
-        username = request.form['username']
-        password = request.form['password']
-        logging.debug('Login attempt for username %s', username)
-        user = users.get(username)
-        if user and check_password_hash(user.password_hash, password):
+        logging.debug('User %s already authenticated', current_user.id)
+    else:
+        # Get bamToken from request header (e.g., Authorization: Bearer <token>)
+        bam_token = request.headers.get('Authorization', '').replace('Bearer ', '')
+        if not bam_token:
+            logging.error('No bamToken provided')
+            return jsonify({'error': 'No bamToken provided'}), 401
+        user_details = get_user_details(bam_token)
+        if user_details:
+            user_id = user_details['username']
+            user = User(
+                id=user_id,
+                username=user_details['username'],
+                display_name=user_details['display_name'],
+                employee_id=user_details['employee_id']
+            )
+            users[user_id] = user
             login_user(user)
-            logging.debug('Login successful for %s', username)
-            return redirect(url_for('index'))
-        flash('Invalid username or password')
-        logging.debug('Login failed for %s', username)
-    logging.debug('Attempting to render login.html')
-    response = make_response(render_template('login.html'))
+            logging.debug('Authenticated user %s', user_id)
+        else:
+            logging.error('Invalid bamToken')
+            return jsonify({'error': 'Invalid bamToken'}), 401
+    logging.debug('Attempting to render index.html for user %s', current_user.id)
+    response = make_response(render_template('index.html', users=[u for u in users.keys() if u != current_user.id]))
     response.headers['Content-Type'] = 'text/html'
-    logging.debug('Rendered login.html successfully')
+    logging.debug('Rendered index.html successfully')
     return response
 
 # Logout route
@@ -95,7 +134,7 @@ def login():
 def logout():
     logging.debug('User %s logging out', current_user.id)
     logout_user()
-    return redirect(url_for('login'))
+    return redirect(url_for('index'))
 
 # Upload endpoint
 @app.route('/upload', methods=['POST'])
@@ -129,6 +168,29 @@ def upload_file():
     logging.error('Invalid file type: %s', file.filename)
     return jsonify({'error': 'Invalid file type'}), 400
 
+# Share upload endpoint
+@app.route('/share/<int:upload_id>', methods=['POST'])
+@login_required
+def share_file(upload_id):
+    logging.debug('User %s attempting to share upload %d', current_user.id, upload_id)
+    shared_with = request.form.get('shared_with')
+    if shared_with not in users:
+        logging.error('Invalid user to share with: %s', shared_with)
+        return jsonify({'error': 'Invalid user'}), 400
+    with sqlite3.connect(DB_PATH) as conn:
+        cursor = conn.cursor()
+        cursor.execute('SELECT id FROM uploads WHERE id = ? AND user_id = ?', (upload_id, current_user.id))
+        if not cursor.fetchone():
+            logging.error('Upload %d not found or not owned by %s', upload_id, current_user.id)
+            return jsonify({'error': 'Upload not found or not owned'}), 404
+        cursor.execute(
+            'INSERT INTO shared_uploads (upload_id, shared_by, shared_with, shared_time) VALUES (?, ?, ?, ?)',
+            (upload_id, current_user.id, shared_with, datetime.now().isoformat())
+        )
+        conn.commit()
+        logging.debug('Shared upload %d with %s', upload_id, shared_with)
+    return jsonify({'message': f'Shared with {shared_with}'}), 200
+
 # List files
 @app.route('/files', methods=['GET'])
 @login_required
@@ -147,6 +209,20 @@ def list_files():
 def download_file(filename):
     logging.debug('User %s downloading file %s', current_user.id, filename)
     file_path = os.path.join(UPLOAD_DIR, filename)
+    with sqlite3.connect(DB_PATH) as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            'SELECT id FROM uploads WHERE filename = ? AND user_id = ?', (filename, current_user.id)
+        )
+        upload = cursor.fetchone()
+        if not upload:
+            cursor.execute(
+                'SELECT u.filename FROM uploads u JOIN shared_uploads s ON u.id = s.upload_id WHERE u.filename = ? AND s.shared_with = ?',
+                (filename, current_user.id)
+            )
+            if not cursor.fetchone():
+                logging.error('File %s not accessible by %s', filename, current_user.id)
+                return jsonify({'error': 'File not accessible'}), 403
     if os.path.exists(file_path):
         return send_file(file_path, as_attachment=True)
     logging.error('File not found: %s', filename)
@@ -157,25 +233,29 @@ def download_file(filename):
 @login_required
 def get_upload_history():
     logging.debug('User %s fetching upload history', current_user.id)
+    date_filter = request.args.get('date', datetime.now().strftime('%Y-%m-%d'))
     try:
         with sqlite3.connect(DB_PATH) as conn:
             cursor = conn.cursor()
-            cursor.execute('SELECT id, filename, size, upload_time, user_id FROM uploads ORDER BY upload_time DESC')
+            cursor.execute(
+                '''
+                SELECT u.id, u.filename, u.size, u.upload_time, u.user_id 
+                FROM uploads u 
+                WHERE u.user_id = ? AND DATE(u.upload_time) = ?
+                UNION
+                SELECT u.id, u.filename, u.size, u.upload_time, u.user_id 
+                FROM uploads u 
+                JOIN shared_uploads s ON u.id = s.upload_id 
+                WHERE s.shared_with = ? AND DATE(u.upload_time) = ?
+                ORDER BY u.upload_time DESC
+                ''',
+                (current_user.id, date_filter, current_user.id, date_filter)
+            )
             uploads = [{'id': row[0], 'filename': row[1], 'size': row[2], 'upload_time': row[3], 'user_id': row[4]} for row in cursor.fetchall()]
         return jsonify(uploads), 200
     except Exception as e:
         logging.error('Error fetching upload history: %s', str(e))
         return jsonify({'error': 'Error fetching upload history'}), 500
-
-# Serve frontend
-@app.route('/')
-@login_required
-def index():
-    logging.debug('Attempting to render index.html for user %s', current_user.id)
-    response = make_response(render_template('index.html'))
-    response.headers['Content-Type'] = 'text/html'
-    logging.debug('Rendered index.html successfully')
-    return response
 
 if __name__ == '__main__':
     init_db()
