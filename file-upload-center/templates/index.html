@@ -68,10 +68,10 @@
                     loadFiles();
                     loadUploadHistory();
                 } else {
-                    alert(result.error);
+                    alert('Error: ' + result.error);
                 }
             } catch (error) {
-                alert('Error uploading file');
+                alert('Error uploading file: ' + error.message);
             }
         }
 
@@ -79,6 +79,7 @@
             try {
                 const res = await fetch('/files', { headers: { 'X-Client-Token': clientToken } });
                 if (res.status === 401) {
+                    alert('Unauthorized: Please re-authenticate');
                     window.location.href = '/';
                     return;
                 }
@@ -101,6 +102,7 @@
                 const date = document.getElementById('dateFilter').value;
                 const res = await fetch(`/uploads?date=${date}`, { headers: { 'X-Client-Token': clientToken } });
                 if (res.status === 401) {
+                    alert('Unauthorized: Please re-authenticate');
                     window.location.href = '/';
                     return;
                 }
@@ -147,10 +149,10 @@
                 if (res.ok) {
                     alert(result.message);
                 } else {
-                    alert(result.error);
+                    alert('Error: ' + result.error);
                 }
             } catch (error) {
-                alert('Error sharing file');
+                alert('Error sharing file: ' + error.message);
             }
         }
 
