@@ -44,6 +44,8 @@
         </table>
     </div>
     <script>
+        const clientToken = '{{ client_token | safe }}'; // Use client_token from server
+
         async function uploadFile() {
             const fileInput = document.getElementById('fileInput');
             const fileLocation = document.getElementById('fileLocation').value;
@@ -58,7 +60,7 @@
                 const res = await fetch('/upload', { 
                     method: 'POST', 
                     body: formData,
-                    headers: { 'X-Client-Token': '{{ client_token }}' } // Replace with actual token
+                    headers: { 'X-Client-Token': clientToken }
                 });
                 const result = await res.json();
                 if (res.ok) {
@@ -75,7 +77,7 @@
 
         async function loadFiles() {
             try {
-                const res = await fetch('/files', { headers: { 'X-Client-Token': '{{ client_token }}' } });
+                const res = await fetch('/files', { headers: { 'X-Client-Token': clientToken } });
                 if (res.status === 401) {
                     window.location.href = '/';
                     return;
@@ -97,7 +99,7 @@
         async function loadUploadHistory() {
             try {
                 const date = document.getElementById('dateFilter').value;
-                const res = await fetch(`/uploads?date=${date}`, { headers: { 'X-Client-Token': '{{ client_token }}' } });
+                const res = await fetch(`/uploads?date=${date}`, { headers: { 'X-Client-Token': clientToken } });
                 if (res.status === 401) {
                     window.location.href = '/';
                     return;
@@ -137,7 +139,7 @@
                     method: 'POST',
                     headers: { 
                         'Content-Type': 'application/x-www-form-urlencoded',
-                        'X-Client-Token': '{{ client_token }}'
+                        'X-Client-Token': clientToken
                     },
                     body: `shared_with=${sharedWith}`
                 });
