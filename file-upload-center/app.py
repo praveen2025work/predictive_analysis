@@ -127,10 +127,12 @@ def validate_file_location(location):
 @app.route('/')
 def index():
     logging.debug('Accessing index route')
+    logging.debug('Request headers: %s', dict(request.headers))
     if current_user.is_authenticated:
         logging.debug('User %s already authenticated', current_user.id)
     else:
-        client_token = request.headers.get('X-Client-Token')
+        # Try header first, then query parameter
+        client_token = request.headers.get('X-Client-Token') or request.args.get('client_token')
         if not client_token:
             logging.error('No client token provided')
             return jsonify({'error': 'No client token provided'}), 401
@@ -154,7 +156,7 @@ def index():
             logging.error('Invalid bamToken')
             return jsonify({'error': 'Invalid bamToken'}), 401
     logging.debug('Attempting to render index.html for user %s', current_user.id)
-    response = make_response(render_template('index.html', users=[u for u in users.keys() if u != current_user.id]))
+    response = make_response(render_template('index.html', users=[u for u in users.keys() if u != current_user.id], client_token=client_token))
     response.headers['Content-Type'] = 'text/html'
     logging.debug('Rendered index.html successfully')
     return response
