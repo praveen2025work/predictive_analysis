@@ -9,7 +9,14 @@
     <div class="container mt-5">
         <h2>File Upload Center</h2>
         <p>Logged in as: {{ current_user.display_name }} ({{ current_user.id }}) | <a href="{{ url_for('logout') }}">Logout</a></p>
-        <input type="file" id="fileInput" class="form-control mb-3">
+        <div class="mb-3">
+            <label for="fileInput" class="form-label">Select File</label>
+            <input type="file" id="fileInput" class="form-control">
+        </div>
+        <div class="mb-3">
+            <label for="fileLocation" class="form-label">File Location (e.g., C:\shared\user1)</label>
+            <input type="text" id="fileLocation" class="form-control" placeholder="C:\shared\{{ current_user.id }}" required>
+        </div>
         <button onclick="uploadFile()" class="btn btn-primary">Upload</button>
         
         <h3 class="mt-4">Uploaded Files</h3>
@@ -29,6 +36,7 @@
                     <th>Size (bytes)</th>
                     <th>Upload Time</th>
                     <th>User ID</th>
+                    <th>File Location</th>
                     <th>Share</th>
                 </tr>
             </thead>
@@ -38,14 +46,20 @@
     <script>
         async function uploadFile() {
             const fileInput = document.getElementById('fileInput');
-            if (!fileInput.files[0]) {
-                alert('Please select a file');
+            const fileLocation = document.getElementById('fileLocation').value;
+            if (!fileInput.files[0] || !fileLocation) {
+                alert('Please select a file and specify a location');
                 return;
             }
             const formData = new FormData();
             formData.append('file', fileInput.files[0]);
+            formData.append('file_location', fileLocation);
             try {
-                const res = await fetch('/upload', { method: 'POST', body: formData });
+                const res = await fetch('/upload', { 
+                    method: 'POST', 
+                    body: formData,
+                    headers: { 'X-Client-Token': '{{ client_token }}' } // Replace with actual token
+                });
                 const result = await res.json();
                 if (res.ok) {
                     alert(result.message);
@@ -61,7 +75,7 @@
 
         async function loadFiles() {
             try {
-                const res = await fetch('/files');
+                const res = await fetch('/files', { headers: { 'X-Client-Token': '{{ client_token }}' } });
                 if (res.status === 401) {
                     window.location.href = '/';
                     return;
@@ -83,7 +97,7 @@
         async function loadUploadHistory() {
             try {
                 const date = document.getElementById('dateFilter').value;
-                const res = await fetch(`/uploads?date=${date}`);
+                const res = await fetch(`/uploads?date=${date}`, { headers: { 'X-Client-Token': '{{ client_token }}' } });
                 if (res.status === 401) {
                     window.location.href = '/';
                     return;
@@ -99,6 +113,7 @@
                         <td>${upload.size}</td>
                         <td>${upload.upload_time}</td>
                         <td>${upload.user_id}</td>
+                        <td>${upload.file_location}</td>
                         <td>
                             <select id="shareWith_${upload.id}">
                                 {% for user in users %}
@@ -120,7 +135,10 @@
             try {
                 const res = await fetch(`/share/${uploadId}`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    headers: { 
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'X-Client-Token': '{{ client_token }}'
+                    },
                     body: `shared_with=${sharedWith}`
                 });
                 const result = await res.json();
