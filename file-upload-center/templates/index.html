@@ -1,118 +1,109 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<!DOCTYPE html>
 <html>
 <head>
-  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-  <meta http-equiv="Content-Style-Type" content="text/css">
-  <title></title>
-  <meta name="Generator" content="Cocoa HTML Writer">
-  <meta name="CocoaVersion" content="2487.7">
-  <style type="text/css">
-    p.p1 {margin: 0.0px 0.0px 0.0px 0.0px; font: 12.0px Helvetica; -webkit-text-stroke: #000000}
-    p.p2 {margin: 0.0px 0.0px 0.0px 0.0px; font: 12.0px Helvetica; -webkit-text-stroke: #000000; min-height: 14.0px}
-    span.s1 {font-kerning: none}
-  </style>
+    <title>File Upload Center</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-<p class="p1"><span class="s1">&lt;!DOCTYPE html&gt;</span></p>
-<p class="p1"><span class="s1">&lt;html&gt;</span></p>
-<p class="p1"><span class="s1">&lt;head&gt;</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>&lt;title&gt;File Upload Center&lt;/title&gt;</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>&lt;link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"&gt;</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>&lt;link rel="stylesheet" href="/static/style.css"&gt;</span></p>
-<p class="p1"><span class="s1">&lt;/head&gt;</span></p>
-<p class="p1"><span class="s1">&lt;body&gt;</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>&lt;div class="container mt-5"&gt;</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>&lt;h2&gt;File Upload Center&lt;/h2&gt;</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>&lt;p&gt;Logged in as: {{ current_user.id }} | &lt;a href="{{ url_for('logout') }}"&gt;Logout&lt;/a&gt;&lt;/p&gt;</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>&lt;input type="file" id="fileInput" class="form-control mb-3"&gt;</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>&lt;button onclick="uploadFile()" class="btn btn-primary"&gt;Upload&lt;/button&gt;</span></p>
-<p class="p2"><span class="s1"><span class="Apple-converted-space">        </span></span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>&lt;h3 class="mt-4"&gt;Uploaded Files&lt;/h3&gt;</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>&lt;ul id="fileList" class="list-group mb-4"&gt;&lt;/ul&gt;</span></p>
-<p class="p2"><span class="s1"><span class="Apple-converted-space">        </span></span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>&lt;h3&gt;Upload History&lt;/h3&gt;</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>&lt;table class="table table-striped"&gt;</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>&lt;thead&gt;</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>&lt;tr&gt;</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>&lt;th&gt;ID&lt;/th&gt;</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>&lt;th&gt;Filename&lt;/th&gt;</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>&lt;th&gt;Size (bytes)&lt;/th&gt;</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>&lt;th&gt;Upload Time&lt;/th&gt;</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>&lt;th&gt;User ID&lt;/th&gt;</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>&lt;/tr&gt;</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>&lt;/thead&gt;</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>&lt;tbody id="uploadHistory"&gt;&lt;/tbody&gt;</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>&lt;/table&gt;</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>&lt;/div&gt;</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>&lt;script&gt;</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>async function uploadFile() {</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>const fileInput = document.getElementById('fileInput');</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>if (!fileInput.files[0]) {</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>alert('Please select a file');</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>return;</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>}</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>const formData = new FormData();</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>formData.append('file', fileInput.files[0]);</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>try {</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>const res = await fetch('/upload', { method: 'POST', body: formData });</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>const result = await res.json();</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>if (res.ok) {</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>alert(result.message);</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>loadFiles();</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>loadUploadHistory();</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>} else {</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>alert(result.error);</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>}</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>} catch (error) {</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>alert('Error uploading file');</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>}</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>}</span></p>
-<p class="p2"><span class="s1"></span><br></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>async function loadFiles() {</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>try {</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>const res = await fetch('/files');</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>const files = await res.json();</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>const fileList = document.getElementById('fileList');</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>fileList.innerHTML = '';</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>files.forEach(file =&gt; {</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>const li = document.createElement('li');</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>li.className = 'list-group-item';</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>li.innerHTML = `${file} &lt;a href="/download/${file}" class="btn btn-sm btn-success"&gt;Download&lt;/a&gt;`;</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>fileList.appendChild(li);</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>});</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>} catch (error) {</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>console.error('Error loading files:', error);</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>}</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>}</span></p>
-<p class="p2"><span class="s1"></span><br></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>async function loadUploadHistory() {</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>try {</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>const res = await fetch('/uploads');</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>const uploads = await res.json();</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>const historyTable = document.getElementById('uploadHistory');</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>historyTable.innerHTML = '';</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>uploads.forEach(upload =&gt; {</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>const tr = document.createElement('tr');</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>tr.innerHTML = `</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">                        </span>&lt;td&gt;${upload.id}&lt;/td&gt;</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">                        </span>&lt;td&gt;${upload.filename}&lt;/td&gt;</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">                        </span>&lt;td&gt;${upload.size}&lt;/td&gt;</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">                        </span>&lt;td&gt;${upload.upload_time}&lt;/td&gt;</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">                        </span>&lt;td&gt;${upload.user_id}&lt;/td&gt;</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>`;</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>historyTable.appendChild(tr);</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>});</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>} catch (error) {</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>console.error('Error loading upload history:', error);</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>}</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>}</span></p>
-<p class="p2"><span class="s1"></span><br></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>window.onload = () =&gt; {</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>loadFiles();</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>loadUploadHistory();</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>};</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>&lt;/script&gt;</span></p>
-<p class="p1"><span class="s1">&lt;/body&gt;</span></p>
-<p class="p1"><span class="s1">&lt;/html&gt;</span></p>
+    <div class="container mt-5">
+        <h2>File Upload Center</h2>
+        <p>Logged in as: {{ current_user.id }} | <a href="{{ url_for('logout') }}">Logout</a></p>
+        <input type="file" id="fileInput" class="form-control mb-3">
+        <button onclick="uploadFile()" class="btn btn-primary">Upload</button>
+        
+        <h3 class="mt-4">Uploaded Files</h3>
+        <ul id="fileList" class="list-group mb-4"></ul>
+        
+        <h3>Upload History</h3>
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Filename</th>
+                    <th>Size (bytes)</th>
+                    <th>Upload Time</th>
+                    <th>User ID</th>
+                </tr>
+            </thead>
+            <tbody id="uploadHistory"></tbody>
+        </table>
+    </div>
+    <script>
+        async function uploadFile() {
+            const fileInput = document.getElementById('fileInput');
+            if (!fileInput.files[0]) {
+                alert('Please select a file');
+                return;
+            }
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+            try {
+                const res = await fetch('/upload', { method: 'POST', body: formData });
+                const result = await res.json();
+                if (res.ok) {
+                    alert(result.message);
+                    loadFiles();
+                    loadUploadHistory();
+                } else {
+                    alert(result.error);
+                }
+            } catch (error) {
+                alert('Error uploading file');
+            }
+        }
+
+        async function loadFiles() {
+            try {
+                const res = await fetch('/files');
+                if (res.status === 401) {
+                    window.location.href = '/login';
+                    return;
+                }
+                const files = await res.json();
+                const fileList = document.getElementById('fileList');
+                fileList.innerHTML = '';
+                files.forEach(file => {
+                    const li = document.createElement('li');
+                    li.className = 'list-group-item';
+                    li.innerHTML = `${file} <a href="/download/${file}" class="btn btn-sm btn-success">Download</a>`;
+                    fileList.appendChild(li);
+                });
+            } catch (error) {
+                console.error('Error loading files:', error);
+            }
+        }
+
+        async function loadUploadHistory() {
+            try {
+                const res = await fetch('/uploads');
+                if (res.status === 401) {
+                    window.location.href = '/login';
+                    return;
+                }
+                const uploads = await res.json();
+                const historyTable = document.getElementById('uploadHistory');
+                historyTable.innerHTML = '';
+                uploads.forEach(upload => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td>${upload.id}</td>
+                        <td>${upload.filename}</td>
+                        <td>${upload.size}</td>
+                        <td>${upload.upload_time}</td>
+                        <td>${upload.user_id}</td>
+                    `;
+                    historyTable.appendChild(tr);
+                });
+            } catch (error) {
+                console.error('Error loading upload history:', error);
+            }
+        }
+
+        window.onload = () => {
+            loadFiles();
+            loadUploadHistory();
+        };
+    </script>
 </body>
 </html>
