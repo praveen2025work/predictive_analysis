@@ -8,7 +8,7 @@
 <body>
     <div class="container mt-5">
         <h2>File Upload Center</h2>
-        <p>Logged in as: {{ current_user.id }} | <a href="{{ url_for('logout') }}">Logout</a></p>
+        <p>Logged in as: {{ current_user.display_name }} ({{ current_user.id }}) | <a href="{{ url_for('logout') }}">Logout</a></p>
         <input type="file" id="fileInput" class="form-control mb-3">
         <button onclick="uploadFile()" class="btn btn-primary">Upload</button>
         
@@ -16,6 +16,11 @@
         <ul id="fileList" class="list-group mb-4"></ul>
         
         <h3>Upload History</h3>
+        <div class="mb-3">
+            <label for="dateFilter" class="form-label">Filter by Date</label>
+            <input type="date" id="dateFilter" class="form-control" value="{{ 'now' | strftime('%Y-%m-%d') }}">
+            <button onclick="loadUploadHistory()" class="btn btn-secondary mt-2">Apply Filter</button>
+        </div>
         <table class="table table-striped">
             <thead>
                 <tr>
@@ -24,6 +29,7 @@
                     <th>Size (bytes)</th>
                     <th>Upload Time</th>
                     <th>User ID</th>
+                    <th>Share</th>
                 </tr>
             </thead>
             <tbody id="uploadHistory"></tbody>
@@ -57,7 +63,7 @@
             try {
                 const res = await fetch('/files');
                 if (res.status === 401) {
-                    window.location.href = '/login';
+                    window.location.href = '/';
                     return;
                 }
                 const files = await res.json();
@@ -76,9 +82,10 @@
 
         async function loadUploadHistory() {
             try {
-                const res = await fetch('/uploads');
+                const date = document.getElementById('dateFilter').value;
+                const res = await fetch(`/uploads?date=${date}`);
                 if (res.status === 401) {
-                    window.location.href = '/login';
+                    window.location.href = '/';
                     return;
                 }
                 const uploads = await res.json();
@@ -92,11 +99,38 @@
                         <td>${upload.size}</td>
                         <td>${upload.upload_time}</td>
                         <td>${upload.user_id}</td>
+                        <td>
+                            <select id="shareWith_${upload.id}">
+                                {% for user in users %}
+                                    <option value="{{ user }}">{{ user }}</option>
+                                {% endfor %}
+                            </select>
+                            <button onclick="shareFile(${upload.id})" class="btn btn-sm btn-primary">Share</button>
+                        </td>
                     `;
                     historyTable.appendChild(tr);
                 });
             } catch (error) {
                 console.error('Error loading upload history:', error);
+            }
+        }
+
+        async function shareFile(uploadId) {
+            const sharedWith = document.getElementById(`shareWith_${uploadId}`).value;
+            try {
+                const res = await fetch(`/share/${uploadId}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: `shared_with=${sharedWith}`
+                });
+                const result = await res.json();
+                if (res.ok) {
+                    alert(result.message);
+                } else {
+                    alert(result.error);
+                }
+            } catch (error) {
+                alert('Error sharing file');
             }
         }
 
