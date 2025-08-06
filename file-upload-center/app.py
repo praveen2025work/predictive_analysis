@@ -15,8 +15,8 @@ UPLOAD_BASE_DIR = r'C:\shared'  # Base directory for validation
 DB_PATH = r'C:\shared\uploads.db'
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'pdf'}
 MAX_FILE_SIZE = 100 * 1024 * 1024  # 100MB
-AUTH_API_URL = 'https://your-auth-api.example.com/token'  # Replace with actual URL
-USER_API_URL = 'https://your-user-api.example.com/user'  # Replace with actual URL
+AUTH_API_URL = 'http://ldndsm:9521/api/token'  # Replace with actual URL
+USER_API_URL = 'http://dummyserver.local:9521/api/user'
 
 # Setup logging
 logging.basicConfig(level=logging.DEBUG, filename='app.log', filemode='a', format='%(asctime)s - %(levelname)s - %(message)s')
@@ -70,11 +70,13 @@ class User(UserMixin):
 # Global users dict (populated dynamically)
 users = {}
 
-# Fetch bamToken from auth API
+# Fetch bamToken from auth API (GET request)
 def get_bam_token(client_token):
     try:
-        response = requests.post(AUTH_API_URL, json={'token': client_token})
-        if response.status_code == 200 and response.json().get('code') == 'success':
+        logging.debug('Calling AUTH_API_URL with client_token: %s', client_token)
+        response = requests.get(f"{AUTH_API_URL}?token={client_token}")
+        logging.debug('AUTH_API_URL response: %s', response.text)
+        if response.status_code == 200 and response.json().get('code') == 'SUCCESS':
             return response.json().get('bamToken')
         else:
             logging.error('Auth API call failed: %s', response.text)
@@ -83,11 +85,13 @@ def get_bam_token(client_token):
         logging.error('Error fetching bamToken: %s', str(e))
         return None
 
-# Fetch user details using bamToken
+# Fetch user details using bamToken (GET request)
 def get_user_details(bam_token):
     try:
         headers = {'Authorization': f'Bearer {bam_token}'}
+        logging.debug('Calling USER_API_URL with bamToken')
         response = requests.get(USER_API_URL, headers=headers)
+        logging.debug('USER_API_URL response: %s', response.text)
         if response.status_code == 200:
             data = response.json()
             return {
@@ -128,17 +132,22 @@ def validate_file_location(location):
 def index():
     logging.debug('Accessing index route')
     logging.debug('Request headers: %s', dict(request.headers))
+    logging.debug('Query parameters: %s', dict(request.args))
     if current_user.is_authenticated:
         logging.debug('User %s already authenticated', current_user.id)
     else:
-        # Try header first, then query parameter
-        client_token = request.headers.get('X-Client-Token') or request.args.get('client_token')
+        # Try header, query parameter, or fallback token
+        client_token = (request.headers.get('X-Client-Token') or 
+                        request.headers.get('Authorization', '').replace('Bearer ', '') or 
+                        request.headers.get('Client-Token') or 
+                        request.args.get('client_token') or 
+                        request.args.get('token'))  # Removed fallback for production
         if not client_token:
             logging.error('No client token provided')
             return jsonify({'error': 'No client token provided'}), 401
         bam_token = get_bam_token(client_token)
         if not bam_token:
-            logging.error('Invalid client token')
+            logging.error('Invalid client token: %s', client_token)
             return jsonify({'error': 'Invalid client token'}), 401
         user_details = get_user_details(bam_token)
         if user_details:
