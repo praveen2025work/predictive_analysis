@@ -6,7 +6,6 @@ import os
 import sqlite3
 from datetime import datetime
 import logging
-from waitress import serve
 
 app = Flask(__name__)
 app.secret_key = 'super-secret-key'  # Change in production
@@ -106,24 +105,18 @@ def upload_file():
     if 'file' not in request.files:
         logging.error('No file uploaded')
         return jsonify({'error': 'No file uploaded'}), 400
-    
     file = request.files['file']
     if file.filename == '':
         logging.error('No file selected')
         return jsonify({'error': 'No file selected'}), 400
-    
     if file and allowed_file(file.filename):
         if file.content_length and file.content_length > MAX_FILE_SIZE:
             logging.error('File too large: %s', file.filename)
             return jsonify({'error': 'File too large'}), 400
-        
-        # Secure filename and save
         filename = secure_filename(f"{datetime.now().timestamp()}_{file.filename}")
         file_path = os.path.join(UPLOAD_DIR, filename)
         file.save(file_path)
         logging.debug('Saved file %s to %s', filename, file_path)
-        
-        # Log to SQLite
         with sqlite3.connect(DB_PATH) as conn:
             cursor = conn.cursor()
             cursor.execute(
@@ -132,9 +125,7 @@ def upload_file():
             )
             conn.commit()
             logging.debug('Logged upload to database: %s by %s', filename, current_user.id)
-        
         return jsonify({'message': 'File uploaded successfully', 'filename': filename}), 200
-    
     logging.error('Invalid file type: %s', file.filename)
     return jsonify({'error': 'Invalid file type'}), 400
 
@@ -187,6 +178,6 @@ def index():
     return response
 
 if __name__ == '__main__':
-    init_db()  # Initialize database on startup
-    logging.debug('Starting Waitress server on port 3000')
-    serve(app, host='0.0.0.0', port=3000)  # Use Waitress for production
+    init_db()
+    logging.debug('Starting Flask development server on port 3000')
+    app.run(host='0.0.0.0', port=3000, debug=True)
