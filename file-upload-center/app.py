@@ -1,5 +1,6 @@
 from flask import Flask, request, send_file, jsonify, render_template, redirect, url_for, make_response
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
+from werkzeug.utils import secure_filename
 import os
 import sqlite3
 from datetime import datetime
@@ -10,18 +11,19 @@ app = Flask(__name__)
 app.secret_key = 'super-secret-key'  # Change in production
 
 # Configuration
-UPLOAD_DIR = r'C:\shared\uploads'
+UPLOAD_BASE_DIR = r'C:\shared'  # Base directory for validation
 DB_PATH = r'C:\shared\uploads.db'
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'pdf'}
 MAX_FILE_SIZE = 100 * 1024 * 1024  # 100MB
+AUTH_API_URL = 'https://your-auth-api.example.com/token'  # Replace with actual URL
 USER_API_URL = 'https://your-user-api.example.com/user'  # Replace with actual URL
 
 # Setup logging
 logging.basicConfig(level=logging.DEBUG, filename='app.log', filemode='a', format='%(asctime)s - %(levelname)s - %(message)s')
 
-# Ensure upload directory exists
-if not os.path.exists(UPLOAD_DIR):
-    os.makedirs(UPLOAD_DIR)
+# Ensure base directory exists
+if not os.path.exists(UPLOAD_BASE_DIR):
+    os.makedirs(UPLOAD_BASE_DIR)
 
 # Initialize SQLite database
 def init_db():
@@ -33,7 +35,8 @@ def init_db():
                 filename TEXT NOT NULL,
                 size INTEGER NOT NULL,
                 upload_time TEXT NOT NULL,
-                user_id TEXT NOT NULL
+                user_id TEXT NOT NULL,
+                file_location TEXT NOT NULL
             )
         ''')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_user_id ON uploads(user_id)')
@@ -67,6 +70,19 @@ class User(UserMixin):
 # Global users dict (populated dynamically)
 users = {}
 
+# Fetch bamToken from auth API
+def get_bam_token(client_token):
+    try:
+        response = requests.post(AUTH_API_URL, json={'token': client_token})
+        if response.status_code == 200 and response.json().get('code') == 'success':
+            return response.json().get('bamToken')
+        else:
+            logging.error('Auth API call failed: %s', response.text)
+            return None
+    except Exception as e:
+        logging.error('Error fetching bamToken: %s', str(e))
+        return None
+
 # Fetch user details using bamToken
 def get_user_details(bam_token):
     try:
@@ -95,6 +111,18 @@ def load_user(user_id):
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
+# Validate file location
+def validate_file_location(location):
+    if not location.startswith(UPLOAD_BASE_DIR):
+        return False
+    try:
+        if not os.path.exists(location):
+            os.makedirs(location)
+        return os.access(location, os.W_OK | os.R_OK)
+    except Exception as e:
+        logging.error('Invalid file location %s: %s', location, str(e))
+        return False
+
 # Root route with BAM authentication
 @app.route('/')
 def index():
@@ -102,11 +130,14 @@ def index():
     if current_user.is_authenticated:
         logging.debug('User %s already authenticated', current_user.id)
     else:
-        # Get bamToken from request header (e.g., Authorization: Bearer <token>)
-        bam_token = request.headers.get('Authorization', '').replace('Bearer ', '')
+        client_token = request.headers.get('X-Client-Token')
+        if not client_token:
+            logging.error('No client token provided')
+            return jsonify({'error': 'No client token provided'}), 401
+        bam_token = get_bam_token(client_token)
         if not bam_token:
-            logging.error('No bamToken provided')
-            return jsonify({'error': 'No bamToken provided'}), 401
+            logging.error('Invalid client token')
+            return jsonify({'error': 'Invalid client token'}), 401
         user_details = get_user_details(bam_token)
         if user_details:
             user_id = user_details['username']
@@ -141,29 +172,33 @@ def logout():
 @login_required
 def upload_file():
     logging.debug('User %s attempting file upload', current_user.id)
-    if 'file' not in request.files:
-        logging.error('No file uploaded')
-        return jsonify({'error': 'No file uploaded'}), 400
+    if 'file' not in request.files or 'file_location' not in request.form:
+        logging.error('Missing file or file_location')
+        return jsonify({'error': 'Missing file or file location'}), 400
     file = request.files['file']
+    file_location = request.form['file_location']
     if file.filename == '':
         logging.error('No file selected')
         return jsonify({'error': 'No file selected'}), 400
+    if not validate_file_location(file_location):
+        logging.error('Invalid or inaccessible file location: %s', file_location)
+        return jsonify({'error': 'Invalid or inaccessible file location'}), 400
     if file and allowed_file(file.filename):
         if file.content_length and file.content_length > MAX_FILE_SIZE:
             logging.error('File too large: %s', file.filename)
             return jsonify({'error': 'File too large'}), 400
         filename = secure_filename(f"{datetime.now().timestamp()}_{file.filename}")
-        file_path = os.path.join(UPLOAD_DIR, filename)
+        file_path = os.path.join(file_location, filename)
         file.save(file_path)
         logging.debug('Saved file %s to %s', filename, file_path)
         with sqlite3.connect(DB_PATH) as conn:
             cursor = conn.cursor()
             cursor.execute(
-                'INSERT INTO uploads (filename, size, upload_time, user_id) VALUES (?, ?, ?, ?)',
-                (filename, os.path.getsize(file_path), datetime.now().isoformat(), current_user.id)
+                'INSERT INTO uploads (filename, size, upload_time, user_id, file_location) VALUES (?, ?, ?, ?, ?)',
+                (filename, os.path.getsize(file_path), datetime.now().isoformat(), current_user.id, file_location)
             )
             conn.commit()
-            logging.debug('Logged upload to database: %s by %s', filename, current_user.id)
+            logging.debug('Logged upload to database: %s by %s at %s', filename, current_user.id, file_location)
         return jsonify({'message': 'File uploaded successfully', 'filename': filename}), 200
     logging.error('Invalid file type: %s', file.filename)
     return jsonify({'error': 'Invalid file type'}), 400
@@ -197,7 +232,19 @@ def share_file(upload_id):
 def list_files():
     logging.debug('User %s listing files', current_user.id)
     try:
-        files = os.listdir(UPLOAD_DIR)
+        with sqlite3.connect(DB_PATH) as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                '''
+                SELECT filename FROM uploads WHERE user_id = ?
+                UNION
+                SELECT u.filename FROM uploads u 
+                JOIN shared_uploads s ON u.id = s.upload_id 
+                WHERE s.shared_with = ?
+                ''',
+                (current_user.id, current_user.id)
+            )
+            files = [row[0] for row in cursor.fetchall()]
         return jsonify(files), 200
     except Exception as e:
         logging.error('Error listing files: %s', str(e))
@@ -208,21 +255,28 @@ def list_files():
 @login_required
 def download_file(filename):
     logging.debug('User %s downloading file %s', current_user.id, filename)
-    file_path = os.path.join(UPLOAD_DIR, filename)
     with sqlite3.connect(DB_PATH) as conn:
         cursor = conn.cursor()
         cursor.execute(
-            'SELECT id FROM uploads WHERE filename = ? AND user_id = ?', (filename, current_user.id)
+            'SELECT file_location FROM uploads WHERE filename = ? AND user_id = ?',
+            (filename, current_user.id)
         )
         upload = cursor.fetchone()
         if not upload:
             cursor.execute(
-                'SELECT u.filename FROM uploads u JOIN shared_uploads s ON u.id = s.upload_id WHERE u.filename = ? AND s.shared_with = ?',
+                '''
+                SELECT u.file_location FROM uploads u 
+                JOIN shared_uploads s ON u.id = s.upload_id 
+                WHERE u.filename = ? AND s.shared_with = ?
+                ''',
                 (filename, current_user.id)
             )
-            if not cursor.fetchone():
+            upload = cursor.fetchone()
+            if not upload:
                 logging.error('File %s not accessible by %s', filename, current_user.id)
                 return jsonify({'error': 'File not accessible'}), 403
+        file_location = upload[0]
+    file_path = os.path.join(file_location, filename)
     if os.path.exists(file_path):
         return send_file(file_path, as_attachment=True)
     logging.error('File not found: %s', filename)
@@ -239,11 +293,11 @@ def get_upload_history():
             cursor = conn.cursor()
             cursor.execute(
                 '''
-                SELECT u.id, u.filename, u.size, u.upload_time, u.user_id 
+                SELECT u.id, u.filename, u.size, u.upload_time, u.user_id, u.file_location 
                 FROM uploads u 
                 WHERE u.user_id = ? AND DATE(u.upload_time) = ?
                 UNION
-                SELECT u.id, u.filename, u.size, u.upload_time, u.user_id 
+                SELECT u.id, u.filename, u.size, u.upload_time, u.user_id, u.file_location 
                 FROM uploads u 
                 JOIN shared_uploads s ON u.id = s.upload_id 
                 WHERE s.shared_with = ? AND DATE(u.upload_time) = ?
@@ -251,7 +305,7 @@ def get_upload_history():
                 ''',
                 (current_user.id, date_filter, current_user.id, date_filter)
             )
-            uploads = [{'id': row[0], 'filename': row[1], 'size': row[2], 'upload_time': row[3], 'user_id': row[4]} for row in cursor.fetchall()]
+            uploads = [{'id': row[0], 'filename': row[1], 'size': row[2], 'upload_time': row[3], 'user_id': row[4], 'file_location': row[5]} for row in cursor.fetchall()]
         return jsonify(uploads), 200
     except Exception as e:
         logging.error('Error fetching upload history: %s', str(e))
