@@ -6,6 +6,7 @@ import sqlite3
 from datetime import datetime
 import logging
 import requests
+from requests_kerberos import HTTPKerberosAuth, OPTIONAL
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -16,7 +17,7 @@ UPLOAD_BASE_DIR = r'C:\shared'
 DB_PATH = r'C:\shared\uploads.db'
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'pdf'}
 MAX_FILE_SIZE = 100 * 1024 * 1024  # 100MB
-AUTH_API_URL = 'http://bam-auth.client.example.com'  # Replace with actual URL
+AUTH_API_URL = 'http://auth-api.company.com/user'  # Replace with actual URL
 
 # Setup logging
 log_file = r'C:\file-upload-center\app.log'
@@ -83,7 +84,7 @@ login_manager.login_view = 'index'
 # User class for Flask-Login
 class User(UserMixin):
     def __init__(self, id, username, display_name, employee_id):
-        self.id = id  # username from API
+        self.id = id  # userName from API
         self.username = username
         self.display_name = display_name
         self.employee_id = employee_id
@@ -91,56 +92,27 @@ class User(UserMixin):
 # Global users dict
 users = {}
 
-# Fetch bamToken from auth API
-def get_bam_token(client_token):
+# Fetch user details using Windows authentication
+def get_user_details():
     try:
         headers = {
-            'Cookie': client_token,  # Pass client_token as Cookie
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange',
-            'Accept-Encoding': 'gzip, deflate, br, zstd',
-            'Accept-Language': 'en-US,en;q=0.9',
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36'
-        }
-        logging.debug('Calling AUTH_API_URL with client_token in Cookie: %s', client_token)
-        response = requests.get(AUTH_API_URL, headers=headers, timeout=5)
-        logging.debug('AUTH_API_URL response: status=%s, body=%s', response.status_code, response.text)
-        if response.status_code == 200 and response.json().get('code') == 'SUCCESS':
-            data = response.json()
-            bam_token = data.get('bamToken')
-            redirect_url = data.get('redirectURL')
-            logging.debug('Extracted bamToken: %s, redirectURL: %s', bam_token, redirect_url)
-            return bam_token, redirect_url
-        else:
-            logging.error('Auth API call failed: status=%s, body=%s', response.status_code, response.text)
-            return None, None
-    except Exception as e:
-        logging.error('Error fetching bamToken: %s', str(e))
-        return None, None
-
-# Fetch user details using bamToken
-def get_user_details(bam_token, redirect_url):
-    try:
-        headers = {
-            'Authorization': f'Bearer {bam_token}',
             'Accept': 'application/json, text/plain, */*',
             'Accept-Encoding': 'gzip, deflate',
             'Accept-Language': 'en-US,en;q=0.9',
-            'Origin': 'http://dummyclient.local:9013',
-            'Referer': 'http://dummyclient.local:9013/',
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36'
         }
-        logging.debug('Calling redirectURL with bamToken: %s, headers: %s', redirect_url, headers)
-        response = requests.get(redirect_url, headers=headers, timeout=5)
-        logging.debug('RedirectURL response: status=%s, body=%s', response.status_code, response.text)
+        logging.debug('Calling AUTH_API_URL with Kerberos/NTLM authentication')
+        response = requests.get(AUTH_API_URL, auth=HTTPKerberosAuth(mutual_authentication=OPTIONAL), headers=headers, timeout=5)
+        logging.debug('AUTH_API_URL response: status=%s, body=%s', response.status_code, response.text)
         if response.status_code == 200:
             data = response.json()
             return {
-                'username': data.get('username'),
+                'username': data.get('userName'),
                 'display_name': data.get('displayName'),
                 'employee_id': data.get('employeeId')
             }
         else:
-            logging.error('User API call failed: status=%s, body=%s', response.status_code, response.text)
+            logging.error('Auth API call failed: status=%s, body=%s', response.status_code, response.text)
             return None
     except Exception as e:
         logging.error('Error fetching user details: %s', str(e))
@@ -169,7 +141,7 @@ def validate_file_location(location):
         logging.error('Invalid file location %s: %s', location, str(e))
         return False
 
-# Root route with BAM authentication
+# Root route with Windows authentication
 @app.route('/')
 def index():
     logging.debug('Accessing index route')
@@ -178,7 +150,7 @@ def index():
     if current_user.is_authenticated:
         logging.debug('User %s already authenticated', current_user.id)
     else:
-        # Try header, query parameter, or cookie
+        # Try header, query parameter, or cookie for client_token
         client_token = (request.headers.get('X-Client-Token') or 
                         request.headers.get('Authorization', '').replace('Bearer ', '') or 
                         request.headers.get('Client-Token') or 
@@ -188,11 +160,8 @@ def index():
         if not client_token:
             logging.error('No client token provided')
             return jsonify({'error': 'No client token provided'}), 401
-        bam_token, redirect_url = get_bam_token(client_token)
-        if not bam_token or not redirect_url:
-            logging.error('Invalid client token or no redirectURL: %s', client_token)
-            return jsonify({'error': 'Invalid client token or BAM API failure'}), 401
-        user_details = get_user_details(bam_token, redirect_url)
+        # Use Windows authentication to get user details
+        user_details = get_user_details()
         if user_details:
             user_id = user_details['username']
             user = User(
@@ -205,8 +174,8 @@ def index():
             login_user(user)
             logging.debug('Authenticated user %s', user_id)
         else:
-            logging.error('Invalid bamToken or user API failure')
-            return jsonify({'error': 'Invalid bamToken or user API failure'}), 401
+            logging.error('Failed to authenticate user via Windows authentication')
+            return jsonify({'error': 'Authentication failed'}), 401
     logging.debug('Attempting to render index.html for user %s', current_user.id)
     try:
         response = make_response(render_template('index.html', users=[u for u in users.keys() if u != current_user.id], client_token=client_token))
