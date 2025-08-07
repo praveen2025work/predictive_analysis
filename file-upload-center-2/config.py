@@ -11,8 +11,10 @@ class Config:
     DB_PATH = os.getenv('DB_PATH')
     ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'pdf'}
     MAX_FILE_SIZE = 100 * 1024 * 1024  # 100MB
-    AUTH_API_URL = os.getenv('AUTH_API_URL')
     LOG_FILE = os.getenv('LOG_FILE')
+    SERVER_HOST = os.getenv('SERVER_HOST', '0.0.0.0')
+    PORT = int(os.getenv('PORT', 3000))
+    ALLOWED_ORIGINS = os.getenv('ALLOWED_ORIGINS', '').split(',')
 
 class DevConfig(Config):
     DEBUG = True
