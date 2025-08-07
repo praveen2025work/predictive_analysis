@@ -1,1 +1,9 @@
-# requirements.txt
+flask
+flask-login
+requests
+flask-cors
+requests-kerberos
+requests-ntlm
+python-dotenv
+gunicorn
+wfastcgi
