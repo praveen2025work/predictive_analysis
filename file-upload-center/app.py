@@ -1,9 +1,9 @@
 from flask import Flask, request, send_file, jsonify, render_template, redirect, url_for, make_response
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from werkzeug.utils import secure_filename
+from datetime import datetime
 import os
 import sqlite3
-from datetime import datetime
 import logging
 import requests
 from requests_kerberos import HTTPKerberosAuth, OPTIONAL
@@ -75,6 +75,18 @@ def init_db():
             logging.debug('Initialized SQLite database with indexes and shared_uploads table')
     except Exception as e:
         logging.error(f'Failed to initialize database: {e}')
+
+# Custom Jinja2 filter for strftime
+def datetime_strftime(value, format='%Y-%m-%d %H:%M:%S'):
+    try:
+        if isinstance(value, str):
+            value = datetime.fromisoformat(value)
+        return value.strftime(format)
+    except Exception as e:
+        logging.error(f'Error in strftime filter: {e}')
+        return value
+
+app.jinja_env.filters['strftime'] = datetime_strftime
 
 # Flask-Login setup
 login_manager = LoginManager()
@@ -150,17 +162,15 @@ def index():
     if current_user.is_authenticated:
         logging.debug('User %s already authenticated', current_user.id)
     else:
-        # Try header, query parameter, or cookie for client_token
+        # Optionally check for client_token
         client_token = (request.headers.get('X-Client-Token') or 
                         request.headers.get('Authorization', '').replace('Bearer ', '') or 
                         request.headers.get('Client-Token') or 
                         request.args.get('client_token') or 
                         request.args.get('token') or 
-                        request.headers.get('Cookie'))
-        if not client_token:
-            logging.error('No client token provided')
-            return jsonify({'error': 'No client token provided'}), 401
-        # Use Windows authentication to get user details
+                        request.headers.get('Cookie') or
+                        'windows-auth')  # Fallback to bypass token check
+        logging.debug('Client token: %s', client_token)
         user_details = get_user_details()
         if user_details:
             user_id = user_details['username']
@@ -178,13 +188,31 @@ def index():
             return jsonify({'error': 'Authentication failed'}), 401
     logging.debug('Attempting to render index.html for user %s', current_user.id)
     try:
-        response = make_response(render_template('index.html', users=[u for u in users.keys() if u != current_user.id], client_token=client_token))
+        # Fetch user uploads for the template
+        with sqlite3.connect(DB_PATH) as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                '''
+                SELECT u.id, u.filename, u.size, u.upload_time, u.user_id, u.file_location 
+                FROM uploads u 
+                WHERE u.user_id = ?
+                UNION
+                SELECT u.id, u.filename, u.size, u.upload_time, u.user_id, u.file_location 
+                FROM uploads u 
+                JOIN shared_uploads s ON u.id = s.upload_id 
+                WHERE s.shared_with = ?
+                ORDER BY u.upload_time DESC
+                ''',
+                (current_user.id, current_user.id)
+            )
+            uploads = [{'id': row[0], 'filename': row[1], 'size': row[2], 'upload_time': row[3], 'user_id': row[4], 'file_location': row[5]} for row in cursor.fetchall()]
+        response = make_response(render_template('index.html', users=[u for u in users.keys() if u != current_user.id], uploads=uploads))
         response.headers['Content-Type'] = 'text/html'
         logging.debug('Rendered index.html successfully')
         return response
     except Exception as e:
         logging.error('Error rendering index.html: %s', str(e))
-        return jsonify({'error': 'Failed to render page'}), 500
+        return jsonify({'error': f'Failed to render page: {str(e)}'}), 500
 
 # Logout route
 @app.route('/logout')
