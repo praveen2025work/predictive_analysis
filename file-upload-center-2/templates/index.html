@@ -1,1 +1,159 @@
-# index.html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>File Upload Center</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container mt-4">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1 class="mb-0">File Upload Center</h1>
+            {% if current_user.is_authenticated %}
+                <div>
+                    <span class="me-3">Welcome, {{ current_user.display_name }}!</span>
+                    <a href="{{ url_for('logout') }}" class="btn btn-outline-secondary btn-sm">Logout</a>
+                </div>
+            {% endif %}
+        </div>
+        
+        {% if current_user.is_authenticated %}
+            <!-- Toast Notification -->
+            {% if notification %}
+                <div class="toast-container position-fixed bottom-0 end-0 p-3">
+                    <div class="toast" role="alert" aria-live="assertive" aria-atomic="true" data-bs-autohide="true" data-bs-delay="5000">
+                        <div class="toast-header">
+                            <strong class="me-auto">{{ 'Success' if notification_type == 'success' else 'Error' if notification_type == 'danger' else 'Warning' }}</strong>
+                            <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+                        </div>
+                        <div class="toast-body">{{ notification }}</div>
+                    </div>
+                </div>
+            {% endif %}
+
+            <!-- Upload Form -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <h2 class="card-title h5">Upload File</h2>
+                    <form id="uploadForm" action="{{ url_for('upload_file') }}" method="post" enctype="multipart/form-data" class="row g-3">
+                        <div class="col-md-6">
+                            <label for="file" class="form-label">Choose File</label>
+                            <input type="file" class="form-control" id="file" name="file" accept=".png,.jpg,.jpeg,.pdf" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="file_location" class="form-label">File Location</label>
+                            <input type="text" class="form-control" id="file_location" name="file_location" value="{{ upload_base_dir }}" required>
+                        </div>
+                        <div class="col-12">
+                            <button type="submit" class="btn btn-primary" id="uploadButton">
+                                <span id="uploadSpinner" class="spinner-border spinner-border-sm d-none" role="status"></span>
+                                Upload
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Filter and Search -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <h2 class="card-title h5">Filter & Search Uploads</h2>
+                    <form id="filterForm" action="{{ url_for('get_upload_history') }}" method="get" class="row g-3 align-items-end">
+                        <div class="col-md-3">
+                            <label for="from_date" class="form-label">From Date</label>
+                            <input type="date" class="form-control" id="from_date" name="from_date" value="{{ from_date or (now() | strftime('%Y-%m-%d')) }}" required>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="to_date" class="form-label">To Date</label>
+                            <input type="date" class="form-control" id="to_date" name="to_date" value="{{ to_date or (now() | strftime('%Y-%m-%d')) }}" required>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="search" class="form-label">Search Filename</label>
+                            <input type="text" class="form-control" id="search" name="search" value="{{ search_query or '' }}" placeholder="Enter filename">
+                        </div>
+                        <div class="col-md-3">
+                            <button type="submit" class="btn btn-primary me-2" id="filterButton">Filter</button>
+                            <a href="{{ url_for('index') }}" class="btn btn-outline-secondary">Clear</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Upload History -->
+            <div class="card">
+                <div class="card-body">
+                    <h2 class="card-title h5">Your Files</h2>
+                    {% if uploads %}
+                        <div class="list-group">
+                            {% for upload in uploads %}
+                                <div class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <strong>ID: {{ upload.id }}</strong><br>
+                                        <strong>{{ upload.filename }}</strong><br>
+                                        <small>{{ upload.size }} bytes, {{ upload.upload_time | strftime('%Y-%m-%d %H:%M:%S') }}, Downloads: {{ upload.download_count }}</small>
+                                    </div>
+                                    <div>
+                                        <a href="{{ url_for('download_file', filename=upload.filename) }}" class="btn btn-sm btn-primary">Download</a>
+                                        <form action="{{ url_for('share_file', upload_id=upload.id) }}" method="post" class="d-inline" id="shareForm-{{ upload.id }}">
+                                            <input type="text" name="shared_with" class="form-control form-control-sm d-inline w-auto" placeholder="Enter user ID" required>
+                                            <button type="submit" class="btn btn-sm btn-secondary" id="shareButton-{{ upload.id }}">
+                                                <span id="shareSpinner-{{ upload.id }}" class="spinner-border spinner-border-sm d-none" role="status"></span>
+                                                Share
+                                            </button>
+                                        </form>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p class="text-muted">No files found.</p>
+                    {% endif %}
+                </div>
+            </div>
+        {% else %}
+            <p>Please authenticate to access this page.</p>
+        {% endif %}
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            // Debug uploads
+            console.log('Uploads:', {{ uploads | tojson }});
+
+            // Show toasts
+            var toasts = document.querySelectorAll('.toast');
+            toasts.forEach(toast => new bootstrap.Toast(toast).show());
+
+            // Show spinner on upload form submit
+            document.getElementById('uploadForm').addEventListener('submit', function () {
+                document.getElementById('uploadSpinner').classList.remove('d-none');
+                document.getElementById('uploadButton').disabled = true;
+            });
+
+            // Show spinner on share form submit
+            document.querySelectorAll('[id^="shareForm-"]').forEach(form => {
+                form.addEventListener('submit', function () {
+                    var uploadId = form.id.split('-')[1];
+                    document.getElementById(`shareSpinner-${uploadId}`).classList.remove('d-none');
+                    document.getElementById(`shareButton-${uploadId}`).disabled = true;
+                });
+            });
+
+            // Validate and show spinner on filter form submit
+            document.getElementById('filterForm').addEventListener('submit', function (e) {
+                var fromDate = document.getElementById('from_date').value;
+                var toDate = document.getElementById('to_date').value;
+                if (fromDate && toDate && fromDate > toDate) {
+                    e.preventDefault();
+                    alert('From date cannot be after to date');
+                    return;
+                }
+                document.getElementById('filterButton').innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span> Filtering...';
+                document.getElementById('filterButton').disabled = true;
+            });
+        });
+    </script>
+</body>
+</html>
