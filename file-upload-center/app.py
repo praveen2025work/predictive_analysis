@@ -164,6 +164,11 @@ def get_user_uploads(user_id, from_date=None, to_date=None, search_query=None):
     try:
         with sqlite3.connect(DB_PATH) as conn:
             cursor = conn.cursor()
+            # Log all uploads for debugging
+            cursor.execute('SELECT id, filename, upload_time FROM uploads WHERE user_id = ?', (user_id,))
+            all_uploads = cursor.fetchall()
+            logging.debug('All uploads for user %s: %s', user_id, all_uploads)
+            
             query = '''
                 SELECT u.id, u.filename, u.size, u.upload_time, u.user_id, u.file_location, u.download_count
                 FROM uploads u 
@@ -232,6 +237,17 @@ def index():
     from_date = request.args.get('from_date', today)
     to_date = request.args.get('to_date', today)
     search_query = request.args.get('search')
+    # Validate dates
+    try:
+        datetime.strptime(from_date, '%Y-%m-%d')
+        datetime.strptime(to_date, '%Y-%m-%d')
+        if from_date > to_date:
+            logging.warning('From date %s is after to date %s', from_date, to_date)
+            return redirect(url_for('index', notification='From date cannot be after to date', notification_type='danger'))
+    except ValueError:
+        logging.error('Invalid date format: from_date=%s, to_date=%s', from_date, to_date)
+        return redirect(url_for('index', notification='Invalid date format', notification_type='danger'))
+    
     uploads = get_user_uploads(current_user.id, from_date, to_date, search_query)
     notification = request.args.get('notification')
     notification_type = request.args.get('notification_type', 'success')
@@ -411,6 +427,17 @@ def get_upload_history():
     from_date = request.args.get('from_date', today)
     to_date = request.args.get('to_date', today)
     search_query = request.args.get('search')
+    # Validate dates
+    try:
+        datetime.strptime(from_date, '%Y-%m-%d')
+        datetime.strptime(to_date, '%Y-%m-%d')
+        if from_date > to_date:
+            logging.warning('From date %s is after to date %s', from_date, to_date)
+            return redirect(url_for('index', notification='From date cannot be after to date', notification_type='danger'))
+    except ValueError:
+        logging.error('Invalid date format: from_date=%s, to_date=%s', from_date, to_date)
+        return redirect(url_for('index', notification='Invalid date format', notification_type='danger'))
+    
     uploads = get_user_uploads(current_user.id, from_date, to_date, search_query)
     try:
         response = make_response(render_template(
@@ -425,7 +452,7 @@ def get_upload_history():
             upload_base_dir=UPLOAD_BASE_DIR
         ))
         response.headers['Content-Type'] = 'text/html'
-        logging.debug('Rendered index.html with filtered uploads: %d', len(uploads))
+        logging.debug('Rendered index.html with filtered uploads: %d - %s', len(uploads), uploads)
         return response
     except Exception as e:
         logging.error('Error rendering upload history: %s', str(e))
