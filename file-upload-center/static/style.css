@@ -9,3 +9,9 @@ body {
     justify-content: space-between;
     align-items: center;
 }
+.list-group-item form {
+    margin-left: 10px;
+}
+.toast-container {
+    z-index: 1050;
+}
