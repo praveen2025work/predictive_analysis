@@ -13,6 +13,19 @@
         {% if current_user.is_authenticated %}
             <p>Welcome, {{ current_user.display_name }}! <a href="{{ url_for('logout') }}" class="btn btn-link">Logout</a></p>
             
+            <!-- Toast Notification -->
+            {% if notification %}
+                <div class="toast-container position-fixed bottom-0 end-0 p-3">
+                    <div class="toast show" role="alert" aria-live="assertive" aria-atomic="true">
+                        <div class="toast-header">
+                            <strong class="me-auto">{{ 'Success' if notification_type == 'success' else 'Error' if notification_type == 'danger' else 'Warning' }}</strong>
+                            <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+                        </div>
+                        <div class="toast-body">{{ notification }}</div>
+                    </div>
+                </div>
+            {% endif %}
+
             <!-- Upload Form -->
             <h2>Upload File</h2>
             <form action="{{ url_for('upload_file') }}" method="post" enctype="multipart/form-data">
@@ -38,11 +51,7 @@
                                 <a href="{{ url_for('download_file', filename=upload.filename) }}" class="btn btn-sm btn-primary">Download</a>
                             </div>
                             <form action="{{ url_for('share_file', upload_id=upload.id) }}" method="post" class="d-inline">
-                                <select name="shared_with" class="form-select form-select-sm d-inline w-auto">
-                                    {% for user in users %}
-                                        <option value="{{ user }}">{{ user }}</option>
-                                    {% endfor %}
-                                </select>
+                                <input type="text" name="shared_with" class="form-control form-control-sm d-inline w-auto" placeholder="Enter user ID" required>
                                 <button type="submit" class="btn btn-sm btn-secondary">Share</button>
                             </form>
                         </li>
@@ -57,7 +66,7 @@
             <form action="{{ url_for('get_upload_history') }}" method="get">
                 <div class="mb-3">
                     <label for="date" class="form-label">Select Date</label>
-                    <input type="date" class="form-control w-auto" id="date" name="date">
+                    <input type="date" class="form-control w-auto" id="date" name="date" value="{{ date_filter or '' }}">
                 </div>
                 <button type="submit" class="btn btn-primary">Filter</button>
             </form>
