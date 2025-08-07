@@ -1,1 +1,5 @@
-# run_prod.sh
+#!/bin/bash
+export FLASK_ENV=prod
+cd /file-upload-center
+source venv/bin/activate
+gunicorn --bind 0.0.0.0:3000 --workers 4 --threads 4 app:app
