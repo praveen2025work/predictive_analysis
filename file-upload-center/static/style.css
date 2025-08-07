@@ -40,4 +40,11 @@ body {
     .form-control-sm {
         width: 100%;
     }
+    .d-flex {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    .d-flex .btn {
+        margin-top: 10px;
+    }
 }
