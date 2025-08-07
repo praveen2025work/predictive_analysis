@@ -1,165 +1,70 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>File Upload Center</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="/static/style.css">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
 <body>
     <div class="container mt-5">
-        <h2>File Upload Center</h2>
-        <p>Logged in as: {{ current_user.display_name }} ({{ current_user.id }}) | <a href="{{ url_for('logout') }}">Logout</a></p>
-        <div class="mb-3">
-            <label for="fileInput" class="form-label">Select File</label>
-            <input type="file" id="fileInput" class="form-control">
-        </div>
-        <div class="mb-3">
-            <label for="fileLocation" class="form-label">File Location (e.g., C:\shared\user1)</label>
-            <input type="text" id="fileLocation" class="form-control" placeholder="C:\shared\{{ current_user.id }}" required>
-        </div>
-        <button onclick="uploadFile()" class="btn btn-primary">Upload</button>
-        
-        <h3 class="mt-4">Uploaded Files</h3>
-        <ul id="fileList" class="list-group mb-4"></ul>
-        
-        <h3>Upload History</h3>
-        <div class="mb-3">
-            <label for="dateFilter" class="form-label">Filter by Date</label>
-            <input type="date" id="dateFilter" class="form-control" value="{{ 'now' | strftime('%Y-%m-%d') }}">
-            <button onclick="loadUploadHistory()" class="btn btn-secondary mt-2">Apply Filter</button>
-        </div>
-        <table class="table table-striped">
-            <thead>
-                <tr>
-                    <th>ID</th>
-                    <th>Filename</th>
-                    <th>Size (bytes)</th>
-                    <th>Upload Time</th>
-                    <th>User ID</th>
-                    <th>File Location</th>
-                    <th>Share</th>
-                </tr>
-            </thead>
-            <tbody id="uploadHistory"></tbody>
-        </table>
+        <h1>File Upload Center</h1>
+        {% if current_user.is_authenticated %}
+            <p>Welcome, {{ current_user.display_name }}! <a href="{{ url_for('logout') }}" class="btn btn-link">Logout</a></p>
+            
+            <!-- Upload Form -->
+            <h2>Upload File</h2>
+            <form action="{{ url_for('upload_file') }}" method="post" enctype="multipart/form-data">
+                <div class="mb-3">
+                    <label for="file" class="form-label">Select File</label>
+                    <input type="file" class="form-control" id="file" name="file" accept=".png,.jpg,.jpeg,.pdf">
+                </div>
+                <div class="mb-3">
+                    <label for="file_location" class="form-label">File Location</label>
+                    <input type="text" class="form-control" id="file_location" name="file_location" value="{{ upload_base_dir }}" required>
+                </div>
+                <button type="submit" class="btn btn-primary">Upload</button>
+            </form>
+
+            <!-- Upload History -->
+            <h2 class="mt-5">Your Files</h2>
+            {% if uploads %}
+                <ul class="list-group">
+                    {% for upload in uploads %}
+                        <li class="list-group-item">
+                            <div>
+                                {{ upload.filename }} ({{ upload.size }} bytes, {{ upload.upload_time | strftime('%Y-%m-%d %H:%M:%S') }})
+                                <a href="{{ url_for('download_file', filename=upload.filename) }}" class="btn btn-sm btn-primary">Download</a>
+                            </div>
+                            <form action="{{ url_for('share_file', upload_id=upload.id) }}" method="post" class="d-inline">
+                                <select name="shared_with" class="form-select form-select-sm d-inline w-auto">
+                                    {% for user in users %}
+                                        <option value="{{ user }}">{{ user }}</option>
+                                    {% endfor %}
+                                </select>
+                                <button type="submit" class="btn btn-sm btn-secondary">Share</button>
+                            </form>
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <p>No files uploaded yet.</p>
+            {% endif %}
+
+            <!-- Upload History by Date -->
+            <h2 class="mt-5">Filter Uploads by Date</h2>
+            <form action="{{ url_for('get_upload_history') }}" method="get">
+                <div class="mb-3">
+                    <label for="date" class="form-label">Select Date</label>
+                    <input type="date" class="form-control w-auto" id="date" name="date">
+                </div>
+                <button type="submit" class="btn btn-primary">Filter</button>
+            </form>
+        {% else %}
+            <p>Please authenticate to access this page.</p>
+        {% endif %}
     </div>
-    <script>
-        const clientToken = '{{ client_token | safe }}'; // Use client_token from server
-
-        async function uploadFile() {
-            const fileInput = document.getElementById('fileInput');
-            const fileLocation = document.getElementById('fileLocation').value;
-            if (!fileInput.files[0] || !fileLocation) {
-                alert('Please select a file and specify a location');
-                return;
-            }
-            const formData = new FormData();
-            formData.append('file', fileInput.files[0]);
-            formData.append('file_location', fileLocation);
-            try {
-                const res = await fetch('/upload', { 
-                    method: 'POST', 
-                    body: formData,
-                    headers: { 'X-Client-Token': clientToken }
-                });
-                const result = await res.json();
-                if (res.ok) {
-                    alert(result.message);
-                    loadFiles();
-                    loadUploadHistory();
-                } else {
-                    alert('Error: ' + result.error);
-                }
-            } catch (error) {
-                alert('Error uploading file: ' + error.message);
-            }
-        }
-
-        async function loadFiles() {
-            try {
-                const res = await fetch('/files', { headers: { 'X-Client-Token': clientToken } });
-                if (res.status === 401) {
-                    alert('Unauthorized: Please re-authenticate');
-                    window.location.href = '/';
-                    return;
-                }
-                const files = await res.json();
-                const fileList = document.getElementById('fileList');
-                fileList.innerHTML = '';
-                files.forEach(file => {
-                    const li = document.createElement('li');
-                    li.className = 'list-group-item';
-                    li.innerHTML = `${file} <a href="/download/${file}" class="btn btn-sm btn-success">Download</a>`;
-                    fileList.appendChild(li);
-                });
-            } catch (error) {
-                console.error('Error loading files:', error);
-            }
-        }
-
-        async function loadUploadHistory() {
-            try {
-                const date = document.getElementById('dateFilter').value;
-                const res = await fetch(`/uploads?date=${date}`, { headers: { 'X-Client-Token': clientToken } });
-                if (res.status === 401) {
-                    alert('Unauthorized: Please re-authenticate');
-                    window.location.href = '/';
-                    return;
-                }
-                const uploads = await res.json();
-                const historyTable = document.getElementById('uploadHistory');
-                historyTable.innerHTML = '';
-                uploads.forEach(upload => {
-                    const tr = document.createElement('tr');
-                    tr.innerHTML = `
-                        <td>${upload.id}</td>
-                        <td>${upload.filename}</td>
-                        <td>${upload.size}</td>
-                        <td>${upload.upload_time}</td>
-                        <td>${upload.user_id}</td>
-                        <td>${upload.file_location}</td>
-                        <td>
-                            <select id="shareWith_${upload.id}">
-                                {% for user in users %}
-                                    <option value="{{ user }}">{{ user }}</option>
-                                {% endfor %}
-                            </select>
-                            <button onclick="shareFile(${upload.id})" class="btn btn-sm btn-primary">Share</button>
-                        </td>
-                    `;
-                    historyTable.appendChild(tr);
-                });
-            } catch (error) {
-                console.error('Error loading upload history:', error);
-            }
-        }
-
-        async function shareFile(uploadId) {
-            const sharedWith = document.getElementById(`shareWith_${uploadId}`).value;
-            try {
-                const res = await fetch(`/share/${uploadId}`, {
-                    method: 'POST',
-                    headers: { 
-                        'Content-Type': 'application/x-www-form-urlencoded',
-                        'X-Client-Token': clientToken
-                    },
-                    body: `shared_with=${sharedWith}`
-                });
-                const result = await res.json();
-                if (res.ok) {
-                    alert(result.message);
-                } else {
-                    alert('Error: ' + result.error);
-                }
-            } catch (error) {
-                alert('Error sharing file: ' + error.message);
-            }
-        }
-
-        window.onload = () => {
-            loadFiles();
-            loadUploadHistory();
-        };
-    </script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
