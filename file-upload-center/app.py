@@ -56,11 +56,13 @@ def init_db():
                     size INTEGER NOT NULL,
                     upload_time TEXT NOT NULL,
                     user_id TEXT NOT NULL,
-                    file_location TEXT NOT NULL
+                    file_location TEXT NOT NULL,
+                    download_count INTEGER DEFAULT 0
                 )
             ''')
             cursor.execute('CREATE INDEX IF NOT EXISTS idx_user_id ON uploads(user_id)')
             cursor.execute('CREATE INDEX IF NOT EXISTS idx_upload_time ON uploads(upload_time)')
+            cursor.execute('CREATE INDEX IF NOT EXISTS idx_filename ON uploads(filename)')
             cursor.execute('''
                 CREATE TABLE IF NOT EXISTS shared_uploads (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -76,7 +78,7 @@ def init_db():
     except Exception as e:
         logging.error(f'Failed to initialize database: {e}')
 
-# Custom Jinja2 filter for strftime
+# Custom Jinja2 filter for strftime Marian
 def datetime_strftime(value, format='%Y-%m-%d %H:%M:%S'):
     try:
         if isinstance(value, str):
@@ -159,11 +161,11 @@ def get_user_uploads(user_id, date_filter=None, search_query=None):
         with sqlite3.connect(DB_PATH) as conn:
             cursor = conn.cursor()
             query = '''
-                SELECT u.id, u.filename, u.size, u.upload_time, u.user_id, u.file_location 
+                SELECT u.id, u.filename, u.size, u.upload_time, u.user_id, u.file_location, u.download_count
                 FROM uploads u 
                 WHERE u.user_id = ?
                 UNION
-                SELECT u.id, u.filename, u.size, u.upload_time, u.user_id, u.file_location 
+                SELECT u.id, u.filename, u.size, u.upload_time, u.user_id, u.file_location, u.download_count
                 FROM uploads u 
                 JOIN shared_uploads s ON u.id = s.upload_id 
                 WHERE s.shared_with = ?
@@ -176,8 +178,10 @@ def get_user_uploads(user_id, date_filter=None, search_query=None):
                 query += ' AND u.filename LIKE ?'
                 params.append(f'%{search_query}%')
             query += ' ORDER BY u.upload_time DESC'
+            logging.debug('Executing query: %s with params: %s', query, params)
             cursor.execute(query, params)
-            uploads = [{'id': row[0], 'filename': row[1], 'size': row[2], 'upload_time': row[3], 'user_id': row[4], 'file_location': row[5]} for row in cursor.fetchall()]
+            uploads = [{'id': row[0], 'filename': row[1], 'size': row[2], 'upload_time': row[3], 'user_id': row[4], 'file_location': row[5], 'download_count': row[6]} for row in cursor.fetchall()]
+        logging.debug('Fetched %d uploads for user %s', len(uploads), user_id)
         return uploads
     except Exception as e:
         logging.error('Error fetching uploads: %s', str(e))
@@ -269,7 +273,9 @@ def upload_file():
         if file.content_length and file.content_length > MAX_FILE_SIZE:
             logging.error('File too large: %s', file.filename)
             return redirect(url_for('index', notification='File too large', notification_type='danger'))
-        filename = secure_filename(f"{datetime.now().timestamp()}_{file.filename}")
+        timestamp = str(datetime.now().timestamp()).replace('.', '')
+        name, ext = os.path.splitext(file.filename)
+        filename = secure_filename(f"{name}_{timestamp}{ext}")
         file_path = os.path.join(file_location, filename)
         file.save(file_path)
         logging.debug('Saved file %s to %s', filename, file_path)
@@ -277,8 +283,8 @@ def upload_file():
             with sqlite3.connect(DB_PATH) as conn:
                 cursor = conn.cursor()
                 cursor.execute(
-                    'INSERT INTO uploads (filename, size, upload_time, user_id, file_location) VALUES (?, ?, ?, ?, ?)',
-                    (filename, os.path.getsize(file_path), datetime.now().isoformat(), current_user.id, file_location)
+                    'INSERT INTO uploads (filename, size, upload_time, user_id, file_location, download_count) VALUES (?, ?, ?, ?, ?, ?)',
+                    (filename, os.path.getsize(file_path), datetime.now().isoformat(), current_user.id, file_location, 0)
                 )
                 conn.commit()
                 logging.debug('Logged upload to database: %s by %s at %s', filename, current_user.id, file_location)
@@ -352,14 +358,14 @@ def download_file(filename):
         with sqlite3.connect(DB_PATH) as conn:
             cursor = conn.cursor()
             cursor.execute(
-                'SELECT file_location FROM uploads WHERE filename = ? AND user_id = ?',
+                'SELECT id, file_location FROM uploads WHERE filename = ? AND user_id = ?',
                 (filename, current_user.id)
             )
             upload = cursor.fetchone()
             if not upload:
                 cursor.execute(
                     '''
-                    SELECT u.file_location FROM uploads u 
+                    SELECT u.id, u.file_location FROM uploads u 
                     JOIN shared_uploads s ON u.id = s.upload_id 
                     WHERE u.filename = ? AND s.shared_with = ?
                     ''',
@@ -369,7 +375,14 @@ def download_file(filename):
                 if not upload:
                     logging.error('File %s not accessible by %s', filename, current_user.id)
                     return redirect(url_for('index', notification='File not accessible', notification_type='danger'))
-            file_location = upload[0]
+            upload_id, file_location = upload
+            # Increment download count
+            cursor.execute(
+                'UPDATE uploads SET download_count = download_count + 1 WHERE id = ?',
+                (upload_id,)
+            )
+            conn.commit()
+            logging.debug('Incremented download count for upload %d', upload_id)
         file_path = os.path.join(file_location, filename)
         if os.path.exists(file_path):
             return send_file(file_path, as_attachment=True)
@@ -394,7 +407,7 @@ def get_upload_history():
             uploads=uploads,
             date_filter=date_filter,
             search_query=search_query,
-            notification='Filtered uploads by date' if uploads else 'No files found for selected date',
+            notification='Filtered uploads' if uploads else 'No files found',
             notification_type='success' if uploads else 'warning',
             upload_base_dir=UPLOAD_BASE_DIR
         ))
