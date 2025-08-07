@@ -1,18 +1,20 @@
-from flask import Flask, request, send_file, jsonify, render_template, redirect, url_for, make_response, session
-from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
+from flask import Flask, request, send_file, jsonify
+from flask_cors import CORS
 from werkzeug.utils import secure_filename
 from datetime import datetime
 import os
 import sqlite3
 import logging
-import requests
-from requests_kerberos import HTTPKerberosAuth, REQUIRED
 from config import get_config
 
 # Initialize Flask app
 app = Flask(__name__)
 config = get_config()
 app.config.from_object(config)
+
+# Setup CORS
+cors = CORS(app, resources={r"/api/*": {"origins": config.ALLOWED_ORIGINS}})
+logging.debug('CORS initialized with allowed origins: %s', config.ALLOWED_ORIGINS)
 
 # Setup logging
 try:
@@ -27,16 +29,26 @@ try:
     )
     logging.debug('Logging initialized successfully')
 except Exception as e:
-    print(f"Failed to initialize logging: {e}")
-    logging.error(f"Failed to initialize logging: {e}")
+    logging.error(f'Failed to initialize logging: {e}')
 
-# Ensure base directory exists
-if not os.path.exists(config.UPLOAD_BASE_DIR):
+# Automate directory and permissions setup
+def setup_directories():
     try:
-        os.makedirs(config.UPLOAD_BASE_DIR)
-        logging.debug(f'Created UPLOAD_BASE_DIR: {config.UPLOAD_BASE_DIR}')
+        os.makedirs(config.UPLOAD_BASE_DIR, exist_ok=True)
+        os.system(f'icacls "{config.UPLOAD_BASE_DIR}" /grant "{os.environ.get("USERNAME")}:(OI)(CI)M"')
+        logging.debug(f'Created and set permissions for UPLOAD_BASE_DIR: {config.UPLOAD_BASE_DIR}')
+
+        os.makedirs(os.path.dirname(config.DB_PATH), exist_ok=True)
+        if not os.path.exists(config.DB_PATH):
+            open(config.DB_PATH, 'a').close()
+            os.system(f'icacls "{config.DB_PATH}" /grant "{os.environ.get("USERNAME")}:(OI)(CI)M"')
+            logging.debug(f'Created and set permissions for DB_PATH: {config.DB_PATH}')
+
+        os.makedirs(os.path.dirname(config.LOG_FILE), exist_ok=True)
+        os.system(f'icacls "{os.path.dirname(config.LOG_FILE)}" /grant "{os.environ.get("USERNAME")}:(OI)(CI)M"')
+        logging.debug(f'Created and set permissions for LOG_FILE directory: {os.path.dirname(config.LOG_FILE)}')
     except Exception as e:
-        logging.error(f'Failed to create UPLOAD_BASE_DIR: {e}')
+        logging.error(f'Failed to set up directories: {e}')
 
 # Initialize SQLite database
 def init_db():
@@ -72,70 +84,20 @@ def init_db():
     except Exception as e:
         logging.error(f'Failed to initialize database: {e}')
 
-# Custom Jinja2 filters
-def datetime_strftime(value, format='%Y-%m-%d %H:%M:%S'):
-    try:
-        if isinstance(value, str):
-            value = datetime.fromisoformat(value)
-        return value.strftime(format)
-    except Exception as e:
-        logging.error(f'Error in strftime filter: {e}')
-        return value
-
-def now():
-    return datetime.now()
-
-app.jinja_env.filters['strftime'] = datetime_strftime
-app.jinja_env.filters['now'] = now
-
-# Flask-Login setup
-login_manager = LoginManager()
-login_manager.init_app(app)
-login_manager.login_view = 'index'
-
-# User class for Flask-Login
-class User(UserMixin):
-    def __init__(self, id, username, display_name, employee_id):
-        self.id = id
-        self.username = username
-        self.display_name = display_name
-        self.employee_id = employee_id
-
-# Global users dict
-users = {}
-
-# Fetch user details using Windows authentication
-def get_user_details():
-    try:
-        headers = {
-            'Accept': 'application/json, text/plain, */*',
-            'Accept-Encoding': 'gzip, deflate',
-            'Accept-Language': 'en-US,en;q=0.9',
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36'
-        }
-        logging.debug('Calling AUTH_API_URL with Kerberos authentication')
-        response = requests.get(config.AUTH_API_URL, auth=HTTPKerberosAuth(mutual_authentication=REQUIRED), headers=headers, timeout=5)
-        logging.debug('AUTH_API_URL response: status=%s, body=%s', response.status_code, response.text)
-        if response.status_code == 200:
-            data = response.json()
-            user_details = {
-                'username': data.get('userName'),
-                'display_name': data.get('displayName'),
-                'employee_id': data.get('employeeId')
-            }
-            logging.debug('Retrieved user details: %s', user_details)
-            return user_details
-        else:
-            logging.error('Auth API call failed: status=%s, body=%s', response.status_code, response.text)
-            return None
-    except Exception as e:
-        logging.error('Error fetching user details: %s', str(e))
-        return None
-
-@login_manager.user_loader
-def load_user(user_id):
-    logging.debug('Loading user %s', user_id)
-    return users.get(user_id)
+# Middleware to check user_id in headers
+def require_user_id(func):
+    def wrapper(*args, **kwargs):
+        user_id = request.headers.get('X-User-Id')
+        if not user_id:
+            logging.error('Missing X-User-Id header')
+            return jsonify({
+                'status': 'error',
+                'message': 'Missing user ID in headers'
+            }), 401
+        request.user_id = user_id
+        return func(*args, **kwargs)
+    wrapper.__name__ = func.__name__
+    return wrapper
 
 # Check allowed file extensions
 def allowed_file(filename):
@@ -149,6 +111,7 @@ def validate_file_location(location):
     try:
         if not os.path.exists(location):
             os.makedirs(location)
+            os.system(f'icacls "{location}" /grant "{os.environ.get("USERNAME")}:(OI)(CI)M"')
             logging.debug('Created directory: %s', location)
         return os.access(location, os.W_OK | os.R_OK)
     except Exception as e:
@@ -160,10 +123,6 @@ def get_user_uploads(user_id, from_date=None, to_date=None, search_query=None):
     try:
         with sqlite3.connect(config.DB_PATH) as conn:
             cursor = conn.cursor()
-            cursor.execute('SELECT id, filename, upload_time FROM uploads WHERE user_id = ?', (user_id,))
-            all_uploads = cursor.fetchall()
-            logging.debug('All uploads for user %s: %s', user_id, all_uploads)
-            
             query = '''
                 SELECT u.id, u.filename, u.size, u.upload_time, u.user_id, u.file_location, u.download_count
                 FROM uploads u 
@@ -190,196 +149,177 @@ def get_user_uploads(user_id, from_date=None, to_date=None, search_query=None):
             logging.debug('Executing query: %s with params: %s', query, params)
             cursor.execute(query, params)
             uploads = [{'id': row[0], 'filename': row[1], 'size': row[2], 'upload_time': row[3], 'user_id': row[4], 'file_location': row[5], 'download_count': row[6]} for row in cursor.fetchall()]
-            logging.debug('Fetched %d uploads for user %s: %s', len(uploads), user_id, uploads)
+            logging.debug('Fetched %d uploads for user %s', len(uploads), user_id)
             return uploads
     except Exception as e:
         logging.error('Error fetching uploads: %s', str(e))
         return []
 
-# Root route with Windows authentication
-@app.route('/')
-def index():
-    logging.debug('Accessing index route')
-    logging.debug('Request headers: %s', dict(request.headers))
-    logging.debug('Query parameters: %s', dict(request.args))
-    
-    # Clear existing session to force re-authentication
-    if current_user.is_authenticated:
-        logging.debug('Clearing existing session for user %s', current_user.id)
-        logout_user()
-        session.clear()
-
-    # Attempt to authenticate user
-    user_details = get_user_details()
-    if user_details:
-        user_id = user_details['username']
-        if user_id not in users:
-            user = User(
-                id=user_id,
-                username=user_details['username'],
-                display_name=user_details['display_name'],
-                employee_id=user_details['employee_id']
-            )
-            users[user_id] = user
-        login_user(users[user_id])
-        logging.debug('Authenticated user %s', user_id)
-    else:
-        logging.error('Failed to authenticate user via Windows authentication')
-        return jsonify({'error': 'Authentication failed'}), 401
-    
-    today = datetime.now().strftime('%Y-%m-%d')
-    from_date = request.args.get('from_date', today)
-    to_date = request.args.get('to_date', today)
-    search_query = request.args.get('search')
-    try:
-        datetime.strptime(from_date, '%Y-%m-%d')
-        datetime.strptime(to_date, '%Y-%m-%d')
-        if from_date > to_date:
-            logging.warning('From date %s is after to date %s', from_date, to_date)
-            return redirect(url_for('index', notification='From date cannot be after to date', notification_type='danger'))
-    except ValueError:
-        logging.error('Invalid date format: from_date=%s, to_date=%s', from_date, to_date)
-        return redirect(url_for('index', notification='Invalid date format', notification_type='danger'))
-    
-    uploads = get_user_uploads(current_user.id, from_date, to_date, search_query)
-    notification = request.args.get('notification')
-    notification_type = request.args.get('notification_type', 'success')
-    
-    try:
-        response = make_response(render_template(
-            'index.html',
-            users=[u for u in users.keys() if u != current_user.id],
-            uploads=uploads,
-            from_date=from_date,
-            to_date=to_date,
-            search_query=search_query,
-            notification=notification,
-            notification_type=notification_type,
-            upload_base_dir=config.UPLOAD_BASE_DIR
-        ))
-        response.headers['Content-Type'] = 'text/html'
-        logging.debug('Rendered index.html successfully with %d uploads: %s', len(uploads), uploads)
-        return response
-    except Exception as e:
-        logging.error('Error rendering index.html: %s', str(e))
-        return jsonify({'error': f'Failed to render page: {str(e)}'}), 500
-
-# Logout route
-@app.route('/logout')
-@login_required
-def logout():
-    logging.debug('User %s logging out', current_user.id)
-    logout_user()
-    session.clear()
-    return redirect(url_for('index'))
-
-# Upload endpoint
-@app.route('/upload', methods=['POST'])
-@login_required
+# Upload file endpoint
+@app.route('/api/upload', methods=['POST'])
+@require_user_id
 def upload_file():
-    logging.debug('User %s attempting file upload', current_user.id)
+    user_id = request.user_id
+    logging.debug('User %s attempting file upload', user_id)
     if 'file' not in request.files or 'file_location' not in request.form:
         logging.error('Missing file or file_location')
-        return redirect(url_for('index', notification='Missing file or file location', notification_type='danger'))
+        return jsonify({
+            'status': 'error',
+            'message': 'Missing file or file location'
+        }), 400
+
     file = request.files['file']
     file_location = request.form['file_location']
     if file.filename == '':
         logging.error('No file selected')
-        return redirect(url_for('index', notification='No file selected', notification_type='danger'))
+        return jsonify({
+            'status': 'error',
+            'message': 'No file selected'
+        }), 400
+
     if not validate_file_location(file_location):
         logging.error('Invalid or inaccessible file location: %s', file_location)
-        return redirect(url_for('index', notification='Invalid or inaccessible file location', notification_type='danger'))
+        return jsonify({
+            'status': 'error',
+            'message': 'Invalid or inaccessible file location'
+        }), 400
+
     if file and allowed_file(file.filename):
         if file.content_length and file.content_length > config.MAX_FILE_SIZE:
             logging.error('File too large: %s', file.filename)
-            return redirect(url_for('index', notification='File too large', notification_type='danger'))
+            return jsonify({
+                'status': 'error',
+                'message': 'File too large'
+            }), 400
+
         timestamp = str(datetime.now().timestamp()).replace('.', '')
         name, ext = os.path.splitext(file.filename)
         filename = secure_filename(f"{name}_{timestamp}{ext}")
         file_path = os.path.join(file_location, filename)
         file.save(file_path)
         logging.debug('Saved file %s to %s', filename, file_path)
+
         try:
             with sqlite3.connect(config.DB_PATH) as conn:
                 cursor = conn.cursor()
                 cursor.execute(
                     'INSERT INTO uploads (filename, size, upload_time, user_id, file_location, download_count) VALUES (?, ?, ?, ?, ?, ?)',
-                    (filename, os.path.getsize(file_path), datetime.now().isoformat(), current_user.id, file_location, 0)
+                    (filename, os.path.getsize(file_path), datetime.now().isoformat(), user_id, file_location, 0)
                 )
+                upload_id = cursor.lastrowid
                 conn.commit()
-                logging.debug('Logged upload to database: %s by %s at %s', filename, current_user.id, file_location)
-            return redirect(url_for('index', notification=f'File {filename} uploaded successfully', notification_type='success'))
+                logging.debug('Logged upload to database: %s by %s at %s', filename, user_id, file_location)
+            return jsonify({
+                'status': 'success',
+                'data': {
+                    'upload_id': upload_id,
+                    'filename': filename,
+                    'size': os.path.getsize(file_path),
+                    'upload_time': datetime.now().isoformat(),
+                    'file_location': file_location
+                }
+            }), 201
         except Exception as e:
             logging.error('Error saving to database: %s', str(e))
-            return redirect(url_for('index', notification='Database error', notification_type='danger'))
-    logging.error('Invalid file type: %s', file.filename)
-    return redirect(url_for('index', notification='Invalid file type', notification_type='danger'))
+            return jsonify({
+                'status': 'error',
+                'message': 'Database error'
+            }), 500
 
-# Share upload endpoint
-@app.route('/share/<int:upload_id>', methods=['POST'])
-@login_required
+    logging.error('Invalid file type: %s', file.filename)
+    return jsonify({
+        'status': 'error',
+        'message': 'Invalid file type'
+    }), 400
+
+# Share file endpoint
+@app.route('/api/share/<int:upload_id>', methods=['POST'])
+@require_user_id
 def share_file(upload_id):
-    logging.debug('User %s attempting to share upload %d', current_user.id, upload_id)
-    shared_with = request.form.get('shared_with')
+    user_id = request.user_id
+    logging.debug('User %s attempting to share upload %d', user_id, upload_id)
+    shared_with = request.json.get('shared_with')
     if not shared_with:
         logging.error('No user ID provided for sharing')
-        return redirect(url_for('index', notification='Please enter a user ID to share with', notification_type='danger'))
-    if shared_with not in users:
-        logging.error('Invalid user to share with: %s', shared_with)
-        return redirect(url_for('index', notification=f'Invalid user: {shared_with}', notification_type='danger'))
+        return jsonify({
+            'status': 'error',
+            'message': 'Please provide a user ID to share with'
+        }), 400
+
     try:
         with sqlite3.connect(config.DB_PATH) as conn:
             cursor = conn.cursor()
-            cursor.execute('SELECT id FROM uploads WHERE id = ? AND user_id = ?', (upload_id, current_user.id))
+            cursor.execute('SELECT id FROM uploads WHERE id = ? AND user_id = ?', (upload_id, user_id))
             if not cursor.fetchone():
-                logging.error('Upload %d not found or not owned by %s', upload_id, current_user.id)
-                return redirect(url_for('index', notification='Upload not found or not owned', notification_type='danger'))
+                logging.error('Upload %d not found or not owned by %s', upload_id, user_id)
+                return jsonify({
+                    'status': 'error',
+                    'message': 'Upload not found or not owned'
+                }), 404
+
             cursor.execute(
                 'INSERT INTO shared_uploads (upload_id, shared_by, shared_with, shared_time) VALUES (?, ?, ?, ?)',
-                (upload_id, current_user.id, shared_with, datetime.now().isoformat())
+                (upload_id, user_id, shared_with, datetime.now().isoformat())
             )
             conn.commit()
             logging.debug('Shared upload %d with %s', upload_id, shared_with)
-        return redirect(url_for('index', notification=f'Shared with {shared_with} successfully', notification_type='success'))
+        return jsonify({
+            'status': 'success',
+            'message': f'Shared upload {upload_id} with {shared_with} successfully'
+        }), 200
     except Exception as e:
         logging.error('Error sharing file: %s', str(e))
-        return redirect(url_for('index', notification='Database error', notification_type='danger'))
+        return jsonify({
+            'status': 'error',
+            'message': 'Database error'
+        }), 500
 
-# List files (for API compatibility)
-@app.route('/files', methods=['GET'])
-@login_required
-def list_files():
-    logging.debug('User %s listing files', current_user.id)
+# List uploads endpoint
+@app.route('/api/uploads', methods=['GET'])
+@require_user_id
+def list_uploads():
+    user_id = request.user_id
+    logging.debug('User %s listing uploads', user_id)
+    from_date = request.args.get('from_date')
+    to_date = request.args.get('to_date')
+    search_query = request.args.get('search')
+
     try:
-        with sqlite3.connect(config.DB_PATH) as conn:
-            cursor = conn.cursor()
-            cursor.execute(
-                '''
-                SELECT filename FROM uploads WHERE user_id = ?
-                UNION
-                SELECT u.filename FROM uploads u 
-                JOIN shared_uploads s ON u.id = s.upload_id 
-                WHERE s.shared_with = ?
-                ''',
-                (current_user.id, current_user.id)
-            )
-            files = [row[0] for row in cursor.fetchall()]
-        return jsonify(files), 200
-    except Exception as e:
-        logging.error('Error listing files: %s', str(e))
-        return jsonify({'error': 'Error reading files'}), 500
+        if from_date:
+            datetime.strptime(from_date, '%Y-%m-%d')
+        if to_date:
+            datetime.strptime(to_date, '%Y-%m-%d')
+        if from_date and to_date and from_date > to_date:
+            logging.warning('From date %s is after to date %s', from_date, to_date)
+            return jsonify({
+                'status': 'error',
+                'message': 'From date cannot be after to date'
+            }), 400
+    except ValueError:
+        logging.error('Invalid date format: from_date=%s, to_date=%s', from_date, to_date)
+        return jsonify({
+            'status': 'error',
+            'message': 'Invalid date format'
+        }), 400
 
-# Download file
-@app.route('/download/<filename>', methods=['GET'])
-@login_required
+    uploads = get_user_uploads(user_id, from_date, to_date, search_query)
+    return jsonify({
+        'status': 'success',
+        'data': uploads
+    }), 200
+
+# Download file endpoint
+@app.route('/api/download/<filename>', methods=['GET'])
+@require_user_id
 def download_file(filename):
-    logging.debug('User %s downloading file %s', current_user.id, filename)
+    user_id = request.user_id
+    logging.debug('User %s downloading file %s', user_id, filename)
     try:
         with sqlite3.connect(config.DB_PATH) as conn:
             cursor = conn.cursor()
             cursor.execute(
                 'SELECT id, file_location FROM uploads WHERE filename = ? AND user_id = ?',
-                (filename, current_user.id)
+                (filename, user_id)
             )
             upload = cursor.fetchone()
             if not upload:
@@ -389,12 +329,16 @@ def download_file(filename):
                     JOIN shared_uploads s ON u.id = s.upload_id 
                     WHERE u.filename = ? AND s.shared_with = ?
                     ''',
-                    (filename, current_user.id)
+                    (filename, user_id)
                 )
                 upload = cursor.fetchone()
                 if not upload:
-                    logging.error('File %s not accessible by %s', filename, current_user.id)
-                    return redirect(url_for('index', notification='File not accessible', notification_type='danger'))
+                    logging.error('File %s not accessible by %s', filename, user_id)
+                    return jsonify({
+                        'status': 'error',
+                        'message': 'File not accessible'
+                    }), 403
+
             upload_id, file_location = upload
             cursor.execute(
                 'UPDATE uploads SET download_count = download_count + 1 WHERE id = ?',
@@ -402,65 +346,39 @@ def download_file(filename):
             )
             conn.commit()
             logging.debug('Incremented download count for upload %d', upload_id)
+
         file_path = os.path.join(file_location, filename)
         if os.path.exists(file_path):
             return send_file(file_path, as_attachment=True)
         logging.error('File not found: %s', filename)
-        return redirect(url_for('index', notification='File not found', notification_type='danger'))
+        return jsonify({
+            'status': 'error',
+            'message': 'File not found'
+        }), 404
     except Exception as e:
         logging.error('Error downloading file: %s', str(e))
-        return redirect(url_for('index', notification='Server error', notification_type='danger'))
-
-# Get upload history
-@app.route('/uploads', methods=['GET'])
-@login_required
-def get_upload_history():
-    logging.debug('User %s fetching upload history', current_user.id)
-    today = datetime.now().strftime('%Y-%m-%d')
-    from_date = request.args.get('from_date', today)
-    to_date = request.args.get('to_date', today)
-    search_query = request.args.get('search')
-    try:
-        datetime.strptime(from_date, '%Y-%m-%d')
-        datetime.strptime(to_date, '%Y-%m-%d')
-        if from_date > to_date:
-            logging.warning('From date %s is after to date %s', from_date, to_date)
-            return redirect(url_for('index', notification='From date cannot be after to date', notification_type='danger'))
-    except ValueError:
-        logging.error('Invalid date format: from_date=%s, to_date=%s', from_date, to_date)
-        return redirect(url_for('index', notification='Invalid date format', notification_type='danger'))
-    
-    uploads = get_user_uploads(current_user.id, from_date, to_date, search_query)
-    try:
-        response = make_response(render_template(
-            'index.html',
-            users=[u for u in users.keys() if u != current_user.id],
-            uploads=uploads,
-            from_date=from_date,
-            to_date=to_date,
-            search_query=search_query,
-            notification='Filtered uploads' if uploads else 'No files found',
-            notification_type='success' if uploads else 'warning',
-            upload_base_dir=config.UPLOAD_BASE_DIR
-        ))
-        response.headers['Content-Type'] = 'text/html'
-        logging.debug('Rendered index.html with filtered uploads: %d - %s', len(uploads), uploads)
-        return response
-    except Exception as e:
-        logging.error('Error rendering upload history: %s', str(e))
-        return jsonify({'error': f'Failed to render page: {str(e)}'}), 500
+        return jsonify({
+            'status': 'error',
+            'message': 'Server error'
+        }), 500
 
 # Health check endpoint
-@app.route('/health')
+@app.route('/api/health', methods=['GET'])
 def health():
     logging.debug('Health check accessed')
-    return jsonify({'status': 'Server running', 'debug_mode': app.debug}), 200
+    return jsonify({
+        'status': 'success',
+        'data': {
+            'server': 'running',
+            'debug_mode': app.debug
+        }
+    }), 200
 
 if __name__ == '__main__':
+    setup_directories()
     init_db()
-    logging.debug('Starting Flask server')
+    logging.debug('Starting Flask server on %s:%s', config.SERVER_HOST, config.PORT)
     try:
-        app.run(host='0.0.0.0', port=3000, debug=config.DEBUG)
+        app.run(host=config.SERVER_HOST, port=config.PORT, debug=config.DEBUG)
     except Exception as e:
         logging.error('Failed to start Flask server: %s', str(e))
-        print(f"Failed to start server: {e}")
