@@ -60,17 +60,21 @@
             <div class="card mb-4">
                 <div class="card-body">
                     <h2 class="card-title h5">Filter & Search Uploads</h2>
-                    <form action="{{ url_for('get_upload_history') }}" method="get" class="row g-3 align-items-end">
-                        <div class="col-md-4">
-                            <label for="date" class="form-label">Date</label>
-                            <input type="date" class="form-control" id="date" name="date" value="{{ date_filter or '' }}">
+                    <form id="filterForm" action="{{ url_for('get_upload_history') }}" method="get" class="row g-3 align-items-end">
+                        <div class="col-md-3">
+                            <label for="from_date" class="form-label">From Date</label>
+                            <input type="date" class="form-control" id="from_date" name="from_date" value="{{ from_date or (now() | strftime('%Y-%m-%d')) }}" required>
                         </div>
-                        <div class="col-md-4">
+                        <div class="col-md-3">
+                            <label for="to_date" class="form-label">To Date</label>
+                            <input type="date" class="form-control" id="to_date" name="to_date" value="{{ to_date or (now() | strftime('%Y-%m-%d')) }}" required>
+                        </div>
+                        <div class="col-md-3">
                             <label for="search" class="form-label">Search Filename</label>
                             <input type="text" class="form-control" id="search" name="search" value="{{ search_query or '' }}" placeholder="Enter filename">
                         </div>
-                        <div class="col-md-4">
-                            <button type="submit" class="btn btn-primary me-2">Filter</button>
+                        <div class="col-md-3">
+                            <button type="submit" class="btn btn-primary me-2" id="filterButton">Filter</button>
                             <a href="{{ url_for('index') }}" class="btn btn-outline-secondary">Clear</a>
                         </div>
                     </form>
@@ -132,6 +136,12 @@
                     document.getElementById(`shareSpinner-${uploadId}`).classList.remove('d-none');
                     document.getElementById(`shareButton-${uploadId}`).disabled = true;
                 });
+            });
+
+            // Show spinner on filter form submit
+            document.getElementById('filterForm').addEventListener('submit', function () {
+                document.getElementById('filterButton').innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span> Filtering...';
+                document.getElementById('filterButton').disabled = true;
             });
         });
     </script>
