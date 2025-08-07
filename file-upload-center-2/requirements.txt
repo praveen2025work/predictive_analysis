@@ -1,9 +1,6 @@
 flask
-flask-login
-requests
 flask-cors
-requests-kerberos
-requests-ntlm
+requests
 python-dotenv
 gunicorn
 wfastcgi
