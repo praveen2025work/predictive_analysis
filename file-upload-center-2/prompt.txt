@@ -1,0 +1,200 @@
+Below is a detailed prompt you can provide to a UI coding agent LLM to create a user interface for the File Upload Center API, based on the specifications provided in the previous response. The prompt is tailored to ensure the UI integrates seamlessly with the API, adheres to the CORS restrictions, includes the X-User-Id header, and follows the styling and functionality guidelines outlined in the README.md.
+
+Prompt for UI Coding Agent LLM
+Objective: Create a single-page web application (SPA) using React (or another modern framework like Angular/Vue.js) to interact with the File Upload Center API. The UI should allow users to upload, share, list, and download files, integrating with the API endpoints documented in endpoints.md. The UI must handle external authentication, include the X-User-Id header in API requests, respect CORS restrictions, and follow the specified styling guidelines.
+API Details (from endpoints.md and README.md):
+	•	Base URL: Configurable, defaults to http://localhost:3000 (dev environment).
+	•	Endpoints:
+	◦	GET /api/health: Checks server status.
+	◦	POST /api/upload: Uploads a file (.png, .jpg, .jpeg, .pdf) to a specified location.
+	▪	Form-data: file (binary), file_location (string, starts with UPLOAD_BASE_DIR).
+	▪	Headers: X-User-Id: .
+	◦	POST /api/share/: Shares a file with another user.
+	▪	Body: { "shared_with": "" }.
+	▪	Headers: X-User-Id: .
+	◦	GET /api/uploads: Lists uploads owned by or shared with the user.
+	▪	Query params: from_date (YYYY-MM-DD, optional), to_date (YYYY-MM-DD, optional), search (string, optional).
+	▪	Headers: X-User-Id: .
+	◦	GET /api/download/: Downloads a file if owned or shared.
+	▪	Headers: X-User-Id: .
+	•	Authentication:
+	◦	No /api/login or /api/logout. The UI must handle external authentication (e.g., SSO, Active Directory) and provide a valid user_id via the X-User-Id header.
+	◦	Assume the UI receives user_id, display_name, and employee_id from an external authentication system.
+	•	CORS: Requests must originate from allowed origins (e.g., http://localhost:3001 for dev, as specified in env/dev.env).
+	•	Headers: Include X-User-Id: in all requests to protected endpoints (/api/upload, /api/share/, /api/uploads, /api/download/).
+Requirements:
+	1	Framework: Use React (preferred) with TypeScript, or Angular/Vue.js if more suitable. Use Bootstrap for styling with a primary color scheme of #2a73b2.
+	2	Authentication:
+	◦	Simulate external authentication by prompting the user to enter user_id, display_name, and employee_id in a form (for testing purposes).
+	◦	Store these details in local storage or state management (e.g., Redux, Context API) to persist across page refreshes.
+	◦	Include X-User-Id: in all API requests to protected endpoints.
+	◦	If a 401 error ("message": "Missing user ID in headers") is received, prompt the user to re-authenticate.
+	3	CORS:
+	◦	Ensure the UI runs on an allowed origin (e.g., http://localhost:3001 for dev).
+	◦	Handle CORS errors gracefully by displaying a message if the origin is not allowed.
+	4	Components:
+	◦	Header: Display the app name (“File Upload Center”) and the authenticated user’s display_name and employee_id.
+	◦	Upload Form:
+	▪	File input for selecting .png, .jpg, .jpeg, or .pdf files.
+	▪	Text input for file_location (pre-filled with C:\shared_dev for dev, editable).
+	▪	Submit button to trigger POST /api/upload.
+	▪	Display success message with upload_id and filename, or error message.
+	◦	File List:
+	▪	Table displaying uploads from GET /api/uploads with columns: id, filename, size (in KB), upload_time, user_id, file_location, download_count.
+	▪	Filters: Date pickers for from_date and to_date (YYYY-MM-DD), text input for search (filename).
+	▪	Download button/link per row to trigger GET /api/download/.
+	▪	Share button per row to open a modal/input for shared_with user ID, triggering POST /api/share/.
+	◦	Health Check: Button to call GET /api/health and display server status (e.g., “Server: running, Debug: true/false”).
+	5	Error Handling:
+	◦	Display API error messages (e.g., data.message) in a user-friendly way (e.g., toast notifications or alerts).
+	◦	Handle 401 errors by prompting re-authentication.
+	◦	Handle 403 (File not accessible), 404 (File not found), and 500 (Server error) errors with appropriate messages.
+	6	Styling:
+	◦	Use Bootstrap with a primary color of #2a73b2 for buttons, headers, etc.
+	◦	Ensure responsive design for desktop and tablet views.
+	◦	Use a clean, minimal layout with clear labels and feedback.
+	7	API Integration:
+	◦	Use axios or fetch for API calls.
+	◦	Include X-User-Id header in all requests to protected endpoints.
+	◦	Set Content-Type: multipart/form-data for POST /api/upload and Content-Type: application/json for POST /api/share/.
+	◦	Handle file downloads by creating a blob and triggering a download link.
+	8	Configuration:
+	◦	Allow the API base URL to be configurable (default: http://localhost:3000).
+	◦	Store in a config file or environment variable (e.g., .env.local with REACT_APP_API_URL=http://localhost:3000).
+	9	Testing:
+	◦	Include unit tests for components (e.g., using Jest and React Testing Library).
+	◦	Test rendering of the upload form, file list, and health check button.
+	◦	Mock API responses to test success and error cases (e.g., 401, 403, 404, 500).
+	10	Deployment:
+	◦	Provide instructions to run the UI locally on http://localhost:3001 (to match ALLOWED_ORIGINS in env/dev.env).
+	◦	Include a Dockerfile or instructions for containerized deployment.
+	11	Additional Notes:
+	◦	Assume the UI is accessed on August 7, 2025, so date filters for future dates (e.g., 2025-09-01) may return no results unless uploads exist.
+	◦	Log API errors to the console for debugging.
+	◦	Ensure no CORS issues by matching the UI’s origin with ALLOWED_ORIGINS.
+Deliverables:
+	•	Complete source code for the React (or Angular/Vue.js) application.
+	•	Folder structure: file-upload-center-ui/
+	•	├── src/
+	•	│   ├── components/
+	•	│   │   ├── Header.tsx
+	•	│   │   ├── UploadForm.tsx
+	•	│   │   ├── FileList.tsx
+	•	│   │   ├── HealthCheck.tsx
+	•	│   ├── App.tsx
+	•	│   ├── config.ts
+	•	│   ├── types.ts
+	•	│   ├── __tests__/
+	•	│   │   ├── UploadForm.test.tsx
+	•	│   │   ├── FileList.test.tsx
+	•	│   │   ├── HealthCheck.test.tsx
+	•	├── public/
+	•	├── .env.local
+	•	├── Dockerfile
+	•	├── package.json
+	•	├── README.md
+	•	
+	•	README.md with setup, run, and test instructions.
+	•	Unit tests for key components.
+	•	Instructions for running locally on http://localhost:3001 and verifying CORS compatibility.
+Sample API Responses (from endpoints.md):
+	•	GET /api/health: {
+	•	  "status": "success",
+	•	  "data": { "server": "running", "debug_mode": true }
+	•	}
+	•	
+	•	POST /api/upload (success): {
+	•	  "status": "success",
+	•	  "data": {
+	•	    "upload_id": 1,
+	•	    "filename": "document_123456789.pdf",
+	•	    "size": 1024,
+	•	    "upload_time": "2025-08-07T11:42:00",
+	•	    "file_location": "C:\\shared_dev"
+	•	  }
+	•	}
+	•	
+	•	POST /api/share/ (success): {
+	•	  "status": "success",
+	•	  "message": "Shared upload 1 with test_user2 successfully"
+	•	}
+	•	
+	•	GET /api/uploads: {
+	•	  "status": "success",
+	•	  "data": [
+	•	    {
+	•	      "id": 1,
+	•	      "filename": "document_123456789.pdf",
+	•	      "size": 1024,
+	•	      "upload_time": "2025-08-07T11:42:00",
+	•	      "user_id": "test_user",
+	•	      "file_location": "C:\\shared_dev",
+	•	      "download_count": 0
+	•	    }
+	•	  ]
+	•	}
+	•	
+	•	Error (401): {
+	•	  "status": "error",
+	•	  "message": "Missing user ID in headers"
+	•	}
+	•	
+Styling Guidelines:
+	•	Use Bootstrap with #2a73b2 for primary buttons, headers, and accents.
+	•	Ensure a clean, professional look with proper spacing and alignment.
+	•	Use toast notifications (e.g., react-toastify) for success/error messages.
+	•	Make the file list table sortable by clicking column headers (e.g., filename, upload_time).
+Example User Flow:
+	1	User visits the UI at http://localhost:3001.
+	2	User enters user_id, display_name, and employee_id in an authentication form (simulated).
+	3	User uploads a PDF file via the upload form, specifying file_location.
+	4	User sees a success message with the upload_id and filename.
+	5	User views the file list, filters by date or filename, and sees their uploads.
+	6	User shares a file by entering a shared_with user ID in a modal.
+	7	User downloads a file by clicking a download button.
+	8	User checks server status via the health check button.
+Constraints:
+	•	Ensure the UI runs on http://localhost:3001 to match ALLOWED_ORIGINS.
+	•	Handle file sizes up to 100MB (API’s MAX_FILE_SIZE).
+	•	Validate file extensions (.png, .jpg, .jpeg, .pdf) on the client side before upload.
+	•	Display file sizes in KB in the file list.
+	•	Handle network errors and API timeouts gracefully.
+Additional Guidance:
+	•	Use a state management library (e.g., Redux, Context API) for user_id, display_name, and employee_id.
+	•	Implement client-side validation for date formats (YYYY-MM-DD) and file types.
+	•	Log API requests and responses to the console for debugging.
+	•	Include a loading spinner during API calls.
+	•	Provide a Dockerfile for easy deployment: FROM node:16
+	•	WORKDIR /app
+	•	COPY package*.json ./
+	•	RUN npm install
+	•	COPY . .
+	•	RUN npm run build
+	•	RUN npm install -g serve
+	•	EXPOSE 3001
+	•	CMD ["serve", "-s", "build", "-l", "3001"]
+	•	
+Acceptance Criteria:
+	•	The UI successfully makes API calls to all endpoints with correct headers and payloads.
+	•	CORS restrictions are respected (no errors when running from http://localhost:3001).
+	•	The X-User-Id header is included in all protected endpoint requests.
+	•	Error messages are displayed clearly to the user.
+	•	The UI is responsive and styled with Bootstrap and #2a73b2.
+	•	Unit tests pass for rendering and interaction with components.
+	•	The README.md includes clear setup and run instructions.
+	•	The app runs locally on http://localhost:3001 without errors.
+Deliverable Format:
+	•	Provide the complete source code as a zip file or GitHub repository link.
+	•	Include a README.md with:
+	◦	Setup instructions (npm install, npm start).
+	◦	How to configure the API base URL.
+	◦	How to run tests (npm test).
+	◦	Docker deployment instructions.
+	•	Ensure all components are typed (TypeScript) and well-documented.
+
+Notes for Using the Prompt
+	•	Customization: If you have specific UI requirements (e.g., a different framework, additional features like drag-and-drop file upload, or specific styling beyond Bootstrap), modify the prompt to include those details.
+	•	Testing: Ensure the UI coding agent tests the UI against the API running at http://localhost:3000 with the dev environment (.\scripts\run_dev.ps1).
+	•	CORS: If your UI runs on a different port or domain (e.g., http://localhost:3002), update ALLOWED_ORIGINS in env/dev.env before running the API.
+	•	Authentication: If you have a specific authentication system (e.g., OAuth, JWT), update the prompt to specify how the UI should obtain the user_id.
+If you need help refining this prompt, integrating the UI with the API, or troubleshooting the UI development, let me know! You can also provide additional details (e.g., preferred framework, specific UI features) to tailor the prompt further.
