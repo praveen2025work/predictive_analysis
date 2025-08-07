@@ -2,4 +2,5 @@ flask
 flask-login
 requests
 flask-cors
-requests-kerberos  # Optional for Kerberos
+requests-kerberos
+requests-ntlm  # Optional for NTLM
