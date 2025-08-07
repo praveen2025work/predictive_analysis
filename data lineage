@@ -1,0 +1,282 @@
+
+Objective: Create a modern, user-friendly web-based user interface (UI) for a data lineage tracking system with governance and data catalog integration. The UI should allow users to interact with the system’s data (systems, data elements, data products, lineage, governance policies, etc.) through a clean, intuitive interface. The backend is a Flask-based REST API with SQLite, deployed on IIS, and provides full CRUD endpoints for all entities and a sample data endpoint (/api/sample-data) for development. The UI should leverage the provided endpoints and sample data to visualize data lineage, manage data products, enforce governance, and integrate with data catalog metadata.
+Use Case Context:
+	•	Purpose: The application tracks the lineage of data elements across systems, manages data products with SLAs and versioning, enforces governance policies (e.g., mandatory SLAs, GDPR compliance), and integrates with data catalog tools (e.g., Alation, Apache Atlas, Collibra) for metadata management.
+	•	Entities:
+	◦	Systems: Represent data sources/sinks (e.g., CRM, Data Warehouse).
+	◦	Data Elements: Individual data items (e.g., CustomerID, OrderAmount) linked to data products.
+	◦	Data Products: Logical collections of data elements with SLAs, versioning, and start/end dates (e.g., Customer 360, Sales Analytics).
+	◦	Lineage: Tracks how data elements move between systems, including transformation logic, timestamps, and approval status.
+	◦	Governance: Policies (e.g., mandatory SLAs, compliance checks), user roles, and audit logs ensure controlled data management.
+	◦	Data Catalog Integration: Metadata synchronization with external tools (e.g., Alation, Collibra) and business glossary terms.
+	◦	Compliance Tags: Tags for regulations (e.g., GDPR, CCPA) on data elements/products.
+	•	Sample Data: The /api/sample-data endpoint provides pre-populated data for testing and UI development.
+	•	Deployment: The backend runs on IIS with Python (wfastcgi), supporting Development, Staging, and Production environments.
+API Endpoints: Below are the key REST API endpoints provided by the backend. All endpoints are prefixed with /api/ and return JSON responses. Use these endpoints to fetch, create, update, and delete data, and to visualize lineage and governance information.
+	1	Systems:
+	◦	POST /systems: Create a system.
+	▪	Request: {"name": "CRM", "description": "Customer Relationship Management"}
+	▪	Response: {"id": 1, "name": "CRM"}
+	◦	GET /systems: List all systems.
+	▪	Response: [{"id": 1, "name": "CRM", "description": "Customer Relationship Management"}, ...]
+	◦	GET /systems/: Get a system by ID.
+	◦	PUT /systems/: Update a system.
+	◦	DELETE /systems/: Delete a system.
+	2	Data Elements:
+	◦	POST /data_elements: Create a data element.
+	▪	Request: {"name": "CustomerID", "type": "String", "description": "Unique customer identifier"}
+	▪	Response: {"id": 1, "name": "CustomerID"}
+	◦	GET /data_elements: List all data elements.
+	◦	GET /data_elements/: Get a data element by ID.
+	◦	PUT /data_elements/: Update a data element.
+	◦	DELETE /data_elements/: Delete a data element.
+	3	Data Products:
+	◦	POST /data_products: Create a data product.
+	▪	Request: {"name": "Customer 360", "description": "Unified customer view", "owner": "Data Team", "start_date": "2025-01-01T00:00:00", "end_date": "2026-01-01T00:00:00", "sla": "Data refreshed every 24 hours", "version": "1.0", "status": "active"}
+	▪	Response: {"id": 1, "name": "Customer 360"}
+	◦	GET /data_products: List all data products.
+	◦	GET /data_products/: Get a data product by ID.
+	◦	PUT /data_products/: Update a data product.
+	◦	DELETE /data_products/: Delete a data product.
+	◦	POST /data_products//retire: Retire a data product (sets status to archived).
+	4	Data Element to Data Product Mappings:
+	◦	POST /data_elements//data_products: Map a data element to a data product.
+	▪	Request: {"data_product_id": 1}
+	▪	Response: {"message": "Mapping created"}
+	◦	GET /data_elements//data_products: List mappings for a data element.
+	◦	DELETE /data_elements//data_products/: Delete a mapping.
+	5	Lineage:
+	◦	POST /lineage: Create a lineage record.
+	▪	Request: {"data_element_id": 1, "source_system_id": 1, "target_system_id": 2, "transformation_logic": "Mapped CustomerID to ClientID", "timestamp": "2025-08-07T15:00:00", "start_date": "2025-01-01T00:00:00", "end_date": "2025-12-31T23:59:59"}
+	▪	Response: {"id": 1, "timestamp": "2025-08-07T15:00:00", "approval_status": "pending"}
+	◦	GET /lineage: List all lineage records.
+	◦	GET /lineage/: Get a lineage record by ID.
+	◦	PUT /lineage/: Update a lineage record.
+	◦	DELETE /lineage/: Delete a lineage record.
+	◦	GET /lineage/timeline/: Get lineage timeline for a data element.
+	▪	Response: {"data_element": "CustomerID", "timeline": [...]}
+	6	Lineage Approvals:
+	◦	POST /lineage_approvals: Create a lineage approval.
+	◦	GET /lineage_approvals: List all lineage approvals.
+	◦	GET /lineage_approvals/: Get a lineage approval by ID.
+	◦	PUT /lineage_approvals/: Update a lineage approval.
+	◦	DELETE /lineage_approvals/: Delete a lineage approval.
+	7	Data Quality Metrics:
+	◦	POST /data_quality_metrics: Create a data quality metric.
+	◦	GET /data_quality_metrics: List all data quality metrics.
+	◦	GET /data_quality_metrics/: Get a data quality metric by ID.
+	◦	PUT /data_quality_metrics/: Update a data quality metric.
+	◦	DELETE /data_quality_metrics/: Delete a data quality metric.
+	8	SLA Status:
+	◦	POST /sla_status: Create an SLA status.
+	◦	GET /sla_status: List all SLA statuses.
+	◦	GET /sla_status/: Get an SLA status by ID.
+	◦	PUT /sla_status/: Update an SLA status.
+	◦	DELETE /sla_status/: Delete an SLA status.
+	9	Governance Policies:
+	◦	POST /governance_policies: Create a governance policy.
+	◦	GET /governance_policies: List all governance policies.
+	◦	GET /governance_policies/: Get a governance policy by ID.
+	◦	PUT /governance_policies/: Update a governance policy.
+	◦	DELETE /governance_policies/: Delete a governance policy.
+	10	User Roles:
+	◦	POST /user_roles: Create a user role.
+	◦	GET /user_roles: List all user roles.
+	◦	GET /user_roles/: Get a user role by ID.
+	◦	PUT /user_roles/: Update a user role.
+	◦	DELETE /user_roles/: Delete a user role.
+	11	Audit Logs (Read-only):
+	◦	GET /audit_logs: List all audit logs.
+	◦	GET /audit_logs/: Get an audit log by ID.
+	12	Catalog Metadata:
+	◦	POST /catalog_metadata: Create catalog metadata.
+	◦	GET /catalog_metadata: List all catalog metadata.
+	◦	GET /catalog_metadata/: Get catalog metadata by ID.
+	◦	PUT /catalog_metadata/: Update catalog metadata.
+	◦	DELETE /catalog_metadata/: Delete catalog metadata.
+	13	Business Glossary:
+	◦	POST /business_glossary: Create a business glossary term.
+	◦	GET /business_glossary: List all business glossary terms.
+	◦	GET /business_glossary/: Get a business glossary term by ID.
+	◦	PUT /business_glossary/: Update a business glossary term.
+	◦	DELETE /business_glossary/: Delete a business glossary term.
+	14	Compliance Tags:
+	◦	POST /compliance_tags: Create a compliance tag.
+	◦	GET /compliance_tags: List all compliance tags.
+	◦	GET /compliance_tags/: Get a compliance tag by ID.
+	◦	PUT /compliance_tags/: Update a compliance tag.
+	◦	DELETE /compliance_tags/: Delete a compliance tag.
+	15	Sample Data:
+	◦	GET /api/sample-data: Get pre-populated sample data for UI development.
+	▪	Response: {
+	▪	  "systems": [
+	▪	    {"id": 1, "name": "CRM", "description": "Customer Relationship Management"},
+	▪	    {"id": 2, "name": "Data Warehouse", "description": "Central data repository"}
+	▪	  ],
+	▪	  "data_elements": [
+	▪	    {"id": 1, "name": "CustomerID", "type": "String", "description": "Unique customer identifier"},
+	▪	    {"id": 2, "name": "OrderAmount", "type": "Float", "description": "Order total amount"}
+	▪	  ],
+	▪	  "data_products": [
+	▪	    {
+	▪	      "id": 1, "name": "Customer 360", "description": "Unified customer view",
+	▪	      "owner": "Data Team", "start_date": "2025-01-01T00:00:00",
+	▪	      "end_date": "2026-01-01T00:00:00", "sla": "Data refreshed every 24 hours",
+	▪	      "version": "1.0", "status": "active"
+	▪	    },
+	▪	    {
+	▪	      "id": 2, "name": "Sales Analytics", "description": "Sales performance insights",
+	▪	      "owner": "Analytics Team", "start_date": "2025-01-01T00:00:00",
+	▪	      "end_date": null, "sla": "Data refreshed every 12 hours",
+	▪	      "version": "1.0", "status": "active"
+	▪	    }
+	▪	  ],
+	▪	  "lineage": [
+	▪	    {
+	▪	      "id": 1, "data_element_id": 1, "data_element_name": "CustomerID",
+	▪	      "source_system": "CRM", "target_system": "Data Warehouse",
+	▪	      "transformation_logic": "Mapped CustomerID to ClientID",
+	▪	      "timestamp": "2025-08-07T15:00:00", "start_date": "2025-01-01T00:00:00",
+	▪	      "end_date": "2025-12-31T23:59:59", "is_active": true,
+	▪	      "approval_status": "approved",
+	▪	      "quality_metrics": [
+	▪	        {"name": "completeness", "value": 95.5, "timestamp": "2025-08-07T15:00:00"}
+	▪	      ],
+	▪	      "data_products": [
+	▪	        {"name": "Customer 360", "version": "1.0"},
+	▪	        {"name": "Sales Analytics", "version": "1.0"}
+	▪	      ]
+	▪	    }
+	▪	  ],
+	▪	  "governance_policies": [
+	▪	    {"id": 1, "name": "Mandatory SLA", "rule_type": "sla_mandatory", "applies_to": "data_products"},
+	▪	    {"id": 2, "name": "GDPR Compliance", "rule_type": "compliance_check", "applies_to": "lineage"}
+	▪	  ],
+	▪	  "compliance_tags": [
+	▪	    {"entity_type": "data_element", "entity_id": 1, "regulation": "GDPR", "requirements": "anonymization_required"}
+	▪	  ],
+	▪	  "business_glossary": [
+	▪	    {"term": "Customer Identifier", "definition": "Unique identifier for a customer", "entity_type": "data_element", "entity_id": 1}
+	▪	  ]
+	▪	}
+	▪	
+	16	Lineage Timeline:
+	◦	GET /lineage/timeline/: Get lineage timeline for a data element.
+	▪	Response: Timeline of lineage records with associated data products and quality metrics.
+	17	Data Product Lineage:
+	◦	GET /data_products//lineage: Get lineage for a data product, with optional start_time and end_time query parameters.
+	▪	Response: {"data_product": "Customer 360", "timeline": [...]}
+	18	Lineage Visualization:
+	◦	GET /data_products//lineage_visualization?catalog_tool=: Get a visualization URL for lineage (e.g., Apache Atlas).
+	19	Metadata Enrichment:
+	◦	POST /metadata/enrich: Enrich metadata using a catalog tool (e.g., Ataccama).
+	▪	Request: {"entity_type": "data_element", "entity_id": 1, "catalog_tool": "Ataccama"}
+	▪	Response: {"message": "Metadata enriched", "suggestions": {...}}
+UI Requirements: Design a web-based UI that meets the following requirements:
+	1	Framework: Use a modern frontend framework like React, Angular, or Vue.js.
+	2	Components:
+	◦	Dashboard: Display an overview of data products, systems, and recent lineage activity.
+	◦	Data Product Management:
+	▪	List data products with names, SLAs, versions, and status.
+	▪	Allow creating, updating, and retiring data products (use POST /data_products, PUT /data_products/, POST /data_products//retire).
+	▪	Show associated data elements and compliance tags.
+	◦	Lineage Visualization:
+	▪	Display a timeline of lineage for a data product (GET /data_products//lineage) or data element (GET /lineage/timeline/).
+	▪	Use a library like Vis.js for timeline visualization or D3.js for dependency graphs.
+	▪	Highlight active/inactive lineage records and approval status.
+	▪	Show quality metrics (e.g., completeness) and data product details.
+	◦	Governance Dashboard:
+	▪	List governance policies (GET /governance_policies) and user roles (GET /user_roles).
+	▪	Display audit logs (GET /audit_logs) with filtering by user or entity.
+	▪	Allow creating/updating policies and roles for authorized users.
+	◦	Data Catalog Integration:
+	▪	Show catalog metadata (GET /catalog_metadata) and business glossary terms (GET /business_glossary).
+	▪	Allow syncing metadata with external tools (e.g., POST /catalog_metadata, POST /metadata/enrich).
+	◦	Compliance View:
+	▪	Display compliance tags (GET /compliance_tags) for data elements/products.
+	▪	Highlight GDPR/CCPA requirements and allow tagging.
+	3	Features:
+	◦	Search: Enable searching for data products, elements, or systems by name or description.
+	◦	Filtering: Filter lineage by time range (start_time, end_time) or status (active/inactive).
+	◦	CRUD Operations: Provide forms for creating/editing entities (e.g., data products, lineage records).
+	◦	Authentication: Mock authentication with a temporary X-User-ID header (e.g., john.doe@example.com) until JWT is implemented.
+	◦	Responsive Design: Ensure the UI is responsive for desktop and tablet use.
+	4	Visualizations:
+	◦	Use Vis.js for a timeline view of lineage, showing data element movement across systems.
+	◦	Use D3.js for a graph view of data product dependencies or system relationships.
+	◦	Display quality metrics as charts (e.g., bar or line charts for completeness over time).
+	5	Sample Data Usage:
+	◦	Use the /api/sample-data response to mock the UI during development.
+	◦	Example: Render a timeline for CustomerID moving from CRM to Data Warehouse, associated with Customer 360 and Sales Analytics.
+Sample UI Workflow:
+	1	Home Dashboard:
+	◦	Show a list of data products (GET /data_products) with SLAs and status.
+	◦	Display recent audit logs (GET /audit_logs) and active governance policies (GET /governance_policies).
+	2	Data Product View:
+	◦	Select a data product (e.g., Customer 360) and view its details (GET /data_products/1).
+	◦	Show associated data elements (GET /data_elements//data_products) and lineage (GET /data_products/1/lineage).
+	◦	Provide a button to retire the product (POST /data_products/1/retire).
+	3	Lineage Timeline:
+	◦	Display a timeline for a data product or data element, showing system hops, transformation logic, and quality metrics.
+	◦	Allow filtering by date range or approval status.
+	4	Governance Management:
+	◦	List policies and roles, with forms to create/edit them (POST /governance_policies, POST /user_roles).
+	◦	Show compliance tags and allow tagging data elements (POST /compliance_tags).
+	5	Catalog Integration:
+	◦	Display business glossary terms and catalog metadata.
+	◦	Provide a form to sync metadata with external tools (POST /catalog_metadata).
+Technical Guidelines:
+	•	API Client: Use axios (for React) or Angular’s HttpClient to make API calls.
+	•	State Management: Use Redux (React) or NgRx (Angular) for managing complex state (e.g., lineage data).
+	•	Styling: Use a CSS framework like Material-UI, Bootstrap, or Tailwind CSS for a professional look.
+	•	Swagger Integration: Use the Swagger UI at /swagger to explore endpoints and generate client code.
+	•	Error Handling: Display user-friendly error messages for API failures (e.g., 403 for unauthorized actions).
+	•	Security: Mock authentication with X-User-ID header; prepare for future JWT integration.
+Sample React Component (for reference):
+import React, { useEffect, useState } from 'react';
+import axios from 'axios';
+import { Timeline } from 'vis-timeline/standalone';
+import 'vis-timeline/styles/vis-timeline.css';
+
+const LineageTimeline = ({ dataProductId }) => {
+  const [timelineData, setTimelineData] = useState([]);
+
+  useEffect(() => {
+    axios.get(`http:///api/data_products/${dataProductId}/lineage`, {
+      headers: { 'X-User-ID': 'john.doe@example.com' }
+    }).then(response => {
+      const items = response.data.timeline.map(item => ({
+        id: item.id,
+        content: `${item.data_element_name}: ${item.source_system} -> ${item.target_system}`,
+        start: item.timestamp,
+        title: `Transformation: ${item.transformation_logic}
+Approval: ${item.approval_status}`
+      }));
+      const container = document.getElementById('timeline');
+      new Timeline(container, items, {});
+      setTimelineData(response.data.timeline);
+    }).catch(error => console.error('Error fetching lineage:', error));
+  }, [dataProductId]);
+
+  return 
+;
+};
+
+export default LineageTimeline;
+Deliverables:
+	1	A complete frontend application (React/Angular/Vue.js) with:
+	◦	A dashboard page summarizing data products and recent activity.
+	◦	A data product management page with CRUD operations.
+	◦	A lineage visualization page with timeline and graph views.
+	◦	A governance management page for policies, roles, and audit logs.
+	◦	A catalog integration page for metadata and glossary terms.
+	2	Source code with clear comments and folder structure.
+	3	Instructions for running the UI locally and integrating with the backend.
+	4	Optional: Unit tests for key components using Jest (React) or Jasmine (Angular).
+Additional Notes:
+	•	Use the sample data from /api/sample-data to mock the UI during development.
+	•	Ensure the UI is accessible (e.g., ARIA labels for visualizations).
+	•	Optimize for performance by lazy-loading large datasets (e.g., lineage records).
+	•	If external catalog visualization is unavailable, mock the /api/data_products//lineage_visualization response with a local D3.js graph.
+Task: Generate the frontend code for the described UI, ensuring it integrates with the provided API endpoints and leverages the sample data for visualization. Provide a complete project structure, including necessary dependencies, and detailed instructions for running the UI. Focus on creating an intuitive, professional interface that meets the requirements above.
+
