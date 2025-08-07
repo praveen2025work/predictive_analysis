@@ -78,7 +78,7 @@ def init_db():
     except Exception as e:
         logging.error(f'Failed to initialize database: {e}')
 
-# Custom Jinja2 filter for strftime Marian
+# Custom Jinja2 filters
 def datetime_strftime(value, format='%Y-%m-%d %H:%M:%S'):
     try:
         if isinstance(value, str):
@@ -88,7 +88,11 @@ def datetime_strftime(value, format='%Y-%m-%d %H:%M:%S'):
         logging.error(f'Error in strftime filter: {e}')
         return value
 
+def now():
+    return datetime.now()
+
 app.jinja_env.filters['strftime'] = datetime_strftime
+app.jinja_env.filters['now'] = now
 
 # Flask-Login setup
 login_manager = LoginManager()
@@ -156,7 +160,7 @@ def validate_file_location(location):
         return False
 
 # Fetch uploads for a user
-def get_user_uploads(user_id, date_filter=None, search_query=None):
+def get_user_uploads(user_id, from_date=None, to_date=None, search_query=None):
     try:
         with sqlite3.connect(DB_PATH) as conn:
             cursor = conn.cursor()
@@ -171,9 +175,12 @@ def get_user_uploads(user_id, date_filter=None, search_query=None):
                 WHERE s.shared_with = ?
             '''
             params = [user_id, user_id]
-            if date_filter:
-                query += ' AND DATE(u.upload_time) = ?'
-                params.append(date_filter)
+            if from_date:
+                query += ' AND DATE(u.upload_time) >= ?'
+                params.append(from_date)
+            if to_date:
+                query += ' AND DATE(u.upload_time) <= ?'
+                params.append(to_date)
             if search_query:
                 query += ' AND u.filename LIKE ?'
                 params.append(f'%{search_query}%')
@@ -181,8 +188,8 @@ def get_user_uploads(user_id, date_filter=None, search_query=None):
             logging.debug('Executing query: %s with params: %s', query, params)
             cursor.execute(query, params)
             uploads = [{'id': row[0], 'filename': row[1], 'size': row[2], 'upload_time': row[3], 'user_id': row[4], 'file_location': row[5], 'download_count': row[6]} for row in cursor.fetchall()]
-        logging.debug('Fetched %d uploads for user %s', len(uploads), user_id)
-        return uploads
+            logging.debug('Fetched %d uploads for user %s: %s', len(uploads), user_id, uploads)
+            return uploads
     except Exception as e:
         logging.error('Error fetching uploads: %s', str(e))
         return []
@@ -221,9 +228,11 @@ def index():
             logging.error('Failed to authenticate user via Windows authentication')
             return jsonify({'error': 'Authentication failed'}), 401
     
-    date_filter = request.args.get('date', datetime.now().strftime('%Y-%m-%d'))
+    today = datetime.now().strftime('%Y-%m-%d')
+    from_date = request.args.get('from_date', today)
+    to_date = request.args.get('to_date', today)
     search_query = request.args.get('search')
-    uploads = get_user_uploads(current_user.id, date_filter, search_query)
+    uploads = get_user_uploads(current_user.id, from_date, to_date, search_query)
     notification = request.args.get('notification')
     notification_type = request.args.get('notification_type', 'success')
     
@@ -232,14 +241,15 @@ def index():
             'index.html',
             users=[u for u in users.keys() if u != current_user.id],
             uploads=uploads,
-            date_filter=date_filter,
+            from_date=from_date,
+            to_date=to_date,
             search_query=search_query,
             notification=notification,
             notification_type=notification_type,
             upload_base_dir=UPLOAD_BASE_DIR
         ))
         response.headers['Content-Type'] = 'text/html'
-        logging.debug('Rendered index.html successfully')
+        logging.debug('Rendered index.html successfully with %d uploads', len(uploads))
         return response
     except Exception as e:
         logging.error('Error rendering index.html: %s', str(e))
@@ -397,22 +407,25 @@ def download_file(filename):
 @login_required
 def get_upload_history():
     logging.debug('User %s fetching upload history', current_user.id)
-    date_filter = request.args.get('date', datetime.now().strftime('%Y-%m-%d'))
+    today = datetime.now().strftime('%Y-%m-%d')
+    from_date = request.args.get('from_date', today)
+    to_date = request.args.get('to_date', today)
     search_query = request.args.get('search')
-    uploads = get_user_uploads(current_user.id, date_filter, search_query)
+    uploads = get_user_uploads(current_user.id, from_date, to_date, search_query)
     try:
         response = make_response(render_template(
             'index.html',
             users=[u for u in users.keys() if u != current_user.id],
             uploads=uploads,
-            date_filter=date_filter,
+            from_date=from_date,
+            to_date=to_date,
             search_query=search_query,
             notification='Filtered uploads' if uploads else 'No files found',
             notification_type='success' if uploads else 'warning',
             upload_base_dir=UPLOAD_BASE_DIR
         ))
         response.headers['Content-Type'] = 'text/html'
-        logging.debug('Rendered index.html with filtered uploads')
+        logging.debug('Rendered index.html with filtered uploads: %d', len(uploads))
         return response
     except Exception as e:
         logging.error('Error rendering upload history: %s', str(e))
