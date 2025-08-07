@@ -1,4 +1,4 @@
-from flask import Flask, request, send_file, jsonify, render_template, redirect, url_for, make_response, flash
+from flask import Flask, request, send_file, jsonify, render_template, redirect, url_for, make_response
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from werkzeug.utils import secure_filename
 from datetime import datetime
@@ -154,7 +154,7 @@ def validate_file_location(location):
         return False
 
 # Fetch uploads for a user
-def get_user_uploads(user_id, date_filter=None):
+def get_user_uploads(user_id, date_filter=None, search_query=None):
     try:
         with sqlite3.connect(DB_PATH) as conn:
             cursor = conn.cursor()
@@ -167,11 +167,14 @@ def get_user_uploads(user_id, date_filter=None):
                 FROM uploads u 
                 JOIN shared_uploads s ON u.id = s.upload_id 
                 WHERE s.shared_with = ?
-                '''
+            '''
             params = [user_id, user_id]
             if date_filter:
                 query += ' AND DATE(u.upload_time) = ?'
                 params.append(date_filter)
+            if search_query:
+                query += ' AND u.filename LIKE ?'
+                params.append(f'%{search_query}%')
             query += ' ORDER BY u.upload_time DESC'
             cursor.execute(query, params)
             uploads = [{'id': row[0], 'filename': row[1], 'size': row[2], 'upload_time': row[3], 'user_id': row[4], 'file_location': row[5]} for row in cursor.fetchall()]
@@ -214,8 +217,9 @@ def index():
             logging.error('Failed to authenticate user via Windows authentication')
             return jsonify({'error': 'Authentication failed'}), 401
     
-    date_filter = request.args.get('date')
-    uploads = get_user_uploads(current_user.id, date_filter)
+    date_filter = request.args.get('date', datetime.now().strftime('%Y-%m-%d'))
+    search_query = request.args.get('search')
+    uploads = get_user_uploads(current_user.id, date_filter, search_query)
     notification = request.args.get('notification')
     notification_type = request.args.get('notification_type', 'success')
     
@@ -225,6 +229,7 @@ def index():
             users=[u for u in users.keys() if u != current_user.id],
             uploads=uploads,
             date_filter=date_filter,
+            search_query=search_query,
             notification=notification,
             notification_type=notification_type,
             upload_base_dir=UPLOAD_BASE_DIR
@@ -380,13 +385,15 @@ def download_file(filename):
 def get_upload_history():
     logging.debug('User %s fetching upload history', current_user.id)
     date_filter = request.args.get('date', datetime.now().strftime('%Y-%m-%d'))
-    uploads = get_user_uploads(current_user.id, date_filter)
+    search_query = request.args.get('search')
+    uploads = get_user_uploads(current_user.id, date_filter, search_query)
     try:
         response = make_response(render_template(
             'index.html',
             users=[u for u in users.keys() if u != current_user.id],
             uploads=uploads,
             date_filter=date_filter,
+            search_query=search_query,
             notification='Filtered uploads by date' if uploads else 'No files found for selected date',
             notification_type='success' if uploads else 'warning',
             upload_base_dir=UPLOAD_BASE_DIR
