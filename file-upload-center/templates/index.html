@@ -9,13 +9,17 @@
 </head>
 <body>
     <div class="container mt-4">
-        <h1 class="mb-4">File Upload Center</h1>
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1 class="mb-0">File Upload Center</h1>
+            {% if current_user.is_authenticated %}
+                <div>
+                    <span class="me-3">Welcome, {{ current_user.display_name }}!</span>
+                    <a href="{{ url_for('logout') }}" class="btn btn-outline-secondary btn-sm">Logout</a>
+                </div>
+            {% endif %}
+        </div>
+        
         {% if current_user.is_authenticated %}
-            <div class="d-flex justify-content-between align-items-center mb-4">
-                <p class="mb-0">Welcome, {{ current_user.display_name }}!</p>
-                <a href="{{ url_for('logout') }}" class="btn btn-outline-secondary btn-sm">Logout</a>
-            </div>
-            
             <!-- Toast Notification -->
             {% if notification %}
                 <div class="toast-container position-fixed bottom-0 end-0 p-3">
@@ -33,19 +37,21 @@
             <div class="card mb-4">
                 <div class="card-body">
                     <h2 class="card-title h5">Upload File</h2>
-                    <form id="uploadForm" action="{{ url_for('upload_file') }}" method="post" enctype="multipart/form-data">
-                        <div class="mb-3">
-                            <label for="file" class="form-label">Select File</label>
+                    <form id="uploadForm" action="{{ url_for('upload_file') }}" method="post" enctype="multipart/form-data" class="row g-3">
+                        <div class="col-md-6">
+                            <label for="file" class="form-label">Choose File</label>
                             <input type="file" class="form-control" id="file" name="file" accept=".png,.jpg,.jpeg,.pdf" required>
                         </div>
-                        <div class="mb-3">
+                        <div class="col-md-6">
                             <label for="file_location" class="form-label">File Location</label>
                             <input type="text" class="form-control" id="file_location" name="file_location" value="{{ upload_base_dir }}" required>
                         </div>
-                        <button type="submit" class="btn btn-primary" id="uploadButton">
-                            <span id="uploadSpinner" class="spinner-border spinner-border-sm d-none" role="status"></span>
-                            Upload
-                        </button>
+                        <div class="col-12">
+                            <button type="submit" class="btn btn-primary" id="uploadButton">
+                                <span id="uploadSpinner" class="spinner-border spinner-border-sm d-none" role="status"></span>
+                                Upload
+                            </button>
+                        </div>
                     </form>
                 </div>
             </div>
@@ -54,17 +60,17 @@
             <div class="card mb-4">
                 <div class="card-body">
                     <h2 class="card-title h5">Filter & Search Uploads</h2>
-                    <form action="{{ url_for('get_upload_history') }}" method="get" class="row g-3 align-items-center">
-                        <div class="col-auto">
+                    <form action="{{ url_for('get_upload_history') }}" method="get" class="row g-3 align-items-end">
+                        <div class="col-md-4">
                             <label for="date" class="form-label">Date</label>
                             <input type="date" class="form-control" id="date" name="date" value="{{ date_filter or '' }}">
                         </div>
-                        <div class="col-auto">
+                        <div class="col-md-4">
                             <label for="search" class="form-label">Search Filename</label>
                             <input type="text" class="form-control" id="search" name="search" value="{{ search_query or '' }}" placeholder="Enter filename">
                         </div>
-                        <div class="col-auto align-self-end">
-                            <button type="submit" class="btn btn-primary">Filter</button>
+                        <div class="col-md-4">
+                            <button type="submit" class="btn btn-primary me-2">Filter</button>
                             <a href="{{ url_for('index') }}" class="btn btn-outline-secondary">Clear</a>
                         </div>
                     </form>
@@ -80,8 +86,9 @@
                             {% for upload in uploads %}
                                 <div class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
                                     <div>
+                                        <strong>ID: {{ upload.id }}</strong><br>
                                         <strong>{{ upload.filename }}</strong><br>
-                                        <small>{{ upload.size }} bytes, {{ upload.upload_time | strftime('%Y-%m-%d %H:%M:%S') }}</small>
+                                        <small>{{ upload.size }} bytes, {{ upload.upload_time | strftime('%Y-%m-%d %H:%M:%S') }}, Downloads: {{ upload.download_count }}</small>
                                     </div>
                                     <div>
                                         <a href="{{ url_for('download_file', filename=upload.filename) }}" class="btn btn-sm btn-primary">Download</a>
@@ -107,12 +114,12 @@
     </div>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        // Show toasts on page load
         document.addEventListener('DOMContentLoaded', function () {
+            // Show toasts
             var toasts = document.querySelectorAll('.toast');
             toasts.forEach(toast => new bootstrap.Toast(toast).show());
 
-            // Show spinner on form submit
+            // Show spinner on upload form submit
             document.getElementById('uploadForm').addEventListener('submit', function () {
                 document.getElementById('uploadSpinner').classList.remove('d-none');
                 document.getElementById('uploadButton').disabled = true;
