@@ -27,7 +27,7 @@ try:
         level=logging.DEBUG,
         format='%(asctime)s - %(levelname)s - %(message)s',
         handlers=[
-            logging.FileHandler(log_file, mode='a'),
+            logging.FileHandler(log_file, mode='a', encoding='utf-8'),
             logging.StreamHandler()  # Log to console
         ]
     )
@@ -95,7 +95,7 @@ login_manager.login_view = 'index'
 
 # User class for Flask-Login
 class User(UserMixin):
-    def __init__(self, id, username, display_name, Nesseemployee_id):
+    def __init__(self, id, username, display_name, employee_id):
         self.id = id  # userName from API
         self.username = username
         self.display_name = display_name
@@ -108,9 +108,7 @@ users = {}
 def get_user_details():
     try:
         headers = {
-           
-
- 'Accept': 'application/json, text/plain, */*',
+            'Accept': 'application/json, text/plain, */*',
             'Accept-Encoding': 'gzip, deflate',
             'Accept-Language': 'en-US,en;q=0.9',
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36'
@@ -228,7 +226,8 @@ def index():
             uploads=uploads,
             date_filter=date_filter,
             notification=notification,
-            notification_type=notification_type
+            notification_type=notification_type,
+            upload_base_dir=UPLOAD_BASE_DIR
         ))
         response.headers['Content-Type'] = 'text/html'
         logging.debug('Rendered index.html successfully')
@@ -389,7 +388,8 @@ def get_upload_history():
             uploads=uploads,
             date_filter=date_filter,
             notification='Filtered uploads by date' if uploads else 'No files found for selected date',
-            notification_type='success' if uploads else 'warning'
+            notification_type='success' if uploads else 'warning',
+            upload_base_dir=UPLOAD_BASE_DIR
         ))
         response.headers['Content-Type'] = 'text/html'
         logging.debug('Rendered index.html with filtered uploads')
