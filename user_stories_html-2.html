@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Workflow Management System - User Stories</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        
+        th, td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+            vertical-align: top;
+        }
+        
+        th {
+            background-color: #5DADE2;
+            color: white;
+            font-weight: bold;
+            position: sticky;
+            top: 0;
+        }
+        
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        
+        tr:hover {
+            background-color: #f5f5f5;
+        }
+        
+        .story-title {
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        
+        .priority-high {
+            color: #e74c3c;
+            font-weight: bold;
+        }
+        
+        .priority-medium {
+            color: #f39c12;
+            font-weight: bold;
+        }
+        
+        .story-points {
+            background: #3498db;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            text-align: center;
+            font-weight: bold;
+        }
+        
+        .description {
+            max-width: 300px;
+            line-height: 1.4;
+        }
+        
+        .description {
+            max-width: 350px;
+            line-height: 1.4;
+        }
+        
+        .dependencies {
+            max-width: 200px;
+            font-size: 13px;
+        }
+        
+        .input-output {
+            max-width: 400px;
+            font-size: 11px;
+            font-family: 'Courier New', monospace;
+        }
+        
+        .table-creation {
+            max-width: 300px;
+            font-size: 11px;
+            font-family: 'Courier New', monospace;
+        }
+        
+        .json-block {
+            background: #f8f9fa;
+            padding: 8px;
+            border-radius: 4px;
+            border: 1px solid #e9ecef;
+            margin: 5px 0;
+        }
+        
+        .sql-block {
+            background: #f1f3f4;
+            padding: 8px;
+            border-radius: 4px;
+            border: 1px solid #dadce0;
+            margin: 5px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Workflow Management System - User Stories</h1>
+        
+        <table>
+            <thead>
+                <tr>
+                    <th>Story #</th>
+                    <th>Description</th>
+                    <th>Input/Output JSON</th>
+                    <th>Table Creations</th>
+                    <th>Story Points</th>
+                    <th>Priority</th>
+                    <th>Epic</th>
+                    <th>Main Dependencies</th>
+                    <th>Labels</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>Story 1:</strong><br>Stage Completion Percentage API</td>
+                    <td class="description">
+                        Create a REST API endpoint that calculates and returns completion percentages for each workflow stage using the formula: (completed_processes / total_processes) * 100 for a given application and business date, including average processing times per stage.
+                    </td>
+                    <td class="input-output">
+                        <div class="json-block">
+                            <strong>Input:</strong><br>
+                            GET /api/workflow/stage-completion?app_id=123&business_date=2025-08-10
+                        </div>
+                        <div class="json-block">
+                            <strong>Output:</strong><br>
+                            {<br>
+                            &nbsp;&nbsp;"success": true,<br>
+                            &nbsp;&nbsp;"overall_completion": 68.5,<br>
+                            &nbsp;&nbsp;"stages": [{<br>
+                            &nbsp;&nbsp;&nbsp;&nbsp;"stage_name": "Pre WF",<br>
+                            &nbsp;&nbsp;&nbsp;&nbsp;"total_processes": 9,<br>
+                            &nbsp;&nbsp;&nbsp;&nbsp;"completed_processes": 9,<br>
+                            &nbsp;&nbsp;&nbsp;&nbsp;"completion_percentage": 100.0,<br>
+                            &nbsp;&nbsp;&nbsp;&nbsp;"avg_time_minutes": 12.5<br>
+                            &nbsp;&nbsp;}]<br>
+                            }
+                        </div>
+                    </td>
+                    <td class="table-creation">
+                        <div class="sql-block">
+                            <strong>Uses Existing Tables:</strong><br>
+                            • WORKFLOW_PROCESS<br>
+                            • WORKFLOW_STAGE<br>
+                            • WORKFLOW_APPLICATION<br><br>
+                            <strong>No New Tables Required</strong>
+                        </div>
+                    </td>
+                    <td><span class="story-points">5</span></td>
+                    <td class="priority-medium">Medium</td>
+                    <td class="epic">Workflow API Services</td>
+                    <td class="dependencies">
+                        • WORKFLOW_PROCESS table<br>
+                        • WORKFLOW_STAGE table<br>
+                        • Database connection utilities<br>
+                        • JSON response formatting
+                    </td>
+                    <td class="labels">backend, api, python, database</td>
+                </tr>
+                <tr>
+                    <td><strong>Story 2:</strong><br>Processing Time Trends API</td>
+                    <td class="description">
+                        Create a REST API endpoint that calculates and returns average processing times for each workflow stage across multiple time periods (weeks/days) to analyze performance trends and identify processing bottlenecks.
+                    </td>
+                    <td class="input-output">
+                        <div class="json-block">
+                            <strong>Input:</strong><br>
+                            GET /api/workflow/processing-time-trends?app_id=123&start_date=2025-07-01&end_date=2025-08-15&period_type=week
+                        </div>
+                        <div class="json-block">
+                            <strong>Output:</strong><br>
+                            {<br>
+                            &nbsp;&nbsp;"success": true,<br>
+                            &nbsp;&nbsp;"period_type": "week",<br>
+                            &nbsp;&nbsp;"stages": {<br>
+                            &nbsp;&nbsp;&nbsp;&nbsp;"Pre WF": [12.5, 11.8, 13.2],<br>
+                            &nbsp;&nbsp;&nbsp;&nbsp;"Substantiation": [18.3, 16.9, 17.5]<br>
+                            &nbsp;&nbsp;}<br>
+                            }
+                        </div>
+                    </td>
+                    <td class="table-creation">
+                        <div class="sql-block">
+                            <strong>Uses Existing Tables:</strong><br>
+                            • WORKFLOW_PROCESS<br>
+                            • WORKFLOW_STAGE<br><br>
+                            <strong>No New Tables Required</strong>
+                        </div>
+                    </td>
+                    <td><span class="story-points">8</span></td>
+                    <td class="priority-medium">Medium</td>
+                    <td class="epic">Workflow Analytics API Services</td>
+                    <td class="dependencies">
+                        • WORKFLOW_PROCESS table<br>
+                        • WORKFLOW_STAGE table<br>
+                        • Date/time utility functions<br>
+                        • Database connection utilities
+                    </td>
+                    <td class="labels">backend, api, python, analytics, trends</td>
+                </tr>
+                
+                <tr>
+                    <td><strong>Story 3:</strong><br>SLA Performance Metrics API</td>
+                    <td class="description">
+                        Create a REST API endpoint that calculates SLA performance metrics for each workflow stage, including target vs actual times, compliance percentages, trends, and status indicators. Uses configurable target times since no targets exist per stage currently.
+                    </td>
+                    <td class="input-output">
+                        <div class="json-block">
+                            <strong>Input:</strong><br>
+                            GET /api/workflow/sla-performance?app_id=123&business_date=2025-08-10
+                        </div>
+                        <div class="json-block">
+                            <strong>Output:</strong><br>
+                            {<br>
+                            &nbsp;&nbsp;"success": true,<br>
+                            &nbsp;&nbsp;"stages": [{<br>
+                            &nbsp;&nbsp;&nbsp;&nbsp;"stage_name": "Data Collection",<br>
+                            &nbsp;&nbsp;&nbsp;&nbsp;"target_time_minutes": 15,<br>
+                            &nbsp;&nbsp;&nbsp;&nbsp;"actual_avg_time": 10.0,<br>
+                            &nbsp;&nbsp;&nbsp;&nbsp;"sla_compliance": 98.0,<br>
+                            &nbsp;&nbsp;&nbsp;&nbsp;"trend_percentage": 2.3,<br>
+                            &nbsp;&nbsp;&nbsp;&nbsp;"status": "Good"<br>
+                            &nbsp;&nbsp;}]<br>
+                            }
+                        </div>
+                    </td>
+                    <td class="table-creation">
+                        <div class="sql-block">
+                            <strong>Uses Existing Tables:</strong><br>
+                            • WORKFLOW_PROCESS<br>
+                            • WORKFLOW_STAGE<br><br>
+                            <strong>Future Enhancement:</strong><br>
+                            CREATE TABLE WORKFLOW_STAGE_SLA (<br>
+                            &nbsp;&nbsp;STAGE_ID NUMBER,<br>
+                            &nbsp;&nbsp;TARGET_TIME_MINUTES NUMBER<br>
+                            );
+                        </div>
+                    </td>
+                    <td><span class="story-points">13</span></td>
+                    <td class="priority-high">High</td>
+                    <td class="epic">Workflow SLA Monitoring API Services</td>
+                    <td class="dependencies">
+                        • WORKFLOW_PROCESS table<br>
+                        • WORKFLOW_STAGE table<br>
+                        • SLA configuration management<br>
+                        • Date/time utility functions
+                    </td>
+                    <td class="labels">backend, api, python, sla, performance, metrics</td>
+                </tr>
+                
+                <tr>
+                    <td><strong>Story 4:</strong><br>Process Issues Management System</td>
+                    <td class="description">
+                        Create a comprehensive backend system for managing workflow process issues and teams including database table creation, audit functionality, and full CRUD operations. Features team management with 3-level escalation support and complete issue lifecycle management.
+                    </td>
+                    <td class="input-output">
+                        <div class="json-block">
+                            <strong>Create Team Input:</strong><br>
+                            POST /api/workflow/teams<br>
+                            {<br>
+                            &nbsp;&nbsp;"team_name": "PnL Team",<br>
+                            &nbsp;&nbsp;"support_email": "pnl@company.com",<br>
+                            &nbsp;&nbsp;"escalation_l1_email": "l1@company.com"<br>
+                            }
+                        </div>
+                        <div class="json-block">
+                            <strong>Create Issue Input:</strong><br>
+                            POST /api/workflow/issues<br>
+                            {<br>
+                            &nbsp;&nbsp;"issue_title": "PnL calculation failure",<br>
+                            &nbsp;&nbsp;"team_id": 1,<br>
+                            &nbsp;&nbsp;"priority": "Critical",<br>
+                            &nbsp;&nbsp;"business_date": "2025-05-16"<br>
+                            }
+                        </div>
+                    </td>
+                    <td class="table-creation">
+                        <div class="sql-block">
+                            <strong>New Tables Created:</strong><br><br>
+                            CREATE TABLE WORKFLOW_TEAMS (<br>
+                            &nbsp;&nbsp;TEAM_ID NUMBER PRIMARY KEY,<br>
+                            &nbsp;&nbsp;TEAM_NAME VARCHAR2(255),<br>
+                            &nbsp;&nbsp;SUPPORT_EMAIL VARCHAR2(255),<br>
+                            &nbsp;&nbsp;ESCALATION_L1_EMAIL VARCHAR2(255),<br>
+                            &nbsp;&nbsp;ESCALATION_L2_EMAIL VARCHAR2(255),<br>
+                            &nbsp;&nbsp;ESCALATION_L3_EMAIL VARCHAR2(255)<br>
+                            );<br><br>
+                            CREATE TABLE WORKFLOW_PROCESS_ISSUES (<br>
+                            &nbsp;&nbsp;ISSUE_ID NUMBER PRIMARY KEY,<br>
+                            &nbsp;&nbsp;TEAM_ID NUMBER,<br>
+                            &nbsp;&nbsp;ISSUE_TITLE VARCHAR2(500),<br>
+                            &nbsp;&nbsp;PRIORITY VARCHAR2(20),<br>
+                            &nbsp;&nbsp;STATUS VARCHAR2(20),<br>
+                            &nbsp;&nbsp;ESCALATION_LEVEL NUMBER(1,0)<br>
+                            );
+                        </div>
+                    </td>
+                    <td><span class="story-points">34</span></td>
+                    <td class="priority-high">High</td>
+                    <td class="epic">Workflow Issue Management System</td>
+                    <td class="dependencies">
+                        • Database migration framework<br>
+                        • SQLAlchemy ORM<br>
+                        • FastAPI/Django REST<br>
+                        • Authentication system<br>
+                        • Email notification system
+                    </td>
+                    <td class="labels">backend, api, python, database, crud, audit</td>
+                </tr>
+                
+                <tr>
+                    <td><strong>Story 5:</strong><br>Team Workload & Application Status APIs</td>
+                    <td class="description">
+                        Create backend APIs that provide team workload metrics (capacity, issue distribution, critical counts) and application status breakdowns using existing issue tables. Includes mock data population scripts with realistic scenarios.
+                    </td>
+                    <td class="input-output">
+                        <div class="json-block">
+                            <strong>Team Workload Input:</strong><br>
+                            GET /api/workflow/analytics/team-workload?business_date=2025-05-16
+                        </div>
+                        <div class="json-block">
+                            <strong>Team Workload Output:</strong><br>
+                            {<br>
+                            &nbsp;&nbsp;"teams": [{<br>
+                            &nbsp;&nbsp;&nbsp;&nbsp;"team_name": "PnL Team",<br>
+                            &nbsp;&nbsp;&nbsp;&nbsp;"active_issues": 5,<br>
+                            &nbsp;&nbsp;&nbsp;&nbsp;"capacity_percentage": 85,<br>
+                            &nbsp;&nbsp;&nbsp;&nbsp;"critical_issues": 2,<br>
+                            &nbsp;&nbsp;&nbsp;&nbsp;"resolved_today": 1<br>
+                            &nbsp;&nbsp;}]<br>
+                            }
+                        </div>
+                        <div class="json-block">
+                            <strong>Application Status Output:</strong><br>
+                            {<br>
+                            &nbsp;&nbsp;"applications": [{<br>
+                            &nbsp;&nbsp;&nbsp;&nbsp;"application_name": "PnL System",<br>
+                            &nbsp;&nbsp;&nbsp;&nbsp;"total_issues": 2,<br>
+                            &nbsp;&nbsp;&nbsp;&nbsp;"active_issues": 2,<br>
+                            &nbsp;&nbsp;&nbsp;&nbsp;"in_progress_issues": 2<br>
+                            &nbsp;&nbsp;}]<br>
+                            }
+                        </div>
+                    </td>
+                    <td class="table-creation">
+                        <div class="sql-block">
+                            <strong>Uses Tables from Story 4:</strong><br>
+                            • WORKFLOW_TEAMS<br>
+                            • WORKFLOW_PROCESS_ISSUES<br><br>
+                            <strong>Mock Data Population:</strong><br>
+                            • 5 Teams with escalation info<br>
+                            • 26 Issues across teams<br>
+                            • Various priorities and statuses<br>
+                            • Business date: 2025-05-16
+                        </div>
+                    </td>
+                    <td><span class="story-points">13</span></td>
+                    <td class="priority-medium">Medium</td>
+                    <td class="epic">Workflow Issue Analytics API</td>
+                    <td class="dependencies">
+                        • WORKFLOW_TEAMS table<br>
+                        • WORKFLOW_PROCESS_ISSUES table<br>
+                        • Date/time utility functions<br>
+                        • Mock data generation scripts
+                    </td>
+                    <td class="labels">backend, api, python, analytics, dashboard, mock-data</td>
+                </tr>
+            </tbody>
+        </table>
+        
+        <div style="margin-top: 30px; padding: 15px; background-color: #e8f4f8; border-radius: 5px;">
+            <h3>Summary</h3>
+            <p><strong>Total Story Points:</strong> 73</p>
+            <p><strong>Total Stories:</strong> 5</p>
+            <p><strong>High Priority:</strong> 2 stories (47 points)</p>
+            <p><strong>Medium Priority:</strong> 3 stories (26 points)</p>
+            <p><strong>Technology Stack:</strong> Python, FastAPI/Django, Oracle Database, SQLAlchemy ORM</p>
+        </div>
+    </div>
+</body>
+</html>
