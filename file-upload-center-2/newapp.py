@@ -8,6 +8,7 @@ import logging
 import requests
 import smtplib
 from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 from dotenv import load_dotenv
 
 # Load environment variables
@@ -15,19 +16,20 @@ load_dotenv()
 
 # Config variables
 ALLOWED_EXTENSIONS = os.getenv('ALLOWED_EXTENSIONS', '').split(',') if os.getenv('ALLOWED_EXTENSIONS') else set()
-UPLOAD_BASE_DIR = os.getenv('UPLOAD_BASE_DIR', r'C:\shared')
-DB_PATH = os.getenv('DB_PATH', r'C:\shared\uploads.db')
-LOG_FILE = os.getenv('LOG_FILE', r'C:\logs\app.log')
-SERVER_HOST = os.getenv('SERVER_HOST', '0.0.0.0')
+UPLOAD_BASE_DIR = os.getenv('UPLOAD_BASE_DIR', r'C:\shared_dev')
+DB_PATH = os.getenv('DB_PATH', r'C:\shared_dev\uploads.db')
+LOG_FILE = os.getenv('LOG_FILE', r'C:\devhome\projects\python\file-upload-center\logs\app_dev.log')
+SERVER_HOST = os.getenv('SERVER_HOST', 'localhost')
 PORT = int(os.getenv('PORT', 3000))
-ALLOWED_ORIGINS = os.getenv('ALLOWED_ORIGINS', '*').split(',')
-
+ALLOWED_ORIGINS = os.getenv('ALLOWED_ORIGINS', 'http://localhost:3001,http://127.0.0.1:3001').split(',')
+USERINFO_API_URL = os.getenv('USERINFO_API_URL', 'http://api/some')
+USE_MOCK_USERINFO = os.getenv('USE_MOCK_USERINFO', 'False') == 'True'
 MAIL_HOST = os.getenv('MAIL_HOST', 'smtp.example.com')
 MAIL_PORT = int(os.getenv('MAIL_PORT', 587))
-MAIL_USERNAME = os.getenv('MAIL_USERNAME')
-MAIL_PASSWORD = os.getenv('MAIL_PASSWORD')
+MAIL_USERNAME = os.getenv('MAIL_USERNAME', '')
+MAIL_PASSWORD = os.getenv('MAIL_PASSWORD', '')
 MAIL_FROM = os.getenv('MAIL_FROM', 'no-reply@example.com')
-
+API_BASE_URL = os.getenv('API_BASE_URL', 'http://localhost:3000')
 DEBUG = os.getenv('DEBUG', 'True') == 'True'
 LOG_LEVEL = os.getenv('LOG_LEVEL', 'DEBUG')
 MAX_FILE_SIZE = 100 * 1024 * 1024  # 100MB
@@ -164,74 +166,40 @@ def validate_file_location(location):
         logging.error('Invalid file location %s: %s', location, str(e))
         return False
 
-# Fetch uploads for a user
-def get_user_uploads(user_id, from_date=None, to_date=None, search_query=None, application_id=None, location_id=None):
-    try:
-        with sqlite3.connect(DB_PATH) as conn:
-            cursor = conn.cursor()
-            base_conditions = []
-            params = []
-            
-            if from_date:
-                from_datetime = f"{from_date}T00:00:00"
-                base_conditions.append("u.upload_time >= ?")
-                params.append(from_datetime)
-            
-            if to_date:
-                to_datetime = f"{to_date}T23:59:59.999999"
-                base_conditions.append("u.upload_time <= ?")
-                params.append(to_datetime)
-            
-            if search_query:
-                base_conditions.append("u.filename LIKE ?")
-                params.append(f'%{search_query}%')
-            
-            if application_id:
-                base_conditions.append("u.application_id = ?")
-                params.append(application_id)
-            
-            if location_id:
-                base_conditions.append("u.location_id = ?")
-                params.append(location_id)
-            
-            additional_conditions = ""
-            if base_conditions:
-                additional_conditions = " AND " + " AND ".join(base_conditions)
-            
-            query = f'''
-                SELECT u.id, u.filename, u.size, u.upload_time, u.user_id, u.file_location, u.download_count, u.application_id, u.location_id
-                FROM uploads u 
-                WHERE u.user_id = ?{additional_conditions}
-                UNION
-                SELECT u.id, u.filename, u.size, u.upload_time, u.user_id, u.file_location, u.download_count, u.application_id, u.location_id
-                FROM uploads u 
-                JOIN shared_uploads s ON u.id = s.upload_id 
-                WHERE s.shared_with = ?{additional_conditions}
-                ORDER BY upload_time DESC
-            '''
-            
-            query_params = [user_id] + params + [user_id] + params
-            
-            logging.debug('Executing query: %s with params: %s', query, query_params)
-            cursor.execute(query, query_params)
-            uploads = [
+# Fetch user info from external API or mock
+def get_user_info(userid):
+    if USE_MOCK_USERINFO:
+        logging.debug('Using mock user info for userid: %s', userid)
+        return {
+            "userConfigs": [
                 {
-                    'id': row[0],
-                    'filename': row[1],
-                    'size': row[2],
-                    'upload_time': row[3],
-                    'user_id': row[4],
-                    'file_location': row[5],
-                    'download_count': row[6],
-                    'application_id': row[7],
-                    'location_id': row[8]
-                } for row in cursor.fetchall()
+                    "id": 0,
+                    "displayName": f"Mock User {userid}",
+                    "username": "DirectoryServices.ValueCollection",
+                    "active": null,
+                    "createdBy": null,
+                    "action": null,
+                    "email": f"{userid}@example.com"
+                }
             ]
-            logging.debug('Fetched %d uploads for user %s', len(uploads), user_id)
-            return uploads
+        }
+    try:
+        url = f"{USERINFO_API_URL}/{userid}"
+        response = requests.get(url, timeout=5)
+        if response.status_code == 200:
+            data = response.json()
+            if "userConfigs" in data and len(data["userConfigs"]) > 0:
+                logging.debug('Fetched user info for %s: %s', userid, data)
+                return data
+            else:
+                logging.error('No user config found for %s', userid)
+                return None
+        else:
+            logging.error('Failed to fetch user info for %s: status=%s', userid, response.status_code)
+            return None
     except Exception as e:
-        logging.error('Error fetching uploads: %s', str(e))
-        return []
+        logging.error('Error fetching user info for %s: %s', userid, str(e))
+        return None
 
 # Config endpoint
 @app.route('/api/config', methods=['GET'])
@@ -242,6 +210,17 @@ def get_config_info():
             'allowed_extensions': list(ALLOWED_EXTENSIONS) if ALLOWED_EXTENSIONS else []
         }
     }), 200
+
+# User info endpoint
+@app.route('/api/userinfo/<userid>', methods=['GET'])
+def get_userinfo(userid):
+    user_info = get_user_info(userid)
+    if user_info:
+        return jsonify(user_info), 200
+    return jsonify({
+        'status': 'error',
+        'message': 'User not found'
+    }), 404
 
 # Create application endpoint
 @app.route('/api/applications', methods=['POST'])
@@ -469,7 +448,7 @@ def upload_file():
             'message': 'Server error'
         }), 500
 
-# Share file endpoint
+# Share file endpoint with HTML email
 @app.route('/api/share/<int:upload_id>', methods=['POST'])
 @require_user_id
 def share_file(upload_id):
@@ -487,7 +466,14 @@ def share_file(upload_id):
     try:
         with sqlite3.connect(DB_PATH) as conn:
             cursor = conn.cursor()
-            cursor.execute('SELECT id, filename FROM uploads WHERE id = ? AND user_id = ?', (upload_id, user_id))
+            cursor.execute(
+                'SELECT u.filename, u.size, u.upload_time, u.file_location, u.application_id, u.location_id, a.name, l.location_name '
+                'FROM uploads u '
+                'JOIN applications a ON u.application_id = a.id '
+                'JOIN application_locations l ON u.location_id = l.id '
+                'WHERE u.id = ? AND u.user_id = ?',
+                (upload_id, user_id)
+            )
             upload = cursor.fetchone()
             if not upload:
                 logging.error('Upload %d not found or not owned by %s', upload_id, user_id)
@@ -496,7 +482,7 @@ def share_file(upload_id):
                     'message': 'Upload not found or not owned'
                 }), 404
 
-            filename = upload[1]
+            filename, size, upload_time, file_location, application_id, location_id, application_name, location_name = upload
 
             cursor.execute(
                 'INSERT INTO shared_uploads (upload_id, shared_by, shared_with, shared_time) VALUES (?, ?, ?, ?)',
@@ -506,26 +492,73 @@ def share_file(upload_id):
             logging.debug('Shared upload %d with %s', upload_id, shared_with)
 
         if send_email:
-            email_url = f"http://api/some/{shared_with}"
-            email_response = requests.get(email_url)
-            if email_response.status_code == 200:
-                email_data = email_response.json()
-                email = email_data.get('email')
-                if email:
-                    msg = MIMEText(f"User {user_id} shared a file with you: {filename}")
-                    msg['Subject'] = 'File Shared with You'
-                    msg['From'] = MAIL_FROM
-                    msg['To'] = email
-                    try:
-                        with smtplib.SMTP(MAIL_HOST, MAIL_PORT) as server:
-                            server.login(MAIL_USERNAME, MAIL_PASSWORD)
-                            server.sendmail(MAIL_FROM, [email], msg.as_string())
-                        logging.debug('Sent email to %s for share %d', email, upload_id)
-                    except Exception as e:
-                        logging.error('Error sending email: %s', str(e))
-                        # Don't fail the share if email fails
+            # Fetch sender and recipient user info
+            sender_info = get_user_info(user_id)
+            recipient_info = get_user_info(shared_with)
+            sender_display_name = sender_info["userConfigs"][0]["displayName"] if sender_info and sender_info["userConfigs"] else user_id
+            recipient_email = recipient_info["userConfigs"][0]["email"] if recipient_info and recipient_info["userConfigs"] else None
+            recipient_display_name = recipient_info["userConfigs"][0]["displayName"] if recipient_info and recipient_info["userConfigs"] else shared_with
+
+            if recipient_email:
+                # Prepare HTML email
+                email_body = f"""
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <style>
+    body {{ font-family: Arial, sans-serif; color: #333; line-height: 1.6; }}
+    .container {{ max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 5px; }}
+    .header {{ background-color: #2a73b2; color: white; padding: 10px; text-align: center; border-radius: 5px 5px 0 0; }}
+    .content {{ padding: 20px; background-color: #f9f9f9; }}
+    .button {{ display: inline-block; padding: 10px 20px; background-color: #2a73b2; color: white; text-decoration: none; border-radius: 5px; }}
+    .footer {{ text-align: center; font-size: 12px; color: #777; margin-top: 20px; }}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h2>File Shared with You</h2>
+    </div>
+    <div class="content">
+      <p>Hello {recipient_display_name},</p>
+      <p>{sender_display_name} has shared a file with you via the File Upload Center.</p>
+      <h3>File Details</h3>
+      <ul>
+        <li><strong>Filename:</strong> {filename}</li>
+        <li><strong>Application:</strong> {application_name}</li>
+        <li><strong>Folder:</strong> {location_name} ({file_location})</li>
+        <li><strong>Size:</strong> {size / 1024:.2f} KB</li>
+        <li><strong>Uploaded:</strong> {upload_time}</li>
+      </ul>
+      <p>
+        <a href="{API_BASE_URL}/api/download/{filename}" class="button">Download File</a>
+      </p>
+      <p>Please contact the sender for any questions.</p>
+    </div>
+    <div class="footer">
+      <p>File Upload Center Team</p>
+    </div>
+  </div>
+</body>
+</html>
+"""
+                msg = MIMEMultipart()
+                msg['Subject'] = 'File Shared with You - File Upload Center'
+                msg['From'] = MAIL_FROM
+                msg['To'] = recipient_email
+                msg.attach(MIMEText(email_body, 'html'))
+
+                try:
+                    with smtplib.SMTP(MAIL_HOST, MAIL_PORT) as server:
+                        server.starttls()
+                        server.login(MAIL_USERNAME, MAIL_PASSWORD)
+                        server.sendmail(MAIL_FROM, [recipient_email], msg.as_string())
+                    logging.debug('Sent email to %s for share %d', recipient_email, upload_id)
+                except Exception as e:
+                    logging.error('Error sending email to %s: %s', recipient_email, str(e))
             else:
-                logging.error('Failed to fetch email for %s: status=%s', shared_with, email_response.status_code)
+                logging.error('No email found for user %s', shared_with)
 
         return jsonify({
             'status': 'success',
@@ -537,6 +570,75 @@ def share_file(upload_id):
             'status': 'error',
             'message': 'Database error'
         }), 500
+
+# Fetch user uploads with filters
+def get_user_uploads(user_id, from_date=None, to_date=None, search_query=None, application_id=None, location_id=None):
+    try:
+        with sqlite3.connect(DB_PATH) as conn:
+            cursor = conn.cursor()
+            base_conditions = []
+            params = []
+            
+            if from_date:
+                from_datetime = f"{from_date}T00:00:00"
+                base_conditions.append("u.upload_time >= ?")
+                params.append(from_datetime)
+            
+            if to_date:
+                to_datetime = f"{to_date}T23:59:59.999999"
+                base_conditions.append("u.upload_time <= ?")
+                params.append(to_datetime)
+            
+            if search_query:
+                base_conditions.append("u.filename LIKE ?")
+                params.append(f'%{search_query}%')
+            
+            if application_id:
+                base_conditions.append("u.application_id = ?")
+                params.append(application_id)
+            
+            if location_id:
+                base_conditions.append("u.location_id = ?")
+                params.append(location_id)
+            
+            additional_conditions = ""
+            if base_conditions:
+                additional_conditions = " AND " + " AND ".join(base_conditions)
+            
+            query = f'''
+                SELECT u.id, u.filename, u.size, u.upload_time, u.user_id, u.file_location, u.download_count, u.application_id, u.location_id
+                FROM uploads u 
+                WHERE u.user_id = ?{additional_conditions}
+                UNION
+                SELECT u.id, u.filename, u.size, u.upload_time, u.user_id, u.file_location, u.download_count, u.application_id, u.location_id
+                FROM uploads u 
+                JOIN shared_uploads s ON u.id = s.upload_id 
+                WHERE s.shared_with = ?{additional_conditions}
+                ORDER BY upload_time DESC
+            '''
+            
+            query_params = [user_id] + params + [user_id] + params
+            
+            logging.debug('Executing query: %s with params: %s', query, query_params)
+            cursor.execute(query, query_params)
+            uploads = [
+                {
+                    'id': row[0],
+                    'filename': row[1],
+                    'size': row[2],
+                    'upload_time': row[3],
+                    'user_id': row[4],
+                    'file_location': row[5],
+                    'download_count': row[6],
+                    'application_id': row[7],
+                    'location_id': row[8]
+                } for row in cursor.fetchall()
+            ]
+            logging.debug('Fetched %d uploads for user %s', len(uploads), user_id)
+            return uploads
+    except Exception as e:
+        logging.error('Error fetching uploads: %s', str(e))
+        return []
 
 # List uploads endpoint
 @app.route('/api/uploads', methods=['GET'])
@@ -616,7 +718,7 @@ def download_file(filename):
         file_path = os.path.join(file_location, filename)
         if os.path.exists(file_path):
             return send_file(file_path, as_attachment=True)
-        logging.error('File not found: %s', filename)
+        logging.error('File not found: %s', file_path)
         return jsonify({
             'status': 'error',
             'message': 'File not found'
