@@ -1,0 +1,57 @@
+ft.source_system
+
+→ The system that the file came from (example: ACBS, LOANIQ, BPS294).
+
+DECODE(ft.source_system, 'BPS294', 'BPS294-NEWYORK', NVL(b.system_id, ft.source_system))
+
+→ A cleanup step:
+
+If the source system is BPS294, rename it to BPS294-NEWYORK.
+
+Otherwise, take the system_id from mapping table b.
+
+If that’s null, fall back to the original ft.source_system.
+
+
+
+This makes sure the “Flex Balance Source” name is standardized.
+
+Counts & percentages:
+
+COUNT(*) → total_count = total number of file records for that system.
+
+loaded_count = how many files are already processed (LOADED or SKIPPED).
+
+pending_count = how many are still pending or errored.
+
+load_status_percent = % of successful files (loaded_count ÷ total_count).
+
+
+
+This is exactly the same logic as the earlier query, just wrapped in stricter filtering.
+
+FROM ... JOIN ...
+
+fri_source_file_calendar fc → the file records table (with file status + date).
+
+fri_source_file_type ft → lookup table for file metadata (system, type, etc.).
+
+LEFT JOIN b → mapping table for extra system IDs.
+
+WHERE conditions:
+
+Exclude certain systems → 'REDW','MOTIF','SAP', etc. are ignored.
+
+Only files with action = ‘SPLIT’ are included (probably means files that were split for processing).
+
+Only files from the current business date ($GETCOBDATE).
+
+Ignore file types starting with BRADIAL%.
+
+Only keep active file types (where ft.end_date = '31-DEC-9999' = still valid).
+
+Exclude fake placeholder dates (date <> '31-DEC-9999').
+
+GROUP BY
+
+Groups the counts by source_system + Flex_Balance_Source so you get a row per system.
