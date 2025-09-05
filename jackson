@@ -1,0 +1,21 @@
+@Bean
+public MappingJackson2HttpMessageConverter mappingJackson2HttpMessageConverter(ObjectMapper objectMapper) {
+    Hibernate5Module hm = new Hibernate5Module();
+    hm.configure(Hibernate5Module.Feature.FORCE_LAZY_LOADING, false);
+    hm.configure(Hibernate5Module.Feature.SERIALIZE_IDENTIFIER_FOR_LAZY_NOT_LOADED_OBJECTS, true);
+
+    // Use Boot's managed ObjectMapper
+    objectMapper.registerModule(hm);
+    objectMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+    objectMapper.setTimeZone(TimeZone.getDefault());
+
+    return new MappingJackson2HttpMessageConverter(objectMapper);
+}
+
+@Bean
+public Module hibernateModule() {
+    Hibernate5Module module = new Hibernate5Module();
+    module.configure(Hibernate5Module.Feature.FORCE_LAZY_LOADING, false);
+    module.configure(Hibernate5Module.Feature.SERIALIZE_IDENTIFIER_FOR_LAZY_NOT_LOADED_OBJECTS, true);
+    return module;
+}
