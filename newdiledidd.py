@@ -2,7 +2,6 @@ import pandas as pd
 import logging
 import sys
 import hashlib  # For hashing fallback
-from itertools import combinations
 
 # Step 0: Set up logging
 logging.basicConfig(
@@ -50,109 +49,59 @@ if not common_columns:
     sys.exit(1)
 
 # Step 5: Filter dataframes to common columns
-df1_common = df1[list(common_columns)]
-df2_common = df2[list(common_columns)]
+df1_common = df1[list(common_columns)].copy()
+df2_common = df2[list(common_columns)].copy()
 logger.info("Filtered dataframes to common columns.")
 
-# Step 6: Auto-detect composite key prioritizing low-cardinality combinations
-def find_composite_key(df, columns, low_card_threshold=0.2, max_low_card=20, max_combo_size=3):
-    """Auto-detect minimal unique combo: Prioritize low-cardinality columns (e.g., group, location).
-    Test pairs/triples of low-card first, then fallback to high-unique iterative.
-    """
-    logger.info(f"Auto-detecting composite key from {len(columns)} columns.")
-    
-    # Identify low-cardinality columns (nunique / rows < threshold, e.g., 0.2 for groups/locations)
-    low_card_ratios = {}
-    for col in columns:
-        try:
-            unique_count = df[col].nunique()
-            ratio = unique_count / len(df) if len(df) > 0 else 0
-            if ratio < low_card_threshold:
-                low_card_ratios[col] = ratio
-        except Exception as e:
-            logger.warning(f"Skipping '{col}': {e}")
-    
-    low_card_cols = sorted(low_card_ratios, key=low_card_ratios.get)[:max_low_card]  # Sort by ratio asc (lowest first)
-    logger.info(f"Low-cardinality columns (threshold {low_card_threshold}): {low_card_cols[:10]}")  # Top 10
-    
-    # Test small combos of low-card first (pairs, then triples)
-    for size in range(2, max_combo_size + 1):
-        if len(low_card_cols) >= size:
-            logger.info(f"Testing {size}-column combos from low-card columns...")
-            for combo in combinations(low_card_cols, size):
-                try:
-                    if df[list(combo)].duplicated().sum() == 0:
-                        logger.info(f"Found unique low-card combo: {list(combo)}")
-                        return list(combo)
-                except Exception as e:
-                    logger.warning(f"Error testing {combo}: {e}")
-    
-    # Fallback: Iterative high-unique (as before)
-    logger.info("No low-card unique combo; falling back to high-unique iterative.")
-    high_ratios = {}
-    for col in columns:
-        try:
-            unique_count = df[col].nunique()
-            high_ratios[col] = unique_count / len(df) if len(df) > 0 else 0
-        except:
-            high_ratios[col] = 0
-    sorted_high = sorted(high_ratios, key=high_ratios.get, reverse=True)
-    logger.info(f"Top high-unique columns: {sorted_high[:10]}")
-    current_combo = []
-    for col in sorted_high[:15]:  # Limit to 15
-        current_combo.append(col)
-        try:
-            if df[current_combo].duplicated().sum() == 0:
-                logger.info(f"Heuristic found high-unique key: {current_combo}")
-                return current_combo
-        except Exception as e:
-            logger.warning(f"Error in high-unique test: {e}")
-    
-    logger.warning("Fallback: Using all columns (may have duplicates).")
-    return list(columns)
+# Step 6: For full file matching, use ALL common columns as the "key" for row equality
+composite_key = list(common_columns)  # Compare entire rows across all common columns
+logger.info(f"Using all {len(composite_key)} common columns for full row matching.")
 
-composite_key = find_composite_key(df1_common, common_columns)
-logger.info(f"Final auto-detected composite key: {composite_key}")
+# Step 7: Standardize data types in key columns to avoid merge errors (coerce to string)
+for col in composite_key:
+    df1_common[col] = df1_common[col].astype(str)
+    df2_common[col] = df2_common[col].astype(str)
+logger.info("Standardized all columns to string for consistent merging.")
 
-# Step 7: Remove duplicates based on composite key
+# Step 8: Remove duplicates based on all columns (full row uniqueness)
 df1_common = df1_common.drop_duplicates(subset=composite_key, keep='first')
 df2_common = df2_common.drop_duplicates(subset=composite_key, keep='first')
 logger.info(f"After deduplication - file1: {len(df1_common)} rows, file2: {len(df2_common)} rows")
 
-# Step 8: Log data types for key
-for df_name, df in [("file1", df1_common), ("file2", df2_common)]:
-    logger.info(f"Data types in key ({df_name}):")
-    for col in composite_key:
-        logger.info(f"  {col}: {df[col].dtype}")
+# Step 9: Log data types (now all string)
+logger.info("All key columns standardized to object (string).")
 
-# Step 9: Outer merge (with hash fallback)
+# Step 10: Outer merge on all columns (full row comparison)
 try:
-    merged_df = df1_common.merge(df2_common, how='outer', on=composite_key, indicator=True)
-    logger.info("Merge completed.")
+    merged_df = df1_common.merge(df2_common, how='outer', on=composite_key, indicator=True, suffixes=('_file1', '_file2'))
+    logger.info("Full row merge completed successfully.")
 except Exception as e:
     logger.error(f"Merge failed: {e}. Using hash fallback...")
     try:
+        # Fallback: Hash entire row
         def hash_row(row):
-            return hashlib.md5('_'.join(str(val) for val in row[composite_key].values if pd.notna(val)).encode()).hexdigest()
-        df1_common['key_hash'] = df1_common.apply(hash_row, axis=1)
-        df2_common['key_hash'] = df2_common.apply(hash_row, axis=1)
-        merged_df = df1_common.merge(df2_common, how='outer', left_on='key_hash', right_on='key_hash', indicator=True)
-        merged_df = merged_df.drop('key_hash', axis=1)
+            row_str = '_'.join(str(val) for val in row[composite_key].values if pd.notna(val))
+            return hashlib.md5(row_str.encode()).hexdigest()
+        
+        df1_common['row_hash'] = df1_common.apply(hash_row, axis=1)
+        df2_common['row_hash'] = df2_common.apply(hash_row, axis=1)
+        
+        merged_df = df1_common.merge(df2_common, how='outer', left_on='row_hash', right_on='row_hash', indicator=True, suffixes=('_file1', '_file2'))
+        merged_df = merged_df.drop('row_hash', axis=1)
         logger.info("Hash fallback merge succeeded.")
     except Exception as e2:
         logger.error(f"Fallback failed: {e2}")
         sys.exit(1)
 
-# Step 10: Filter results
-unique_to_file1 = merged_df[merged_df['_merge'] == 'left_only'].drop('_merge', axis=1)
-unique_to_file2 = merged_df[merged_df['_merge'] == 'right_only'].drop('_merge', axis=1)
-matches = merged_df[merged_df['_merge'] == 'both'].drop('_merge', axis=1)
+# Step 11: Filter for non-matching records from file2 (unique to file2)
+non_matching_file2 = merged_df[merged_df['_merge'] == 'right_only'].drop('_merge', axis=1)
+# Clean up suffixes: Since full match, no need for suffixes in output
+non_matching_file2.columns = [col.split('_file2')[0] if col.endswith('_file2') else col for col in non_matching_file2.columns]
 
-# Step 11: Save and summarize
-unique_to_file1.to_csv('unique_records_file1.csv', index=False)
-unique_to_file2.to_csv('unique_records_file2.csv', index=False)
-matches.to_csv('matching_records.csv', index=False)
+# Step 12: Save the comparison file (non-matches from file2)
+non_matching_file2.to_csv('non_matching_file2.csv', index=False)
 with open('auto_key_summary.txt', 'w') as f:
-    f.write(f"Composite key: {composite_key}\n")
-logger.info(f"Results saved. Unique file1: {len(unique_to_file1)}, Unique file2: {len(unique_to_file2)}, Matches: {len(matches)}")
+    f.write(f"Full row comparison using {len(composite_key)} common columns.\n")
+    f.write(f"Non-matching records from file2: {len(non_matching_file2)}\n")
+logger.info(f"Comparison file saved: non_matching_file2.csv ({len(non_matching_file2)} rows)")
 logger.info("Process completed.")
