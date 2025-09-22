@@ -2,6 +2,7 @@ import pandas as pd
 from itertools import combinations  # Not used now, but kept for fallback if needed
 import logging
 import sys
+import hashlib  # For hashing fallback
 
 # Step 0: Set up logging (change to DEBUG for more details)
 logging.basicConfig(
@@ -53,10 +54,10 @@ df1_common = df1[list(common_columns)]
 df2_common = df2[list(common_columns)]
 logger.info("Filtered dataframes to common columns.")
 
-# Step 6: Heuristic auto-detect composite key (fast for many columns)
-def find_composite_key(df, columns, max_cols=3):
-    """Heuristic: Sort columns by uniqueness ratio, test top 1-3 cumulatively."""
-    logger.info(f"Auto-detecting composite key from {len(columns)} columns (heuristic: top {max_cols} by uniqueness).")
+# Step 6: Heuristic auto-detect composite key (iterative addition for larger keys)
+def find_composite_key(df, columns, max_cols=15):  # Increased max to 15; adjust as needed
+    """Heuristic: Sort columns by uniqueness ratio, add one by one until unique combo found."""
+    logger.info(f"Auto-detecting composite key from {len(columns)} columns (heuristic: iterative top uniques, up to {max_cols}).")
     
     # Compute unique ratios
     ratios = {}
@@ -71,34 +72,78 @@ def find_composite_key(df, columns, max_cols=3):
     
     # Sort by descending ratio
     sorted_cols = sorted(ratios, key=ratios.get, reverse=True)
-    logger.info(f"Top unique columns: {sorted_cols[:5]}")  # Show top 5 for insight
+    logger.info(f"Top unique columns: {sorted_cols[:10]}")  # Show top 10 for insight
     
-    # Test cumulative top combos
-    for r in range(1, min(max_cols, len(sorted_cols)) + 1):
-        combo = sorted_cols[:r]
-        logger.info(f"Testing top {r} columns as key: {combo}")
+    # Start with empty combo, add columns iteratively until no duplicates
+    current_combo = []
+    for i, col in enumerate(sorted_cols[:max_cols]):
+        current_combo.append(col)
+        logger.info(f"Testing cumulative combo {i+1}: {current_combo}")
         try:
-            if df[combo].duplicated().sum() == 0:
-                logger.info(f"Found unique composite key: {combo}")
-                return combo
+            if df[current_combo].duplicated().sum() == 0:
+                logger.info(f"Found unique composite key after {len(current_combo)} columns: {current_combo}")
+                return current_combo
         except Exception as e:
-            logger.warning(f"Error testing {combo}: {e}; skipping.")
+            logger.warning(f"Error testing {current_combo}: {e}; continuing to add columns.")
     
-    logger.warning(f"No unique top-{max_cols} combo found; using all columns as fallback.")
-    return list(columns)
+    # If still duplicates after max_cols, add more or fallback
+    if df[current_combo].duplicated().sum() > 0:
+        logger.warning(f"Still duplicates after top {max_cols} columns; adding next 5 to reach uniqueness.")
+        for col in sorted_cols[max_cols:max_cols+5]:
+            current_combo.append(col)
+            logger.info(f"Adding extra column: {current_combo[-1]} (now {len(current_combo)} columns)")
+            try:
+                if df[current_combo].duplicated().sum() == 0:
+                    logger.info(f"Found unique composite key after extra addition: {current_combo}")
+                    return current_combo
+            except Exception as e:
+                logger.warning(f"Error with extra {col}: {e}; continuing.")
+    
+    logger.warning(f"Could not find unique combo within limits; using top {len(current_combo)} columns as fallback (may have duplicates).")
+    return current_combo  # Fallback: top columns (even if not fully unique)
 
 # Detect key from df1 (can use df2 if preferred; uses full data since rows are small)
 composite_key = find_composite_key(df1_common, common_columns)
 logger.info(f"Final auto-detected composite key: {composite_key}")
+
+# Manual override option: Uncomment and set if needed
+# composite_key = ['YourKeyCol1', 'YourKeyCol2']  # e.g., ['ID', 'Date']
 
 # Step 7: Remove duplicates based on composite key (full data)
 df1_common = df1_common.drop_duplicates(subset=composite_key, keep='first')
 df2_common = df2_common.drop_duplicates(subset=composite_key, keep='first')
 logger.info(f"After deduplication - file1: {len(df1_common)} rows, file2: {len(df2_common)} rows")
 
-# Step 8: Perform outer merge on composite key
-merged_df = df1_common.merge(df2_common, how='outer', on=composite_key, indicator=True)
-logger.info("Merge completed.")
+# Step 8: Log data types and sample for key columns
+logger.info("Data types in composite key (file1):")
+for col in composite_key:
+    logger.info(f"  {col}: {df1_common[col].dtype}")
+logger.info("Data types in composite key (file2):")
+for col in composite_key:
+    logger.info(f"  {col}: {df2_common[col].dtype}")
+
+# Step 8: Perform outer merge on composite key (with fallback hashing)
+try:
+    merged_df = df1_common.merge(df2_common, how='outer', on=composite_key, indicator=True)
+    logger.info("Merge completed successfully.")
+except Exception as e:
+    logger.error(f"Direct merge failed: {e}. Attempting fallback with hashed keys...")
+    try:
+        # Fallback: Create hash columns for keys (handles type mismatches/NaNs)
+        def hash_row(row):
+            key_str = '_'.join(str(val) for val in row[composite_key].values if pd.notna(val))
+            return hashlib.md5(key_str.encode()).hexdigest()
+        
+        df1_common['key_hash'] = df1_common.apply(hash_row, axis=1)
+        df2_common['key_hash'] = df2_common.apply(hash_row, axis=1)
+        
+        merged_df = df1_common.merge(df2_common, how='outer', left_on='key_hash', right_on='key_hash', indicator=True)
+        # Drop hash column
+        merged_df = merged_df.drop('key_hash', axis=1)
+        logger.info("Fallback hash-based merge completed successfully.")
+    except Exception as e2:
+        logger.error(f"Fallback merge also failed: {e2}")
+        sys.exit(1)
 
 # Step 9: Filter for unique and matching records
 unique_to_file1 = merged_df[merged_df['_merge'] == 'left_only'].drop('_merge', axis=1)
