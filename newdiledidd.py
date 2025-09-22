@@ -1,16 +1,16 @@
 import pandas as pd
-from itertools import combinations  # Not used now, but kept for fallback if needed
 import logging
 import sys
 import hashlib  # For hashing fallback
+from itertools import combinations
 
-# Step 0: Set up logging (change to DEBUG for more details)
+# Step 0: Set up logging
 logging.basicConfig(
-    level=logging.INFO,  # Set to logging.DEBUG for verbose output
+    level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler('comparison.log'),  # Logs to file
-        logging.StreamHandler(sys.stdout)       # Also logs to console
+        logging.FileHandler('comparison.log'),
+        logging.StreamHandler(sys.stdout)
     ]
 )
 logger = logging.getLogger(__name__)
@@ -54,116 +54,105 @@ df1_common = df1[list(common_columns)]
 df2_common = df2[list(common_columns)]
 logger.info("Filtered dataframes to common columns.")
 
-# Step 6: Heuristic auto-detect composite key (iterative addition for larger keys)
-def find_composite_key(df, columns, max_cols=15):  # Increased max to 15; adjust as needed
-    """Heuristic: Sort columns by uniqueness ratio, add one by one until unique combo found."""
-    logger.info(f"Auto-detecting composite key from {len(columns)} columns (heuristic: iterative top uniques, up to {max_cols}).")
+# Step 6: Auto-detect composite key prioritizing low-cardinality combinations
+def find_composite_key(df, columns, low_card_threshold=0.2, max_low_card=20, max_combo_size=3):
+    """Auto-detect minimal unique combo: Prioritize low-cardinality columns (e.g., group, location).
+    Test pairs/triples of low-card first, then fallback to high-unique iterative.
+    """
+    logger.info(f"Auto-detecting composite key from {len(columns)} columns.")
     
-    # Compute unique ratios
-    ratios = {}
+    # Identify low-cardinality columns (nunique / rows < threshold, e.g., 0.2 for groups/locations)
+    low_card_ratios = {}
     for col in columns:
         try:
             unique_count = df[col].nunique()
-            ratios[col] = unique_count / len(df) if len(df) > 0 else 0
-            logger.debug(f"Column '{col}': {unique_count} unique values (ratio: {ratios[col]:.2f})")
+            ratio = unique_count / len(df) if len(df) > 0 else 0
+            if ratio < low_card_threshold:
+                low_card_ratios[col] = ratio
         except Exception as e:
-            logger.warning(f"Skipping column '{col}' for ratio calc: {e}")
-            ratios[col] = 0
+            logger.warning(f"Skipping '{col}': {e}")
     
-    # Sort by descending ratio
-    sorted_cols = sorted(ratios, key=ratios.get, reverse=True)
-    logger.info(f"Top unique columns: {sorted_cols[:10]}")  # Show top 10 for insight
+    low_card_cols = sorted(low_card_ratios, key=low_card_ratios.get)[:max_low_card]  # Sort by ratio asc (lowest first)
+    logger.info(f"Low-cardinality columns (threshold {low_card_threshold}): {low_card_cols[:10]}")  # Top 10
     
-    # Start with empty combo, add columns iteratively until no duplicates
+    # Test small combos of low-card first (pairs, then triples)
+    for size in range(2, max_combo_size + 1):
+        if len(low_card_cols) >= size:
+            logger.info(f"Testing {size}-column combos from low-card columns...")
+            for combo in combinations(low_card_cols, size):
+                try:
+                    if df[list(combo)].duplicated().sum() == 0:
+                        logger.info(f"Found unique low-card combo: {list(combo)}")
+                        return list(combo)
+                except Exception as e:
+                    logger.warning(f"Error testing {combo}: {e}")
+    
+    # Fallback: Iterative high-unique (as before)
+    logger.info("No low-card unique combo; falling back to high-unique iterative.")
+    high_ratios = {}
+    for col in columns:
+        try:
+            unique_count = df[col].nunique()
+            high_ratios[col] = unique_count / len(df) if len(df) > 0 else 0
+        except:
+            high_ratios[col] = 0
+    sorted_high = sorted(high_ratios, key=high_ratios.get, reverse=True)
+    logger.info(f"Top high-unique columns: {sorted_high[:10]}")
     current_combo = []
-    for i, col in enumerate(sorted_cols[:max_cols]):
+    for col in sorted_high[:15]:  # Limit to 15
         current_combo.append(col)
-        logger.info(f"Testing cumulative combo {i+1}: {current_combo}")
         try:
             if df[current_combo].duplicated().sum() == 0:
-                logger.info(f"Found unique composite key after {len(current_combo)} columns: {current_combo}")
+                logger.info(f"Heuristic found high-unique key: {current_combo}")
                 return current_combo
         except Exception as e:
-            logger.warning(f"Error testing {current_combo}: {e}; continuing to add columns.")
+            logger.warning(f"Error in high-unique test: {e}")
     
-    # If still duplicates after max_cols, add more or fallback
-    if df[current_combo].duplicated().sum() > 0:
-        logger.warning(f"Still duplicates after top {max_cols} columns; adding next 5 to reach uniqueness.")
-        for col in sorted_cols[max_cols:max_cols+5]:
-            current_combo.append(col)
-            logger.info(f"Adding extra column: {current_combo[-1]} (now {len(current_combo)} columns)")
-            try:
-                if df[current_combo].duplicated().sum() == 0:
-                    logger.info(f"Found unique composite key after extra addition: {current_combo}")
-                    return current_combo
-            except Exception as e:
-                logger.warning(f"Error with extra {col}: {e}; continuing.")
-    
-    logger.warning(f"Could not find unique combo within limits; using top {len(current_combo)} columns as fallback (may have duplicates).")
-    return current_combo  # Fallback: top columns (even if not fully unique)
+    logger.warning("Fallback: Using all columns (may have duplicates).")
+    return list(columns)
 
-# Detect key from df1 (can use df2 if preferred; uses full data since rows are small)
 composite_key = find_composite_key(df1_common, common_columns)
 logger.info(f"Final auto-detected composite key: {composite_key}")
 
-# Manual override option: Uncomment and set if needed
-# composite_key = ['YourKeyCol1', 'YourKeyCol2']  # e.g., ['ID', 'Date']
-
-# Step 7: Remove duplicates based on composite key (full data)
+# Step 7: Remove duplicates based on composite key
 df1_common = df1_common.drop_duplicates(subset=composite_key, keep='first')
 df2_common = df2_common.drop_duplicates(subset=composite_key, keep='first')
 logger.info(f"After deduplication - file1: {len(df1_common)} rows, file2: {len(df2_common)} rows")
 
-# Step 8: Log data types and sample for key columns
-logger.info("Data types in composite key (file1):")
-for col in composite_key:
-    logger.info(f"  {col}: {df1_common[col].dtype}")
-logger.info("Data types in composite key (file2):")
-for col in composite_key:
-    logger.info(f"  {col}: {df2_common[col].dtype}")
+# Step 8: Log data types for key
+for df_name, df in [("file1", df1_common), ("file2", df2_common)]:
+    logger.info(f"Data types in key ({df_name}):")
+    for col in composite_key:
+        logger.info(f"  {col}: {df[col].dtype}")
 
-# Step 8: Perform outer merge on composite key (with fallback hashing)
+# Step 9: Outer merge (with hash fallback)
 try:
     merged_df = df1_common.merge(df2_common, how='outer', on=composite_key, indicator=True)
-    logger.info("Merge completed successfully.")
+    logger.info("Merge completed.")
 except Exception as e:
-    logger.error(f"Direct merge failed: {e}. Attempting fallback with hashed keys...")
+    logger.error(f"Merge failed: {e}. Using hash fallback...")
     try:
-        # Fallback: Create hash columns for keys (handles type mismatches/NaNs)
         def hash_row(row):
-            key_str = '_'.join(str(val) for val in row[composite_key].values if pd.notna(val))
-            return hashlib.md5(key_str.encode()).hexdigest()
-        
+            return hashlib.md5('_'.join(str(val) for val in row[composite_key].values if pd.notna(val)).encode()).hexdigest()
         df1_common['key_hash'] = df1_common.apply(hash_row, axis=1)
         df2_common['key_hash'] = df2_common.apply(hash_row, axis=1)
-        
         merged_df = df1_common.merge(df2_common, how='outer', left_on='key_hash', right_on='key_hash', indicator=True)
-        # Drop hash column
         merged_df = merged_df.drop('key_hash', axis=1)
-        logger.info("Fallback hash-based merge completed successfully.")
+        logger.info("Hash fallback merge succeeded.")
     except Exception as e2:
-        logger.error(f"Fallback merge also failed: {e2}")
+        logger.error(f"Fallback failed: {e2}")
         sys.exit(1)
 
-# Step 9: Filter for unique and matching records
+# Step 10: Filter results
 unique_to_file1 = merged_df[merged_df['_merge'] == 'left_only'].drop('_merge', axis=1)
 unique_to_file2 = merged_df[merged_df['_merge'] == 'right_only'].drop('_merge', axis=1)
 matches = merged_df[merged_df['_merge'] == 'both'].drop('_merge', axis=1)
 
-# Step 10: Save results
+# Step 11: Save and summarize
 unique_to_file1.to_csv('unique_records_file1.csv', index=False)
 unique_to_file2.to_csv('unique_records_file2.csv', index=False)
 matches.to_csv('matching_records.csv', index=False)
 with open('auto_key_summary.txt', 'w') as f:
-    f.write(f"Auto-detected composite key: {composite_key}\n")
-logger.info("Results saved: unique_records_file1.csv, unique_records_file2.csv, matching_records.csv, auto_key_summary.txt")
-
-# Step 11: Summary (via logger)
-logger.info(f"Columns unique to file1: {list(unique_to_file1)}")
-logger.info(f"Columns unique to file2: {list(unique_to_file2)}")
-logger.info(f"Common columns used for comparison: {list(common_columns)}")
-logger.info(f"Auto-detected composite key: {composite_key}")
-logger.info(f"Unique records in file1: {len(unique_to_file1)}")
-logger.info(f"Unique records in file2: {len(unique_to_file2)}")
-logger.info(f"Matching records: {len(matches)}")
-logger.info("File comparison process completed successfully.")
+    f.write(f"Composite key: {composite_key}\n")
+logger.info(f"Results saved. Unique file1: {len(unique_to_file1)}, Unique file2: {len(unique_to_file2)}, Matches: {len(matches)}")
+logger.info("Process completed.")
