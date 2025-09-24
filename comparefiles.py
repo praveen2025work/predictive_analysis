@@ -190,19 +190,20 @@ def compare_files(file_a, file_b, delimiter='|', sort_order='asc', key_column_co
     
     # Save extra rows based on keys
     if len(extra_keys_in_a) > 0:
-        extra_a = df_a_indexed.loc[extra_keys_in_a].drop(columns=['composite_key']).reset_index(drop=True)
-        extra_a.to_csv(f"{output_dir}/extra_rows_in_file_a.txt", sep='|', index=False)
+        extra_a_df = df_a_indexed.loc[extra_keys_in_a].drop(columns=['composite_key']).reset_index(drop=True)
+        extra_a_df.to_csv(f"{output_dir}/extra_rows_in_file_a.txt", sep='|', index=False)
         logger.info(f"Saved {len(extra_keys_in_a)} extra rows from A")
     if len(extra_keys_in_b) > 0:
-        extra_b = df_b_indexed.loc[extra_keys_in_b].drop(columns=['composite_key']).reset_index(drop=True)
-        extra_b.to_csv(f"{output_dir}/extra_rows_in_file_b.txt", sep='|', index=False)
+        extra_b_df = df_b_indexed.loc[extra_keys_in_b].drop(columns=['composite_key']).reset_index(drop=True)
+        extra_b_df.to_csv(f"{output_dir}/extra_rows_in_file_b.txt", sep='|', index=False)
         logger.info(f"Saved {len(extra_keys_in_b)} extra rows from B")
     
     use_key_alignment = len(common_keys) > 0
+    common_rows = 0
     if use_key_alignment:
         alignment_method = "Key-based composite with mapping"
         # Get common keys in A's order
-        a_keys_list = df_a_indexed.index.tolist()
+        a_keys_list = list(df_a_indexed.index)  # Ensure list
         common_keys_in_a_order = [k for k in a_keys_list if k in common_keys_set]
         df_a_common = df_a_indexed.loc[common_keys_in_a_order].drop(columns=['composite_key'])
         df_b_matched = df_b_indexed.loc[common_keys_in_a_order].drop(columns=['composite_key'])
@@ -237,7 +238,6 @@ def compare_files(file_a, file_b, delimiter='|', sort_order='asc', key_column_co
         df_b_ordered = df_b_common.copy()
         df_b_ordered.to_csv(f"{output_dir}/ordered_file_b.txt", sep='|', index=False)
         logger.info(f"Saved ordered file B with {common_rows} aligned rows")
-        common_rows = common_rows
     
     logger.info(f"Found {common_rows} common rows for detailed comparison")
     
@@ -254,9 +254,10 @@ def compare_files(file_a, file_b, delimiter='|', sort_order='asc', key_column_co
             diff_mask = df_a_common[col] != df_b_common[col]
             if diff_mask.any():
                 num_mismatches = diff_mask.sum()
-                orig_b_col = [k for k, v in mapping.items() if v == col][0] if col in col_mapping_b_to_a else col
+                orig_b_col = next((k for k, v in mapping.items() if v == col), col)
                 logger.warning(f"Value mismatches in {col} (B orig: {orig_b_col}): {num_mismatches} rows")
-                for idx in diff_mask[diff_mask].index:
+                mismatch_indices = list(diff_mask[diff_mask].index)
+                for idx in mismatch_indices:
                     val_a = df_a_common.loc[idx, col] if pd.notna(df_a_common.loc[idx, col]) and df_a_common.loc[idx, col] != '' else 'EMPTY'
                     val_b = df_b_common.loc[idx, col] if pd.notna(df_b_common.loc[idx, col]) and df_b_common.loc[idx, col] != '' else 'EMPTY'
                     f.write(f"{idx}|{col}|{val_a}|{val_b}\n")
@@ -274,9 +275,10 @@ def compare_files(file_a, file_b, delimiter='|', sort_order='asc', key_column_co
             diff_mask = pattern_a != pattern_b
             if diff_mask.any():
                 num_mismatches = diff_mask.sum()
-                orig_b_col = [k for k, v in mapping.items() if v == col][0] if col in col_mapping_b_to_a else col
+                orig_b_col = next((k for k, v in mapping.items() if v == col), col)
                 logger.warning(f"Pattern mismatches in {col} (B orig: {orig_b_col}): {num_mismatches} rows")
-                for idx in diff_mask[diff_mask].index:
+                mismatch_indices = list(diff_mask[diff_mask].index)
+                for idx in mismatch_indices:
                     val_a = df_a_common.loc[idx, col] if pd.notna(df_a_common.loc[idx, col]) and df_a_common.loc[idx, col] != '' else 'EMPTY'
                     val_b = df_b_common.loc[idx, col] if pd.notna(df_b_common.loc[idx, col]) and df_b_common.loc[idx, col] != '' else 'EMPTY'
                     f.write(f"{idx}|{col}|{pattern_a.loc[idx]}|{pattern_b.loc[idx]}|{val_a}|{val_b}\n")
