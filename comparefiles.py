@@ -11,7 +11,7 @@ logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler('comparison.log'),
+        logging.FileHandler('comparison.log', encoding='utf-8'),
         logging.StreamHandler()  # Also log to console
     ]
 )
@@ -333,24 +333,24 @@ def compare_files(file_a, file_b, delimiter='|', sort_order='asc', key_column_co
         if not use_key_alignment:
             f.write("\nWarning: Used sequential alignment due to no key matches. Results may include false positives if row order differs.\n")
     
-    logger.info(f"✅ Comparison complete. Results saved in: {output_dir}")
-    logger.info(f"📊 Summary: {len(extra_keys_in_a)} extra in A, {len(extra_keys_in_b)} extra in B, "
+    logger.info(f"Comparison complete. Results saved in: {output_dir}")
+    logger.info(f"Summary: {len(extra_keys_in_a)} extra in A, {len(extra_keys_in_b)} extra in B, "
           f"{len(value_mismatches)} value mismatch columns, {len(pattern_mismatches)} pattern mismatch columns")
     if use_key_alignment and key_columns:
-        logger.info(f"🔍 Blank key rows: {blank_keys_a} in A, {blank_keys_b} in B")
+        logger.info(f"Blank key rows: {blank_keys_a} in A, {blank_keys_b} in B")
     
-    print(f"✅ Comparison complete. Results saved in: {output_dir}")
-    print(f"📊 Summary: {len(extra_keys_in_a)} extra in A, {len(extra_keys_in_b)} extra in B, "
+    print(f"Comparison complete. Results saved in: {output_dir}")
+    print(f"Summary: {len(extra_keys_in_a)} extra in A, {len(extra_keys_in_b)} extra in B, "
           f"{len(value_mismatches)} value mismatch columns, {len(pattern_mismatches)} pattern mismatch columns")
     if use_key_alignment and key_columns:
-        print(f"🔍 Blank key rows: {blank_keys_a} in A, {blank_keys_b} in B")
-    print(f"📝 Logs saved to: comparison.log")
-    print(f"📄 Ordered file B: {output_dir}/ordered_file_b.txt")
+        print(f"Blank key rows: {blank_keys_a} in A, {blank_keys_b} in B")
+    print(f"Logs saved to: comparison.log")
+    print(f"Ordered file B: {output_dir}/ordered_file_b.txt")
     if not use_key_alignment:
-        print("⚠️ Used sequential fallback alignment - check logs for key samples to improve key selection.")
+        print("Used sequential fallback alignment - check logs for key samples to improve key selection.")
     if len(common_keys) == 0:
-        print("🔍 No key matches found. Review 'Debug: Sample unique values' in logs to see differences in key columns.")
-        print("   Since column names match, mismatches likely due to data variations (e.g., formatting, extra chars).")
+        print("No key matches found. Review 'Debug: Sample unique values' in logs to see differences in key columns.")
+        print("Since column names match, mismatches likely due to data variations (e.g., formatting, extra chars).")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Compare two pipe-delimited files.")
