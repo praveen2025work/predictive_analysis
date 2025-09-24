@@ -178,9 +178,13 @@ def compare_files(file_a, file_b, delimiter='|', sort_order='asc', key_column_co
     # Identify matching keys
     a_keys = set(df_a_indexed.index)
     b_keys = set(df_b_indexed.index)
-    common_keys = a_keys.intersection(b_keys)
-    extra_keys_in_a = a_keys - b_keys
-    extra_keys_in_b = b_keys - a_keys
+    common_keys_set = a_keys.intersection(b_keys)
+    extra_keys_in_a_set = a_keys - b_keys
+    extra_keys_in_b_set = b_keys - a_keys
+    
+    common_keys = list(common_keys_set)
+    extra_keys_in_a = list(extra_keys_in_a_set)
+    extra_keys_in_b = list(extra_keys_in_b_set)
     
     logger.info(f"Key matches: {len(common_keys)} common, {len(extra_keys_in_a)} extra in A, {len(extra_keys_in_b)} extra in B")
     
@@ -199,7 +203,7 @@ def compare_files(file_a, file_b, delimiter='|', sort_order='asc', key_column_co
         alignment_method = "Key-based composite with mapping"
         # Get common keys in A's order
         a_keys_list = df_a_indexed.index.tolist()
-        common_keys_in_a_order = [k for k in a_keys_list if k in common_keys]
+        common_keys_in_a_order = [k for k in a_keys_list if k in common_keys_set]
         df_a_common = df_a_indexed.loc[common_keys_in_a_order].drop(columns=['composite_key'])
         df_b_matched = df_b_indexed.loc[common_keys_in_a_order].drop(columns=['composite_key'])
         # Remap B columns to match A
@@ -337,6 +341,9 @@ def compare_files(file_a, file_b, delimiter='|', sort_order='asc', key_column_co
     print(f"📄 Ordered file B: {output_dir}/ordered_file_b.txt")
     if not use_key_alignment:
         print("⚠️ Used sequential fallback alignment - check logs for key samples to improve key selection.")
+    if len(common_keys) == 0:
+        print("🔍 No key matches found. Review 'Debug: Sample unique values' in logs to see differences in key columns.")
+        print("   Since column names match, mismatches likely due to data variations (e.g., formatting, extra chars).")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Compare two pipe-delimited files.")
