@@ -142,13 +142,14 @@ def compare_files(file_a, file_b, delimiter='|', sort_order='asc', key_column_co
     else:
         logger.info("Column structures match")
     
+    total_cols = len(df_a.columns)
+    
     # Compute column mapping based on pattern similarity
     logger.info("Computing column mappings...")
     mapping, sim_scores = compute_column_mapping(df_a, df_b)
     col_mapping_b_to_a = {v: k for k, v in mapping.items()}
     
     # Determine key columns based on uniqueness in file_a
-    total_cols = len(df_a.columns)
     if key_column_count is None:
         key_column_count = max(1, int(total_cols * 0.1))  # 10% of total columns
     key_columns = select_key_columns(df_a, key_column_count)
@@ -190,11 +191,11 @@ def compare_files(file_a, file_b, delimiter='|', sort_order='asc', key_column_co
     
     # Save extra rows based on keys
     if len(extra_keys_in_a) > 0:
-        extra_a_df = df_a_indexed.loc[extra_keys_in_a].drop(columns=['composite_key']).reset_index(drop=True)
+        extra_a_df = df_a_indexed.loc[extra_keys_in_a].reset_index(drop=True)
         extra_a_df.to_csv(f"{output_dir}/extra_rows_in_file_a.txt", sep='|', index=False)
         logger.info(f"Saved {len(extra_keys_in_a)} extra rows from A")
     if len(extra_keys_in_b) > 0:
-        extra_b_df = df_b_indexed.loc[extra_keys_in_b].drop(columns=['composite_key']).reset_index(drop=True)
+        extra_b_df = df_b_indexed.loc[extra_keys_in_b].reset_index(drop=True)
         extra_b_df.to_csv(f"{output_dir}/extra_rows_in_file_b.txt", sep='|', index=False)
         logger.info(f"Saved {len(extra_keys_in_b)} extra rows from B")
     
@@ -205,8 +206,8 @@ def compare_files(file_a, file_b, delimiter='|', sort_order='asc', key_column_co
         # Get common keys in A's order
         a_keys_list = list(df_a_indexed.index)  # Ensure list
         common_keys_in_a_order = [k for k in a_keys_list if k in common_keys_set]
-        df_a_common = df_a_indexed.loc[common_keys_in_a_order].drop(columns=['composite_key'])
-        df_b_matched = df_b_indexed.loc[common_keys_in_a_order].drop(columns=['composite_key'])
+        df_a_common = df_a_indexed.loc[common_keys_in_a_order]
+        df_b_matched = df_b_indexed.loc[common_keys_in_a_order]
         # Remap B columns to match A
         df_b_remapped = df_b_matched.rename(columns=col_mapping_b_to_a)
         # Reorder columns to match A
