@@ -189,13 +189,15 @@ def compare_files(file_a, file_b, delimiter='|', sort_order='asc', key_column_co
     
     logger.info(f"Key matches: {len(common_keys)} common, {len(extra_keys_in_a)} extra in A, {len(extra_keys_in_b)} extra in B")
     
-    # Save extra rows based on keys
+    # Save extra rows based on keys (reset index to get data without key column)
     if len(extra_keys_in_a) > 0:
-        extra_a_df = df_a_indexed.loc[extra_keys_in_a].reset_index(drop=True)
+        extra_a_temp = df_a_indexed.loc[extra_keys_in_a].reset_index()
+        extra_a_df = extra_a_temp.drop(columns=['composite_key'])
         extra_a_df.to_csv(f"{output_dir}/extra_rows_in_file_a.txt", sep='|', index=False)
         logger.info(f"Saved {len(extra_keys_in_a)} extra rows from A")
     if len(extra_keys_in_b) > 0:
-        extra_b_df = df_b_indexed.loc[extra_keys_in_b].reset_index(drop=True)
+        extra_b_temp = df_b_indexed.loc[extra_keys_in_b].reset_index()
+        extra_b_df = extra_b_temp.drop(columns=['composite_key'])
         extra_b_df.to_csv(f"{output_dir}/extra_rows_in_file_b.txt", sep='|', index=False)
         logger.info(f"Saved {len(extra_keys_in_b)} extra rows from B")
     
@@ -206,8 +208,10 @@ def compare_files(file_a, file_b, delimiter='|', sort_order='asc', key_column_co
         # Get common keys in A's order
         a_keys_list = list(df_a_indexed.index)  # Ensure list
         common_keys_in_a_order = [k for k in a_keys_list if k in common_keys_set]
-        df_a_common = df_a_indexed.loc[common_keys_in_a_order]
-        df_b_matched = df_b_indexed.loc[common_keys_in_a_order]
+        df_a_temp = df_a_indexed.loc[common_keys_in_a_order].reset_index()
+        df_a_common = df_a_temp.drop(columns=['composite_key'])
+        df_b_temp = df_b_indexed.loc[common_keys_in_a_order].reset_index()
+        df_b_matched = df_b_temp.drop(columns=['composite_key'])
         # Remap B columns to match A
         df_b_remapped = df_b_matched.rename(columns=col_mapping_b_to_a)
         # Reorder columns to match A
