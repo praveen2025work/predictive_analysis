@@ -29,6 +29,7 @@ def detect_pattern(series):
     """
     Detect a simple data pattern for a pandas Series.
     - EMPTY if blank
+    - DATE if YYYY-MM-DD or similar
     - NUMERIC if digits or decimal
     - ALPHANUMERIC if mix of letters, numbers, -, _, space
     - STRING otherwise
@@ -37,6 +38,8 @@ def detect_pattern(series):
         val = str(value).strip()
         if not val or val == 'nan':
             return "EMPTY"
+        if re.fullmatch(r"\d{4}[-/]\d{2}[-/]\d{2}", val):
+            return "DATE"
         if re.fullmatch(r"^-?\d+(\.\d+)?$", val):
             return "NUMERIC"
         if re.fullmatch(r"^[A-Za-z0-9\-_\s]+$", val):
@@ -122,6 +125,29 @@ def compare_files(file_a, file_b, delimiter='|', sort_order='asc', key_column_co
     df_a = df_a.apply(normalize_column)
     df_b = df_b.apply(normalize_column)
     logger.info("Normalization complete")
+    
+    # Log uniqueness per column for both files
+    logger.info("Uniqueness per column in file A:")
+    for col in df_a.columns:
+        unique_a = df_a[col].nunique()
+        logger.info(f"  {col}: {unique_a} unique values")
+    logger.info("Uniqueness per column in file B:")
+    for col in df_b.columns:
+        unique_b = df_b[col].nunique()
+        logger.info(f"  {col}: {unique_b} unique values")
+    
+    # Save uniqueness report
+    with open(f"{output_dir}/column_uniqueness.txt", 'w') as f:
+        f.write("Column Uniqueness Report\n")
+        f.write("========================\n")
+        f.write("File A:\n")
+        for col in df_a.columns:
+            unique_a = df_a[col].nunique()
+            f.write(f"{col}: {unique_a}\n")
+        f.write("\nFile B:\n")
+        for col in df_b.columns:
+            unique_b = df_b[col].nunique()
+            f.write(f"{col}: {unique_b}\n")
     
     # Check for structural differences
     if set(df_a.columns) != set(df_b.columns):
@@ -330,6 +356,7 @@ def compare_files(file_a, file_b, delimiter='|', sort_order='asc', key_column_co
         f.write("\nNote: Blanks/empties/NULLs have been normalized to empty strings for matching.\n")
         f.write("This ensures consistent treatment of missing data across files.\n")
         f.write(f"Ordered file B saved: {output_dir}/ordered_file_b.txt\n")
+        f.write(f"Column uniqueness saved: {output_dir}/column_uniqueness.txt\n")
         if not use_key_alignment:
             f.write("\nWarning: Used sequential alignment due to no key matches. Results may include false positives if row order differs.\n")
     
@@ -346,6 +373,7 @@ def compare_files(file_a, file_b, delimiter='|', sort_order='asc', key_column_co
         print(f"Blank key rows: {blank_keys_a} in A, {blank_keys_b} in B")
     print(f"Logs saved to: comparison.log")
     print(f"Ordered file B: {output_dir}/ordered_file_b.txt")
+    print(f"Column uniqueness: {output_dir}/column_uniqueness.txt")
     if not use_key_alignment:
         print("Used sequential fallback alignment - check logs for key samples to improve key selection.")
     if len(common_keys) == 0:
