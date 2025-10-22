@@ -1,91 +1,71 @@
-Perfect — let’s integrate your **“conducted brown bag sessions”** clearly into your formal year-end feedback so it reflects leadership, knowledge sharing, and team development impact.
 
-Here’s your **final, polished 2025 Barclays year-end self-feedback**, structured by **WHAT**, **HOW**, and a **combined summary**, with the brown bag sessions fully emphasized.
 
----
-
-## **2025 Year-End Self-Feedback – [Your Name]**
 
 ---
 
-### **WHAT (Key Deliverables and Achievements)**
+### **THE WHAT – Achievements in Relation to Objectives**
 
-* **Leadership and Team Management**
+1. **Strategic Delivery & Innovation**
 
-  * Successfully managed a **17-member cross-regional team**, ensuring collaboration, timely delivery, and adherence to Barclays’ standards of excellence.
-  * **Conducted multiple brown bag sessions** focused on Salesforce, workflow enhancements, and process automation — helping upskill team members and foster a culture of continuous learning.
-  * Guided team members through mentoring, technical reviews, and feedback sessions to enhance productivity and delivery quality.
+   * Delivered key initiatives aligned to business objectives including **FRTB 2025 workflow enhancements**, **RIS Approval process**, **Unlock/Signoff functionality**, and **email-based approval/rejection** capabilities.
+   * Successfully enhanced **STEPS**, **Document Workflow**, and **Download Center** with 80% of core development completed independently, driving scalability and user adoption.
 
-* **Workflow and Application Development**
+2. **Technology Modernization**
 
-  * Designed and delivered several critical workflow enhancements, including **FRTB Backdated Adjustment Workflow**, **RIS Approval improvements**, **Email Template customization**, **Unlock/Signoff functionality**, and **adhoc step activation based on T-days**.
-  * Developed advanced capabilities such as **email-triggered approvals/rejections** and **attachment cascade functionality** for parent-child workflows.
-  * Initiated and led development of the **Bulk Signoff UI** for attestations, now progressing through implementation phases.
+   * Led **Java 11 and 17 upgrades** across four major applications ensuring modernization, compliance, and platform stability.
+   * Executed **GitLab migration**, improved framework processing, and integrated **Celonis analytics** for enhanced monitoring and data insights.
+   * Delivered multiple automation and optimization initiatives, improving operational efficiency and reducing manual overhead.
 
-* **Strategic Applications and Framework Development**
+3. **Leadership & Delivery Management**
 
-  * Built the **STEPS application** with modern architecture, independently completing **over 80%** of the development, providing a scalable base for team adoption.
-  * Delivered the **Document Workflow** platform (**~80% completed individually**) and **Download Center upgrade**, both enabling operational efficiency and improved user experience.
-  * Drove **framework performance optimization**, reducing latency and improving processing throughput.
-
-* **Technology Modernization and DevOps Initiatives**
-
-  * Led **Java 11 and Java 17 upgrades** across four applications (Workflow, Download Center, Email, Notifications), ensuring compatibility and performance improvement.
-  * Executed **GitLab migration** successfully and enhanced CI/CD pipelines for better deployment reliability.
-  * Integrated **Celonis reports** with workflows, adding data transparency and automated reporting.
-
-* **Production Ownership and Quality Delivery**
-
-  * Took **end-to-end ownership of production issues**, ensuring swift resolution and minimal business disruption.
-  * Collaborated closely with global QA and Product Control teams to maintain compliance and ensure quality deliverables across regions.
-  * Provided consistent **UAT and PROD support** for key workflows (FAS, DC, WF), ensuring smooth transitions and stable releases.
-
-* **Innovation and Productivity Improvements**
-
-  * Developed multiple **automation tools** and **utilities** to improve team efficiency.
-  * Took initiative in **UI/UX design improvements** for internal tools, setting design standards and improving usability.
-  * Delivered **70% of UI** and **30% of backend** for the **Exception Hub (TB/BB)** project, providing a strong starting framework for the team.
-
-* **Recognition and Engagement**
-
-  * Recognized for organizing and executing the **Whippany RFT-level sporting event**, fostering employee engagement.
-  * Volunteered in the **“Clean Up the River” project**, contributing to Barclays’ sustainability commitments.
-  * Achieved **2nd place in the Whippany Hackathon**, showcasing innovation, collaboration, and technical skill.
+   * Managed a **17-member cross-regional team**, ensuring effective collaboration, accountability, and timely delivery across agile sprints.
+   * Conducted **brown bag sessions** and mentoring programs to strengthen technical and functional competencies within the team.
+   * Partnered closely with business, QA, and support functions to ensure alignment and smooth delivery.
 
 ---
 
-### **HOW (Behaviors and Values Demonstrated)**
+### **THE WHAT – Operations, Risk Management & Controls**
 
-* **Customer Focus and Operational Precision**
-  Delivered reliable, user-focused solutions aligned with business goals, maintaining precision and adherence to Product Control procedures across regions.
+4. Ensured **strict adherence to Product Control and governance standards** across all releases and change processes.
+5. Took **end-to-end ownership of production incidents**, focusing on root cause resolution, preventive measures, and service continuity.
+6. Strengthened **control frameworks** through automation, continuous monitoring, and structured deployment practices.
+7. Maintained transparency in change management and operational reporting to minimize risk exposure and improve audit readiness.
 
-* **Ownership and Accountability**
-  Took responsibility for project outcomes and production stability, ensuring transparency, timely resolution, and stakeholder satisfaction.
+---
 
-* **Innovation and Simplicity**
-  Championed automation and design simplification to enhance efficiency, reduce manual work, and improve the end-user experience.
+### **THE HOW – Values, Mindset & Leadership Behaviours**
 
-* **Leadership and Collaboration**
-  Effectively managed a **17-member multi-regional team**, fostering collaboration, mutual respect, and performance accountability.
-  Actively **conducted brown bag sessions** to share best practices, technical insights, and business process knowledge — encouraging skill enhancement and innovation.
-  Maintained open communication channels with onshore/offshore teams, ensuring alignment with agile goals and delivery timelines.
+8. **Customer Focus & Operational Excellence**
 
-* **Integrity, Empowerment, and Stewardship**
-  Demonstrated Barclays’ core values — **Challenge, Drive, Empower, Service, Integrity, and Stewardship** — by leading with integrity, empowering team members, and driving delivery excellence.
+   * Demonstrated commitment to high-quality delivery and service excellence by aligning technical solutions to business priorities.
+   * Consistently drove simplification and performance improvement across applications.
 
-* **Championing Diversity of Thought**
-  Encouraged creative problem-solving and new perspectives through initiatives like **STEPS** and **Exception Hub**, promoting innovation and team ownership.
+9. **Leadership, Empowerment & Collaboration**
+
+   * Fostered a positive and high-performing team culture by encouraging ownership, transparency, and teamwork.
+   * Conducted regular knowledge-sharing sessions and one-on-one mentoring to uplift team capability and engagement.
+
+10. **Innovation & Continuous Improvement**
+
+    * Introduced new ideas and streamlined existing processes, leading to reduced operational complexity.
+    * Implemented reusable components and UI improvements to enhance user experience and delivery speed.
+
+11. **Integrity, Challenge & Stewardship**
+
+    * Upheld Barclays’ values by ensuring ethical decision-making, transparent communication, and accountability in every aspect of delivery.
+    * Encouraged constructive challenge and diversity of thought within the team.
+
+12. **Engagement & Broader Impact**
+
+    * Contributed to broader organizational culture by organizing the **Whippany RFT sporting event** and participating in **community volunteering (Clean Up the River)**.
+    * Secured **2nd place in the Whippany Hackathon**, showcasing innovation and collaboration beyond core responsibilities.
 
 ---
 
 ### **Combined Summary**
 
-In 2025, I successfully delivered multiple strategic projects and led a **17-member global team** with a strong focus on precision, collaboration, and innovation. Key achievements include developing the **STEPS**, **Document Workflow**, and **Download Center** applications; delivering FRTB 2025 enhancements; completing major **Java upgrades**; and leading GitLab migration and framework performance improvements.
+In 2025, I have consistently demonstrated **strong leadership, technical depth, and delivery excellence** while managing a 17-member global team. I successfully delivered multiple strategic initiatives, led modernization efforts, and strengthened operational controls with a focus on quality and efficiency.
 
-I took ownership of production stability and environment management while actively mentoring and developing the team. By **conducting brown bag sessions** and fostering knowledge sharing, I strengthened team capabilities and promoted continuous improvement. I also contributed significantly to innovation through automation tools, UI/UX improvements, and workflow optimization.
+Through collaboration, mentoring, and value-driven behavior, I have fostered a high-performing team culture aligned with Barclays’ values of **Service, Excellence, Integrity, and Stewardship**. My contributions extended beyond project delivery to innovation, engagement, and community involvement, reinforcing my commitment to Barclays’ long-term vision and purpose.
 
-Beyond project delivery, I championed Barclays’ values by leading with integrity, promoting diversity of thought, and engaging in community and organizational activities — including volunteering, sports event organization, and achieving recognition at the Whippany Hackathon. Overall, 2025 has been a year of impactful leadership, high-quality delivery, and a continued commitment to operational excellence and innovation in alignment with Barclays’ strategic objectives.
 
----
-
-Would you like me to make a **shortened 250–300-word version** suitable for direct input into the **Workday “Self-Assessment” text box**? It will keep the tone formal but more concise.
