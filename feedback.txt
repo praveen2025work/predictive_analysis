@@ -1,1 +1,259 @@
 
+Perfect — now that you’ve got the logic and reasoning locked in ✅, let’s formalize this into:
+
+1. **A complete relational schema (finalized tables).**
+2. **Sample data that matches the Challenge workflow logic.**
+3. **A comprehensive AI code-generation prompt** (you can give this to your codegen agent to auto-build backend APIs, workflow engine logic, SLA/email triggers, etc.).
+
+---
+
+## 🧩 1️⃣ Final Database Tables
+
+| Table Name            | Purpose                                                                               |
+| --------------------- | ------------------------------------------------------------------------------------- |
+| `EXCEPTION_WORKFLOW`  | Holds static exception data (your original table minus workflow-specific fields).     |
+| `WORKFLOW_INSTANCE`   | Tracks which step each exception is currently in, who owns it, and its status.        |
+| `WORKFLOW_METADATA`   | Defines the workflow graph — steps, transitions, roles, and actions.                  |
+| `WORKFLOW_SLA_CONFIG` | Defines SLA hours and email templates per workflow step.                              |
+| `EXCEPTION_ACCESS`    | Defines which users (BRIDs) have what role (e.g., FO, FO_BUSINESS, REG_POLICY, etc.). |
+| `USER_INFO`           | Holds user details (BRID, email, active status, etc.).                                |
+
+---
+
+### 🧱 Table: `EXCEPTION_WORKFLOW`
+
+*(Original, only workflow-related columns removed — email & SLA handled separately)*
+
+```sql
+CREATE TABLE EXCEPTION_WORKFLOW (
+    ID NUMBER PRIMARY KEY,
+    EXCEPTION_ID VARCHAR2(250 BYTE),
+    EQUITY_CLASS_TYPE VARCHAR2(250 CHAR),
+    REGULATOR VARCHAR2(250 BYTE),
+    AGING NUMBER(10),
+    AS_OF_TIME TIMESTAMP(6),
+    BB_UNDERLYING VARCHAR2(250 CHAR),
+    ESM_SECURITY_TYPE VARCHAR2(50 CHAR),
+    INSTRUMENT_ID NUMBER(10),
+    INSTRUMENT_NAME VARCHAR2(250 CHAR),
+    INSTRUMENT_TYPE VARCHAR2(50 CHAR),
+    LEGAL_ENTITY VARCHAR2(50 CHAR),
+    LOOK_THROUGH VARCHAR2(50 CHAR),
+    POSITION_AV VARCHAR2(1000 CHAR),
+    POSITION_QTY NUMBER(10),
+    POSITION_TBBB_CLASSIFICATION VARCHAR2(250 CHAR),
+    PROCESSED_ON TIMESTAMP(6),
+    SDS_BOOK_CODE NUMBER(10),
+    SDS_BOOK_PATH VARCHAR2(1000 CHAR),
+    SOD_DELTA_BB_UNDERLYING VARCHAR2(1000 CHAR),
+    STATUS VARCHAR2(50 CHAR),
+    SYSTEM VARCHAR2(50 CHAR),
+    REASON CLOB,
+    ORIGINAL_QTY NUMBER,
+    CATEGORY_ID NUMBER,
+    SOURCE VARCHAR2(255 BYTE),
+    TETB_AV VARCHAR2(1000 BYTE),
+    TETB_QUANTITY NUMBER,
+    LEVEL_1 VARCHAR2(50 BYTE),
+    LEVEL_2 VARCHAR2(50 BYTE),
+    LEVEL_3 VARCHAR2(50 BYTE),
+    LEVEL_4 VARCHAR2(50 BYTE),
+    LEVEL_5 VARCHAR2(50 BYTE),
+    LEVEL_6 VARCHAR2(50 BYTE),
+    LEVEL_7 VARCHAR2(50 BYTE),
+    ACTION_OWNER VARCHAR2(255 BYTE),
+    REPORTING_CCY VARCHAR2(5 BYTE)
+);
+```
+
+---
+
+### 🧱 Table: `WORKFLOW_METADATA`
+
+```sql
+CREATE TABLE WORKFLOW_METADATA (
+    WORKFLOW_ID NUMBER,
+    STEP_CODE VARCHAR2(100 BYTE),
+    STEP_NAME VARCHAR2(255 BYTE),
+    ROLE VARCHAR2(100 BYTE),
+    ACTIONS_ALLOWED VARCHAR2(255 BYTE),
+    NEXT_STEP_ON_APPROVE VARCHAR2(100 BYTE),
+    NEXT_STEP_ON_REJECT VARCHAR2(100 BYTE),
+    DESCRIPTION VARCHAR2(500 BYTE),
+    PRIMARY KEY (WORKFLOW_ID, STEP_CODE)
+);
+```
+
+---
+
+### 🧱 Table: `WORKFLOW_INSTANCE`
+
+```sql
+CREATE TABLE WORKFLOW_INSTANCE (
+    INSTANCE_ID NUMBER PRIMARY KEY,
+    EXCEPTION_ID VARCHAR2(250 BYTE),
+    WORKFLOW_ID NUMBER,
+    CURRENT_STEP VARCHAR2(100 BYTE),
+    STATUS VARCHAR2(50 BYTE),
+    ASSIGNED_TO_BRID VARCHAR2(50 BYTE),
+    LAST_UPDATED TIMESTAMP(6),
+    COMMENTS CLOB
+);
+```
+
+---
+
+### 🧱 Table: `WORKFLOW_SLA_CONFIG`
+
+```sql
+CREATE TABLE WORKFLOW_SLA_CONFIG (
+    WORKFLOW_ID NUMBER,
+    STEP_CODE VARCHAR2(100 BYTE),
+    SLA_HOURS NUMBER,
+    EMAIL_TEMPLATE_ID NUMBER,
+    TRIGGER_ON VARCHAR2(50 BYTE),
+    PRIMARY KEY (WORKFLOW_ID, STEP_CODE)
+);
+```
+
+---
+
+### 🧱 Table: `EXCEPTION_ACCESS`
+
+```sql
+CREATE TABLE EXCEPTION_ACCESS (
+    EXCEPTION_ACCESS_ID NUMBER PRIMARY KEY,
+    ROLE VARCHAR2(100 BYTE),
+    BRID VARCHAR2(50 BYTE),
+    PRODUCT_AREA VARCHAR2(50 BYTE),
+    BUSINESS_AREA VARCHAR2(50 BYTE)
+);
+```
+
+---
+
+### 🧱 Table: `USER_INFO`
+
+```sql
+CREATE TABLE USER_INFO (
+    USER_ID VARCHAR2(50 BYTE) PRIMARY KEY,
+    BRID VARCHAR2(50 BYTE),
+    DISPLAY_NAME VARCHAR2(200 BYTE),
+    EMAIL_ID VARCHAR2(300 BYTE),
+    TYPE VARCHAR2(200 BYTE),
+    IS_ACTIVE NUMBER(1),
+    CREATED_AT TIMESTAMP(6),
+    UPDATED_AT TIMESTAMP(6)
+);
+```
+
+---
+
+## 🧮 2️⃣ Sample Data (Challenge Workflow)
+
+### `WORKFLOW_METADATA`
+
+| WORKFLOW_ID | STEP_CODE          | ROLE        | ACTIONS_ALLOWED                                  | NEXT_STEP_ON_APPROVE | NEXT_STEP_ON_REJECT | DESCRIPTION                     |
+| ----------- | ------------------ | ----------- | ------------------------------------------------ | -------------------- | ------------------- | ------------------------------- |
+| 201         | FO_CHALLENGE       | FO          | Approve                                          | FO_BUSINESS_REVIEW   | CLOSED              | FO initiates a challenge        |
+| 201         | FO_BUSINESS_REVIEW | FO_BUSINESS | Approve,Reject                                   | FO_OWNER_REVIEW      | REG_POLICY_REVIEW   | FO Business review of challenge |
+| 201         | REG_POLICY_REVIEW  | REG_POLICY  | Approve,Reject                                   | FO_OWNER_REVIEW      | CLOSED              | Reg Policy review               |
+| 201         | FO_OWNER_REVIEW    | FO_OWNER    | MarkAsUncertain,Unwind,RequestReassignment,Close | CLOSED               | CLOSED              | FO Owner final decision         |
+
+---
+
+### `WORKFLOW_SLA_CONFIG`
+
+| WORKFLOW_ID | STEP_CODE          | SLA_HOURS | EMAIL_TEMPLATE_ID | TRIGGER_ON |
+| ----------- | ------------------ | --------- | ----------------- | ---------- |
+| 201         | FO_BUSINESS_REVIEW | 8         | 401               | StepStart  |
+| 201         | REG_POLICY_REVIEW  | 12        | 402               | StepStart  |
+| 201         | FO_OWNER_REVIEW    | 8         | 403               | StepStart  |
+
+---
+
+### `EXCEPTION_ACCESS`
+
+| EXCEPTION_ACCESS_ID | ROLE        | BRID   | PRODUCT_AREA | BUSINESS_AREA |
+| ------------------- | ----------- | ------ | ------------ | ------------- |
+| 101                 | FO          | BR1001 | EQ           | APAC          |
+| 102                 | FO_BUSINESS | BR1002 | EQ           | APAC          |
+| 103                 | REG_POLICY  | BR1003 | EQ           | APAC          |
+| 104                 | FO_OWNER    | BR1004 | EQ           | APAC          |
+
+---
+
+### `WORKFLOW_INSTANCE`
+
+| INSTANCE_ID | EXCEPTION_ID | WORKFLOW_ID | CURRENT_STEP       | STATUS      | ASSIGNED_TO_BRID | COMMENTS                    |
+| ----------- | ------------ | ----------- | ------------------ | ----------- | ---------------- | --------------------------- |
+| 501         | EXC-CH-002   | 201         | FO_BUSINESS_REVIEW | IN_PROGRESS | BR1002           | Awaiting FO Business review |
+
+---
+
+## 🔄 3️⃣ Example Flow (Challenge Workflow)
+
+| Step               | Role        | Action  | Next Step          | Next Role   | Email Template | SLA    |
+| ------------------ | ----------- | ------- | ------------------ | ----------- | -------------- | ------ |
+| FO_CHALLENGE       | FO          | Approve | FO_BUSINESS_REVIEW | FO_BUSINESS | Template 401   | 8 hrs  |
+| FO_BUSINESS_REVIEW | FO_BUSINESS | Approve | FO_OWNER_REVIEW    | FO_OWNER    | Template 403   | 8 hrs  |
+| FO_BUSINESS_REVIEW | FO_BUSINESS | Reject  | REG_POLICY_REVIEW  | REG_POLICY  | Template 402   | 12 hrs |
+| REG_POLICY_REVIEW  | REG_POLICY  | Approve | FO_OWNER_REVIEW    | FO_OWNER    | Template 403   | 8 hrs  |
+| REG_POLICY_REVIEW  | REG_POLICY  | Reject  | CLOSED             | -           | -              | -      |
+
+---
+
+## 🧠 4️⃣ AI Agent Prompt (for Backend Code Generation)
+
+You can feed the following to your AI code generator (Python, Java, or Node backend):
+
+---
+
+### 🧩 **Prompt for AI Code Agent**
+
+> Build a backend service for a workflow automation system using Spring Boot + JPA (or FastAPI if Python).
+> The database schema includes the following tables:
+> `EXCEPTION_WORKFLOW`, `WORKFLOW_METADATA`, `WORKFLOW_INSTANCE`, `WORKFLOW_SLA_CONFIG`, `EXCEPTION_ACCESS`, and `USER_INFO`.
+>
+> Requirements:
+>
+> 1. Implement endpoints to:
+>
+>    * Create and start a workflow (`/workflow/start`)
+>    * Perform actions on a workflow (`/workflow/action`)
+>    * Retrieve current status and next assignee (`/workflow/status/{exceptionId}`)
+> 2. Logic:
+>
+>    * On action (`Approve`, `Reject`, etc.), backend fetches `WORKFLOW_METADATA` to determine next step (`NEXT_STEP_ON_APPROVE` or `NEXT_STEP_ON_REJECT`).
+>    * Then, find next role and assign to a user from `EXCEPTION_ACCESS` with that role.
+>    * Update `WORKFLOW_INSTANCE` (set `CURRENT_STEP`, `STATUS`, and `ASSIGNED_TO_BRID`).
+>    * Trigger email via template in `WORKFLOW_SLA_CONFIG` and start SLA timer.
+> 3. Store all updates with Envers-based audit trail.
+> 4. Include service-level validations:
+>
+>    * Verify action is in `ACTIONS_ALLOWED`.
+>    * Auto-close workflow if next step is `CLOSED`.
+> 5. Create REST payload examples:
+>
+>    * `/workflow/action`:
+>
+>      ```json
+>      {
+>        "exceptionId": "EXC-CH-002",
+>        "action": "Approve",
+>        "performedBy": "BR1002",
+>        "comments": "Challenge accepted"
+>      }
+>      ```
+> 6. Output should include backend code to:
+>
+>    * Manage transitions
+>    * Update workflow instance
+>    * Send email notifications
+>    * Apply SLA timers
+>    * Record audit trail
+
+---
+
+Would you like me to generate a **visual data flow diagram** (Challenge flow end-to-end, showing how metadata drives backend transitions)?
+It would help if you plan to give this to your development team or AI builder tool.
