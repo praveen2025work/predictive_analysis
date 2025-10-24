@@ -1,3 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Exception Workflow System — Database Schema</title>
+<style>
+  body { font-family: "Segoe UI", Roboto, Arial, sans-serif; margin: 40px; background: #f9fafc; color: #222; }
+  h1 { color: #0d47a1; }
+  h2 { color: #1565c0; margin-top: 40px; border-left: 5px solid #1565c0; padding-left: 10px; }
+  table { border-collapse: collapse; width: 100%; margin-top: 10px; }
+  th, td { border: 1px solid #e0e0e0; padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: #0d47a1; color: #fff; font-weight: 600; }
+  td.code { font-family: monospace; color: #0d47a1; font-size: 13px; }
+  .card { background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); margin-bottom: 30px; }
+  .comment { color: #388e3c; font-size: 13px; font-style: italic; }
+  .footer { margin-top: 50px; font-size: 12px; color: #777; text-align: center; }
+</style>
+</head>
+<body>
+
+<h1>📘 Exception Workflow System — Database Schema</h1>
+<p>This document provides a structured overview of the final database tables used in the Exception Workflow System. Each table defines the core entities required for workflow routing, SLA configuration, user assignment, and email notifications.</p>
+
+<!-- EXCEPTION_WORKFLOW -->
+<div class="card">
+  <h2>EXCEPTION_WORKFLOW</h2>
+  <p class="comment">Stores core exception data and associated attributes before being routed through workflow steps.</p>
+  <table>
+    <tr><th>Column</th><th>Type</th><th>Description</th></tr>
+    <tr><td>ID</td><td>BIGINT AUTO_INCREMENT PRIMARY KEY</td><td>Primary key</td></tr>
+    <tr><td>EXCEPTION_ID</td><td>VARCHAR(250)</td><td>Unique exception reference</td></tr>
+    <tr><td>EQUITY_CLASS_TYPE</td><td>VARCHAR(250)</td><td>Equity class or product category</td></tr>
+    <tr><td>REGULATOR</td><td>VARCHAR(250)</td><td>Regulatory body associated</td></tr>
+    <tr><td>AGING</td><td>INTEGER</td><td>Number of days since creation</td></tr>
+    <tr><td>AS_OF_TIME</td><td>TIMESTAMP</td><td>Effective date/time</td></tr>
+    <tr><td>BB_UNDERLYING</td><td>VARCHAR(250)</td><td>Bloomberg underlying</td></tr>
+    <tr><td>ESM_SECURITY_TYPE</td><td>VARCHAR(50)</td><td>Security type</td></tr>
+    <tr><td>INSTRUMENT_ID</td><td>BIGINT</td><td>Instrument identifier</td></tr>
+    <tr><td>INSTRUMENT_NAME</td><td>VARCHAR(250)</td><td>Name of instrument</td></tr>
+    <tr><td>INSTRUMENT_TYPE</td><td>VARCHAR(50)</td><td>Type (Equity, Bond, etc.)</td></tr>
+    <tr><td>LEGAL_ENTITY</td><td>VARCHAR(50)</td><td>Owning legal entity</td></tr>
+    <tr><td>LOOK_THROUGH</td><td>VARCHAR(50)</td><td>Look-through classification</td></tr>
+    <tr><td>POSITION_AV</td><td>VARCHAR(1000)</td><td>Position AV identifier</td></tr>
+    <tr><td>POSITION_QTY</td><td>BIGINT</td><td>Position quantity</td></tr>
+    <tr><td>POSITION_TBBB_CLASSIFICATION</td><td>VARCHAR(250)</td><td>Position TBBB classification</td></tr>
+    <tr><td>PROCESSED_ON</td><td>TIMESTAMP</td><td>Timestamp when processed</td></tr>
+    <tr><td>SDS_BOOK_CODE</td><td>BIGINT</td><td>SDS book code</td></tr>
+    <tr><td>SDS_BOOK_PATH</td><td>VARCHAR(1000)</td><td>Book path hierarchy</td></tr>
+    <tr><td>SOD_DELTA_BB_UNDERLYING</td><td>VARCHAR(1000)</td><td>Start of day delta underlying</td></tr>
+    <tr><td>STATUS</td><td>VARCHAR(50)</td><td>Workflow status (IN_PROGRESS, CLOSED, etc.)</td></tr>
+    <tr><td>SYSTEM</td><td>VARCHAR(50)</td><td>Source system</td></tr>
+    <tr><td>REASON</td><td>CLOB</td><td>Detailed reason text</td></tr>
+    <tr><td>ORIGINAL_QTY</td><td>DECIMAL(19,2)</td><td>Original position quantity</td></tr>
+    <tr><td>CATEGORY_ID</td><td>BIGINT</td><td>Foreign key to category</td></tr>
+    <tr><td>SOURCE</td><td>VARCHAR(255)</td><td>Data source</td></tr>
+    <tr><td>TETB_AV</td><td>VARCHAR(1000)</td><td>TETB AV code</td></tr>
+    <tr><td>TETB_QUANTITY</td><td>DECIMAL(19,2)</td><td>TETB quantity</td></tr>
+    <tr><td>LEVEL_1–LEVEL_7</td><td>VARCHAR(50)</td><td>Hierarchical classification levels</td></tr>
+    <tr><td>ACTION_OWNER</td><td>VARCHAR(255)</td><td>Current responsible owner</td></tr>
+    <tr><td>REPORTING_CCY</td><td>VARCHAR(5)</td><td>Reporting currency</td></tr>
+  </table>
+</div>
+
+<!-- WORKFLOW_METADATA -->
+<div class="card">
+  <h2>WORKFLOW_METADATA</h2>
+  <p class="comment">Defines each step in a workflow, its responsible role, and transition actions.</p>
+  <table>
+    <tr><th>Column</th><th>Type</th><th>Description</th></tr>
+    <tr><td>WORKFLOW_ID</td><td>BIGINT</td><td>Workflow identifier</td></tr>
+    <tr><td>STEP_CODE</td><td>VARCHAR(100)</td><td>Unique step code</td></tr>
+    <tr><td>STEP_NAME</td><td>VARCHAR(255)</td><td>Step display name</td></tr>
+    <tr><td>ROLE</td><td>VARCHAR(100)</td><td>Role responsible for the step</td></tr>
+    <tr><td>ACTIONS_ALLOWED</td><td>VARCHAR(1000)</td><td>Permitted actions (comma-separated)</td></tr>
+    <tr><td>NEXT_STEP_ON_SUBMIT</td><td>VARCHAR(1000)</td><td>Target step(s) on Submit</td></tr>
+    <tr><td>NEXT_STEP_ON_APPROVE</td><td>VARCHAR(1000)</td><td>Target step on Approve</td></tr>
+    <tr><td>NEXT_STEP_ON_REJECT</td><td>VARCHAR(1000)</td><td>Target step on Reject</td></tr>
+    <tr><td>DESCRIPTION</td><td>VARCHAR(500)</td><td>Step details</td></tr>
+  </table>
+</div>
+
+<!-- WORKFLOW_INSTANCE -->
+<div class="card">
+  <h2>WORKFLOW_INSTANCE</h2>
+  <p class="comment">Tracks real-time workflow progression for each exception, including SLA and email events.</p>
+  <table>
+    <tr><th>Column</th><th>Type</th><th>Description</th></tr>
+    <tr><td>INSTANCE_ID</td><td>BIGINT AUTO_INCREMENT PRIMARY KEY</td><td>Unique workflow instance</td></tr>
+    <tr><td>EXCEPTION_ID</td><td>VARCHAR(250)</td><td>Reference to EXCEPTION_WORKFLOW</td></tr>
+    <tr><td>WORKFLOW_ID</td><td>BIGINT</td><td>Workflow definition identifier</td></tr>
+    <tr><td>CURRENT_STEP</td><td>VARCHAR(100)</td><td>Active step in progress</td></tr>
+    <tr><td>CURRENT_STEP_SEQ</td><td>INT</td><td>Sequential order in workflow</td></tr>
+    <tr><td>STATUS</td><td>VARCHAR(50)</td><td>Step status (IN_PROGRESS, COMPLETED, CLOSED)</td></tr>
+    <tr><td>ACTIVE_STEP_FLAG</td><td>CHAR(1)</td><td>'Y' = active, 'N' = completed</td></tr>
+    <tr><td>ASSIGNED_TO_BRID</td><td>VARCHAR(50)</td><td>Assigned user BRID</td></tr>
+    <tr><td>LAST_UPDATED</td><td>TIMESTAMP</td><td>Last modified timestamp</td></tr>
+    <tr><td>SLA_HOURS</td><td>INTEGER</td><td>Configured SLA hours for this step</td></tr>
+    <tr><td>EMAIL_TEMPLATE_ID</td><td>BIGINT</td><td>Email template used for notifications</td></tr>
+    <tr><td>TRIGGER_ON</td><td>VARCHAR(50)</td><td>Trigger condition for email (Submit/Approve)</td></tr>
+    <tr><td>EMAIL_STATUS</td><td>VARCHAR(50)</td><td>Status (PENDING, SENT, FAILED)</td></tr>
+    <tr><td>EMAIL_SENT_ON</td><td>TIMESTAMP</td><td>Time of email dispatch</td></tr>
+    <tr><td>COMMENTS</td><td>CLOB</td><td>User-entered comments or audit text</td></tr>
+  </table>
+</div>
+
+<!-- WORKFLOW_SLA_CONFIG -->
+<div class="card">
+  <h2>WORKFLOW_SLA_CONFIG</h2>
+  <p class="comment">Configures SLA duration and email templates for each step of a workflow.</p>
+  <table>
+    <tr><th>Column</th><th>Type</th><th>Description</th></tr>
+    <tr><td>WORKFLOW_ID</td><td>BIGINT</td><td>Workflow identifier</td></tr>
+    <tr><td>STEP_CODE</td><td>VARCHAR(100)</td><td>Step code within workflow</td></tr>
+    <tr><td>SLA_HOURS</td><td>INTEGER</td><td>Number of SLA hours</td></tr>
+    <tr><td>EMAIL_TEMPLATE_ID</td><td>BIGINT</td><td>Linked email template</td></tr>
+    <tr><td>TRIGGER_ON</td><td>VARCHAR(50)</td><td>Trigger condition (Submit, Approve, Reject)</td></tr>
+  </table>
+</div>
+
+<!-- EXCEPTION_ACCESS -->
+<div class="card">
+  <h2>EXCEPTION_ACCESS</h2>
+  <p class="comment">Maps user roles and BRIDs to product or business areas for workflow access control.</p>
+  <table>
+    <tr><th>Column</th><th>Type</th><th>Description</th></tr>
+    <tr><td>EXCEPTION_ACCESS_ID</td><td>BIGINT AUTO_INCREMENT PRIMARY KEY</td><td>Primary key</td></tr>
+    <tr><td>ROLE</td><td>VARCHAR(100)</td><td>Role name</td></tr>
+    <tr><td>BRID</td><td>VARCHAR(50)</td><td>User bridge ID</td></tr>
+    <tr><td>PRODUCT_AREA</td><td>VARCHAR(50)</td><td>Product area</td></tr>
+    <tr><td>BUSINESS_AREA</td><td>VARCHAR(50)</td><td>Business area</td></tr>
+  </table>
+</div>
+
+<!-- USER_INFO -->
+<div class="card">
+  <h2>USER_INFO</h2>
+  <p class="comment">Stores user profile and contact information.</p>
+  <table>
+    <tr><th>Column</th><th>Type</th><th>Description</th></tr>
+    <tr><td>USER_ID</td><td>VARCHAR(50) PRIMARY KEY</td><td>Unique user identifier</td></tr>
+    <tr><td>BRID</td><td>VARCHAR(50)</td><td>Bridge ID</td></tr>
+    <tr><td>DISPLAY_NAME</td><td>VARCHAR(200)</td><td>User display name</td></tr>
+    <tr><td>EMAIL_ID</td><td>VARCHAR(300)</td><td>Email address</td></tr>
+    <tr><td>TYPE</td><td>VARCHAR(200)</td><td>User type (Internal/External)</td></tr>
+    <tr><td>IS_ACTIVE</td><td>INTEGER</td><td>1 = active, 0 = inactive</td></tr>
+    <tr><td>CREATED_AT</td><td>TIMESTAMP</td><td>Creation date</td></tr>
+    <tr><td>UPDATED_AT</td><td>TIMESTAMP</td><td>Last modified date</td></tr>
+  </table>
+</div>
+
+<!-- USER_INFO_TYPE -->
+<div class="card">
+  <h2>USER_INFO_TYPE</h2>
+  <p class="comment">Simplified user-to-role mapping reference.</p>
+  <table>
+    <tr><th>Column</th><th>Type</th><th>Description</th></tr>
+    <tr><td>BRID</td><td>VARCHAR(50)</td><td>Bridge ID</td></tr>
+    <tr><td>ROLE</td><td>VARCHAR(200)</td><td>Assigned role</td></tr>
+  </table>
+</div>
+
+<!-- EMAIL_TEMPLATE -->
+<div class="card">
+  <h2>EMAIL_TEMPLATE</h2>
+  <p class="comment">Holds notification templates used throughout workflow lifecycle.</p>
+  <table>
+    <tr><th>Column</th><th>Type</th><th>Description</th></tr>
+    <tr><td>TEMPLATE_ID</td><td>BIGINT AUTO_INCREMENT PRIMARY KEY</td><td>Template identifier</td></tr>
+    <tr><td>TEMPLATE_NAME</td><td>VARCHAR(255)</td><td>Template display name</td></tr>
+    <tr><td>SUBJECT</td><td>VARCHAR(500)</td><td>Email subject line</td></tr>
+    <tr><td>BODY</td><td>CLOB</td><td>Email body content (HTML/text)</td></tr>
+  </table>
+</div>
+
+<div class="footer">
+  © 2025 Exception Workflow System | Internal Documentation
+</div>
+
+</body>
+</html>
 
 
 <!DOCTYPE html>
