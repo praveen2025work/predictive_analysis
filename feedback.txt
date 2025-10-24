@@ -1,6 +1,261 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <meta charset="UTF-8" />
+  <title>Exception Workflow System - Developer Guide</title>
+  <style>
+    body { font-family: "Segoe UI", Arial, sans-serif; margin: 40px; background: #fafafa; }
+    h1, h2, h3 { color: #003366; }
+    table { border-collapse: collapse; width: 100%; margin-bottom: 30px; }
+    th, td { border: 1px solid #ccc; padding: 8px; text-align: left; font-size: 14px; }
+    th { background-color: #e0ebf5; }
+    pre { background: #f4f4f4; padding: 10px; border-radius: 8px; }
+    code { color: #c7254e; }
+    .workflow-box { border: 2px solid #0066cc; padding: 15px; border-radius: 10px; background: #f9fcff; margin-bottom: 30px; }
+  </style>
+</head>
+<body>
+  <h1>📘 Exception Workflow System - Developer Guide</h1>
+  <p>This document describes the <b>database schema, workflow logic, SLA/email handling, and UI behavior</b> for the Exception Workflow Engine.</p>
+
+  <h2>1️⃣ Database Tables</h2>
+
+  <h3>EXCEPTION_WORKFLOW</h3>
+  <pre>
+CREATE TABLE EXCEPTION_WORKFLOW (
+  ID BIGINT AUTO_INCREMENT PRIMARY KEY,
+  EXCEPTION_ID VARCHAR(250),
+  EQUITY_CLASS_TYPE VARCHAR(250),
+  REGULATOR VARCHAR(250),
+  AGING INTEGER,
+  AS_OF_TIME TIMESTAMP,
+  BB_UNDERLYING VARCHAR(250),
+  ESM_SECURITY_TYPE VARCHAR(50),
+  INSTRUMENT_ID BIGINT,
+  INSTRUMENT_NAME VARCHAR(250),
+  INSTRUMENT_TYPE VARCHAR(50),
+  LEGAL_ENTITY VARCHAR(50),
+  LOOK_THROUGH VARCHAR(50),
+  POSITION_AV VARCHAR(1000),
+  POSITION_QTY BIGINT,
+  POSITION_TBBB_CLASSIFICATION VARCHAR(250),
+  PROCESSED_ON TIMESTAMP,
+  SDS_BOOK_CODE BIGINT,
+  SDS_BOOK_PATH VARCHAR(1000),
+  SOD_DELTA_BB_UNDERLYING VARCHAR(1000),
+  STATUS VARCHAR(50),
+  SYSTEM VARCHAR(50),
+  REASON CLOB,
+  ORIGINAL_QTY DECIMAL(19,2),
+  CATEGORY_ID BIGINT,
+  SOURCE VARCHAR(255),
+  TETB_AV VARCHAR(1000),
+  TETB_QUANTITY DECIMAL(19,2),
+  LEVEL_1 VARCHAR(50),
+  LEVEL_2 VARCHAR(50),
+  LEVEL_3 VARCHAR(50),
+  LEVEL_4 VARCHAR(50),
+  LEVEL_5 VARCHAR(50),
+  LEVEL_6 VARCHAR(50),
+  LEVEL_7 VARCHAR(50),
+  ACTION_OWNER VARCHAR(255),
+  REPORTING_CCY VARCHAR(5)
+);
+  </pre>
+
+  <h3>WORKFLOW_METADATA</h3>
+  <pre>
+CREATE TABLE WORKFLOW_METADATA (
+  WORKFLOW_ID BIGINT,
+  STEP_CODE VARCHAR(100),
+  STEP_NAME VARCHAR(255),
+  ROLE VARCHAR(100),
+  ACTIONS_ALLOWED VARCHAR(1000),
+  NEXT_STEP_ON_SUBMIT VARCHAR(1000),
+  NEXT_STEP_ON_APPROVE VARCHAR(1000),
+  NEXT_STEP_ON_REJECT VARCHAR(1000),
+  DESCRIPTION VARCHAR(500),
+  PRIMARY KEY (WORKFLOW_ID, STEP_CODE)
+);
+  </pre>
+
+  <h3>WORKFLOW_INSTANCE</h3>
+  <pre>
+CREATE TABLE WORKFLOW_INSTANCE (
+  INSTANCE_ID BIGINT AUTO_INCREMENT PRIMARY KEY,
+  EXCEPTION_ID VARCHAR(250),
+  WORKFLOW_ID BIGINT,
+  CURRENT_STEP VARCHAR(100),
+  CURRENT_STEP_SEQ INT,
+  STATUS VARCHAR(50),
+  ACTIVE_STEP_FLAG CHAR(1) DEFAULT 'Y',
+  ASSIGNED_TO_BRID VARCHAR(50),
+  LAST_UPDATED TIMESTAMP,
+  SLA_HOURS INTEGER,
+  EMAIL_TEMPLATE_ID BIGINT,
+  TRIGGER_ON VARCHAR(50),
+  EMAIL_STATUS VARCHAR(50),
+  EMAIL_SENT_ON TIMESTAMP,
+  COMMENTS CLOB
+);
+  </pre>
+
+  <h3>WORKFLOW_SLA_CONFIG</h3>
+  <pre>
+CREATE TABLE WORKFLOW_SLA_CONFIG (
+  WORKFLOW_ID BIGINT,
+  STEP_CODE VARCHAR(100),
+  SLA_HOURS INTEGER,
+  EMAIL_TEMPLATE_ID BIGINT,
+  TRIGGER_ON VARCHAR(50),
+  PRIMARY KEY (WORKFLOW_ID, STEP_CODE)
+);
+  </pre>
+
+  <h3>EXCEPTION_ACCESS</h3>
+  <pre>
+CREATE TABLE EXCEPTION_ACCESS (
+  EXCEPTION_ACCESS_ID BIGINT AUTO_INCREMENT PRIMARY KEY,
+  ROLE VARCHAR(100),
+  BRID VARCHAR(50),
+  PRODUCT_AREA VARCHAR(50),
+  BUSINESS_AREA VARCHAR(50)
+);
+  </pre>
+
+  <h3>USER_INFO / USER_INFO_TYPE</h3>
+  <pre>
+CREATE TABLE USER_INFO (
+  USER_ID VARCHAR(50) PRIMARY KEY,
+  BRID VARCHAR(50),
+  DISPLAY_NAME VARCHAR(200),
+  EMAIL_ID VARCHAR(300),
+  TYPE VARCHAR(200),
+  IS_ACTIVE INTEGER,
+  CREATED_AT TIMESTAMP,
+  UPDATED_AT TIMESTAMP
+);
+
+CREATE TABLE USER_INFO_TYPE (
+  BRID VARCHAR(50),
+  ROLE VARCHAR(200)
+);
+  </pre>
+
+  <h3>EMAIL_TEMPLATE</h3>
+  <pre>
+CREATE TABLE EMAIL_TEMPLATE (
+  TEMPLATE_ID BIGINT AUTO_INCREMENT PRIMARY KEY,
+  TEMPLATE_NAME VARCHAR(255),
+  SUBJECT VARCHAR(500),
+  BODY CLOB
+);
+  </pre>
+
+  <hr />
+
+  <h2>2️⃣ Workflow Logic Examples</h2>
+
+  <div class="workflow-box">
+    <h3>🟦 FO Challenge Workflow</h3>
+    <table>
+      <tr><th>Step</th><th>Role</th><th>Action</th><th>Next Step</th><th>Description</th></tr>
+      <tr><td>STEP1</td><td>FO_OWNER</td><td>Submit</td><td>FO_BUSINESS or REG_POLICY</td><td>FO owner raises a challenge</td></tr>
+      <tr><td>STEP2</td><td>FO_BUSINESS</td><td>Approve / Reject</td><td>FO_OWNER</td><td>FO Business reviews exception</td></tr>
+      <tr><td>STEP3</td><td>REG_POLICY</td><td>Approve / Reject</td><td>FO_OWNER</td><td>Reg Policy team reviews if required</td></tr>
+      <tr><td>STEP4</td><td>FO_OWNER</td><td>Resolve / Close</td><td>End</td><td>FO finalizes and closes challenge</td></tr>
+    </table>
+
+    <h4>Example Data (WORKFLOW_INSTANCE)</h4>
+    <pre>
+INSTANCE_ID: 501
+EXCEPTION_ID: EXC001
+WORKFLOW_ID: 101
+CURRENT_STEP: STEP2
+CURRENT_STEP_SEQ: 2
+STATUS: IN_PROGRESS
+ASSIGNED_TO_BRID: BR1234 (FO Business user)
+SLA_HOURS: 24
+EMAIL_STATUS: SENT
+COMMENTS: "FO challenge submitted to FO Business"
+    </pre>
+
+    <h4>Transition Logic</h4>
+    <ul>
+      <li>When FO Owner clicks <b>Submit</b>, backend checks metadata → creates STEP2 instance for FO Business.</li>
+      <li>When FO Business approves/rejects → moves back to FO Owner (STEP4).</li>
+      <li>On SLA breach → email triggered using <code>WORKFLOW_SLA_CONFIG</code>.</li>
+      <li>Email templates fetched from <code>EMAIL_TEMPLATE</code> table via <code>EMAIL_TEMPLATE_ID</code>.</li>
+    </ul>
+
+    <h4>UI Behavior</h4>
+    <ul>
+      <li>UI should show the <b>active step</b> with role-based buttons (Submit, Approve, Reject).</li>
+      <li>Display step history using <code>WORKFLOW_INSTANCE</code> table.</li>
+      <li>When action is performed → disable buttons → update instance status.</li>
+      <li>Show SLA countdown and email status in corner of the step card.</li>
+    </ul>
+  </div>
+
+  <div class="workflow-box">
+    <h3>🟨 Unwind Workflow</h3>
+    <p>Used when FO decides to cancel or revert a trade to resolve misclassification.</p>
+    <table>
+      <tr><th>Step</th><th>Role</th><th>Action</th><th>Next Step</th></tr>
+      <tr><td>STEP1</td><td>FO_OWNER</td><td>Submit</td><td>TRADE_SUPPORT</td></tr>
+      <tr><td>STEP2</td><td>TRADE_SUPPORT</td><td>Fix &amp; Confirm</td><td>FO_OWNER</td></tr>
+      <tr><td>STEP3</td><td>FO_OWNER</td><td>Resolve</td><td>Closed</td></tr>
+    </table>
+  </div>
+
+  <div class="workflow-box">
+    <h3>🟩 Request Reassignment Workflow</h3>
+    <p>Used when FO requests a position move from Trading Book (TB) to Banking Book (BB).</p>
+    <table>
+      <tr><th>Step</th><th>Role</th><th>Action</th><th>Next Step</th></tr>
+      <tr><td>STEP1</td><td>FO_OWNER</td><td>Request Reassignment</td><td>PRODUCT_CONTROL</td></tr>
+      <tr><td>STEP2</td><td>PRODUCT_CONTROL</td><td>Approve/Reject</td><td>MARKET_RISK</td></tr>
+      <tr><td>STEP3</td><td>MARKET_RISK</td><td>Approve/Reject</td><td>CREDIT_RISK</td></tr>
+      <tr><td>STEP4</td><td>CREDIT_RISK</td><td>Approve/Reject</td><td>REG_POLICY</td></tr>
+      <tr><td>STEP5</td><td>REG_POLICY</td><td>Approve/Reject</td><td>TRADE_SUPPORT</td></tr>
+      <tr><td>STEP6</td><td>TRADE_SUPPORT</td><td>Move Trade &amp; Close</td><td>Closed</td></tr>
+    </table>
+  </div>
+
+  <h2>3️⃣ SLA & Email Trigger Logic</h2>
+  <ul>
+    <li>Each step has <code>SLA_HOURS</code> and <code>EMAIL_TEMPLATE_ID</code> in <b>WORKFLOW_SLA_CONFIG</b>.</li>
+    <li>Backend monitors SLA breaches → triggers reminder email to <b>ASSIGNED_TO_BRID</b>.</li>
+    <li>When email is sent, update <code>EMAIL_STATUS='SENT'</code> and <code>EMAIL_SENT_ON=NOW()</code>.</li>
+    <li>UI can display an alert “SLA breached” if current time > step start + SLA_HOURS.</li>
+  </ul>
+
+  <h2>4️⃣ Backend Transition Logic (AI or Service Engine)</h2>
+  <pre>
+When action performed:
+1. Backend reads current instance from WORKFLOW_INSTANCE
+2. Fetches metadata from WORKFLOW_METADATA using WORKFLOW_ID, CURRENT_STEP
+3. Determines next step:
+    - If action = SUBMIT → NEXT_STEP_ON_SUBMIT
+    - If action = APPROVE → NEXT_STEP_ON_APPROVE
+    - If action = REJECT → NEXT_STEP_ON_REJECT
+4. Marks current step ACTIVE_STEP_FLAG='N'
+5. Creates new step entry in WORKFLOW_INSTANCE with ACTIVE_STEP_FLAG='Y'
+6. Assigns new role's BRID from EXCEPTION_ACCESS table
+7. Starts SLA timer and triggers email
+  </pre>
+
+  <footer>
+    <p><b>Developed for: Exception Workflow Engine (FO/PC/MR/CR/Reg Policy)</b></p>
+    <p>Version: 1.0 | Updated: Oct 2025</p>
+  </footer>
+</body>
+</html>
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Exception Workflow System — Database Schema</title>
