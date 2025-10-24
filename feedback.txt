@@ -1,3 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Exception Workflow Design Overview</title>
+  <style>
+    body { font-family: 'Segoe UI', sans-serif; margin: 30px; color: #222; background: #f9fafc; }
+    h1, h2 { color: #004b8d; }
+    table { border-collapse: collapse; width: 100%; margin-bottom: 30px; }
+    th, td { border: 1px solid #ddd; padding: 10px; text-align: left; font-size: 14px; }
+    th { background-color: #004b8d; color: white; }
+    tr:nth-child(even) { background-color: #f2f2f2; }
+    code { background: #eef; padding: 2px 4px; border-radius: 4px; }
+    .box { background: white; padding: 15px 25px; border-radius: 10px; box-shadow: 0 2px 6px rgba(0,0,0,0.1); margin-bottom: 25px; }
+    .flow { background: #eaf4ff; border-left: 4px solid #0074d9; padding: 15px; margin: 10px 0; border-radius: 5px; }
+  </style>
+</head>
+<body>
+
+<h1>📘 Exception Workflow Engine — Technical Overview</h1>
+
+<p>This document outlines the workflow-driven exception handling system with SLA tracking, audit support, and automatic step progression.</p>
+
+<div class="box">
+  <h2>1️⃣ Core Tables</h2>
+  <table>
+    <tr><th>Table</th><th>Description</th></tr>
+    <tr><td><b>EXCEPTION_WORKFLOW</b></td><td>Base exception data (trade, instrument, book info). Workflow-related fields moved out.</td></tr>
+    <tr><td><b>WORKFLOW_METADATA</b></td><td>Defines workflow structure, allowed actions, and next step mappings.</td></tr>
+    <tr><td><b>WORKFLOW_INSTANCE</b></td><td>Tracks each instance of an exception workflow. Holds current step, status, and assigned user.</td></tr>
+    <tr><td><b>SLA_CONFIG</b></td><td>Contains SLA hours and email templates per step.</td></tr>
+    <tr><td><b>WORKFLOW_ACTION_HISTORY</b></td><td>Audit of every workflow action (who did what and when).</td></tr>
+  </table>
+</div>
+
+<div class="box">
+  <h2>2️⃣ Workflow Metadata — FO Challenge Example</h2>
+  <table>
+    <tr>
+      <th>STEP_CODE</th><th>STEP_NAME</th><th>ROLE</th>
+      <th>ACTIONS_ALLOWED</th><th>NEXT_STEP_ON_SUBMIT</th>
+      <th>NEXT_STEP_ON_APPROVE</th><th>NEXT_STEP_ON_REJECT</th>
+    </tr>
+    <tr>
+      <td>STEP1</td><td>FO Raises Challenge</td><td>FO_OWNER</td>
+      <td>SUBMIT</td><td>STEP2, STEP3</td><td>-</td><td>-</td>
+    </tr>
+    <tr>
+      <td>STEP2</td><td>FO Business Review</td><td>FO_BUSINESS</td>
+      <td>APPROVE, REJECT</td><td>-</td><td>STEP4</td><td>STEP4</td>
+    </tr>
+    <tr>
+      <td>STEP3</td><td>Reg Policy Review</td><td>REG_POLICY</td>
+      <td>APPROVE, REJECT</td><td>-</td><td>STEP4</td><td>STEP4</td>
+    </tr>
+    <tr>
+      <td>STEP4</td><td>FO Owner Final Action</td><td>FO_OWNER</td>
+      <td>CLOSE</td><td>-</td><td>-</td><td>-</td>
+    </tr>
+  </table>
+</div>
+
+<div class="box">
+  <h2>3️⃣ Example Instance Flow (EXC_20251022001)</h2>
+
+  <div class="flow">
+    <b>STEP 1 → STEP 2:</b> FO Owner raises challenge, submits to FO Business.<br>
+    <code>
+    STATUS: COMPLETED, ACTIVE_STEP_FLAG = 'N'<br>
+    NEXT ACTIVE: STEP2 (FO_BUSINESS)
+    </code>
+  </div>
+
+  <div class="flow">
+    <b>STEP 2 → STEP 4:</b> FO Business approves challenge, sent back to FO Owner for final closure.<br>
+    <code>
+    STATUS: COMPLETED, ACTIVE_STEP_FLAG = 'N'<br>
+    NEXT ACTIVE: STEP4 (FO_OWNER)
+    </code>
+  </div>
+
+  <div class="flow">
+    <b>STEP 4:</b> FO Owner closes workflow.<br>
+    <code>STATUS: CLOSED</code>
+  </div>
+
+  <table>
+    <tr>
+      <th>INSTANCE_ID</th><th>EXCEPTION_ID</th><th>CURRENT_STEP</th><th>STATUS</th>
+      <th>ASSIGNED_TO</th><th>ACTIVE_FLAG</th><th>COMMENTS</th>
+    </tr>
+    <tr>
+      <td>1001</td><td>EXC_20251022001</td><td>STEP1</td><td>COMPLETED</td><td>BR12345</td><td>N</td><td>Submitted to FO Business</td>
+    </tr>
+    <tr>
+      <td>1002</td><td>EXC_20251022001</td><td>STEP2</td><td>IN_PROGRESS</td><td>BR56789</td><td>Y</td><td>FO Business reviewing</td>
+    </tr>
+    <tr>
+      <td>1003</td><td>EXC_20251022001</td><td>STEP4</td><td>CLOSED</td><td>BR12345</td><td>N</td><td>Challenge approved and closed</td>
+    </tr>
+  </table>
+</div>
+
+<div class="box">
+  <h2>4️⃣ Automatic Backend Flow</h2>
+  <ol>
+    <li>Backend fetches <code>WORKFLOW_METADATA</code> for current step.</li>
+    <li>Checks <code>ACTIONS_ALLOWED</code> to validate user action.</li>
+    <li>On action (SUBMIT / APPROVE / REJECT):  
+      <ul>
+        <li>Marks current step as <b>COMPLETED</b></li>
+        <li>Determines next step using metadata columns</li>
+        <li>Creates a new active instance row for next step</li>
+        <li>Sends SLA-based email notification</li>
+      </ul>
+    </li>
+    <li>Every change is logged in <code>WORKFLOW_ACTION_HISTORY</code></li>
+  </ol>
+</div>
+
+<div class="box">
+  <h2>5️⃣ SLA and Email Configuration</h2>
+  <table>
+    <tr><th>STEP_CODE</th><th>SLA_HOURS</th><th>EMAIL_TEMPLATE_ID</th><th>TRIGGER_ON</th></tr>
+    <tr><td>STEP1</td><td>24</td><td>201</td><td>ON_CREATE</td></tr>
+    <tr><td>STEP2</td><td>12</td><td>202</td><td>ON_ASSIGN</td></tr>
+    <tr><td>STEP4</td><td>8</td><td>203</td><td>ON_STATUS_CHANGE</td></tr>
+  </table>
+</div>
+
+<footer style="text-align:center; font-size:12px; color:#777;">
+  © 2025 Exception Workflow System | Internal Use Only
+</footer>
+
+</body>
+</html>
 
 Perfect — now that you’ve got the logic and reasoning locked in ✅, let’s formalize this into:
 
