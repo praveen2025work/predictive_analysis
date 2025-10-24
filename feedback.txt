@@ -1,139 +1,327 @@
+
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Exception Workflow Design Overview</title>
-  <style>
-    body { font-family: 'Segoe UI', sans-serif; margin: 30px; color: #222; background: #f9fafc; }
-    h1, h2 { color: #004b8d; }
-    table { border-collapse: collapse; width: 100%; margin-bottom: 30px; }
-    th, td { border: 1px solid #ddd; padding: 10px; text-align: left; font-size: 14px; }
-    th { background-color: #004b8d; color: white; }
-    tr:nth-child(even) { background-color: #f2f2f2; }
-    code { background: #eef; padding: 2px 4px; border-radius: 4px; }
-    .box { background: white; padding: 15px 25px; border-radius: 10px; box-shadow: 0 2px 6px rgba(0,0,0,0.1); margin-bottom: 25px; }
-    .flow { background: #eaf4ff; border-left: 4px solid #0074d9; padding: 15px; margin: 10px 0; border-radius: 5px; }
-  </style>
+<meta charset="utf-8"/>
+<title>Exception Workflow — SLA, Email & UI Behavior (Developer Guide)</title>
+<style>
+  body{font-family:Inter,Segoe UI,Helvetica,Arial,sans-serif;margin:28px;background:#f5f7fb;color:#111}
+  h1{color:#0d47a1}
+  .card{background:#fff;border-radius:8px;padding:18px;margin-bottom:20px;box-shadow:0 6px 18px rgba(6,24,44,0.06)}
+  table{border-collapse:collapse;width:100%;margin-top:10px}
+  th,td{border:1px solid #e3e8ef;padding:8px;text-align:left;font-size:13px}
+  th{background:#0d47a1;color:#fff}
+  pre{background:#0f1724;color:#dbeafe;padding:12px;border-radius:6px;overflow:auto}
+  .flow{background:#eef7ff;border-left:4px solid #0d47a1;padding:12px;border-radius:6px;margin:8px 0}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .ui-sample{border:1px solid #e6eef8;border-radius:6px;padding:12px;background:#fbfdff}
+  .pill{display:inline-block;padding:6px 10px;border-radius:999px;background:#e6f0ff;color:#0d47a1;font-weight:600}
+  .muted{color:#556677;font-size:13px}
+</style>
 </head>
 <body>
 
-<h1>📘 Exception Workflow Engine — Technical Overview</h1>
+<h1>Exception Workflow — SLA & Email Logic + Developer Examples</h1>
+<p class="muted">This page documents the FO Challenge workflow (WORKFLOW_ID = <b>101</b>) including SLA lifecycle, email events, back-end flow, UI behavior and example data rows for testing.</p>
 
-<p>This document outlines the workflow-driven exception handling system with SLA tracking, audit support, and automatic step progression.</p>
-
-<div class="box">
-  <h2>1️⃣ Core Tables</h2>
+<div class="card">
+  <h2>Core Tables (quick reference)</h2>
   <table>
-    <tr><th>Table</th><th>Description</th></tr>
-    <tr><td><b>EXCEPTION_WORKFLOW</b></td><td>Base exception data (trade, instrument, book info). Workflow-related fields moved out.</td></tr>
-    <tr><td><b>WORKFLOW_METADATA</b></td><td>Defines workflow structure, allowed actions, and next step mappings.</td></tr>
-    <tr><td><b>WORKFLOW_INSTANCE</b></td><td>Tracks each instance of an exception workflow. Holds current step, status, and assigned user.</td></tr>
-    <tr><td><b>SLA_CONFIG</b></td><td>Contains SLA hours and email templates per step.</td></tr>
-    <tr><td><b>WORKFLOW_ACTION_HISTORY</b></td><td>Audit of every workflow action (who did what and when).</td></tr>
-  </table>
-</div>
-
-<div class="box">
-  <h2>2️⃣ Workflow Metadata — FO Challenge Example</h2>
-  <table>
+    <tr><th>Table</th><th>Purpose</th><th>Key columns</th></tr>
     <tr>
-      <th>STEP_CODE</th><th>STEP_NAME</th><th>ROLE</th>
-      <th>ACTIONS_ALLOWED</th><th>NEXT_STEP_ON_SUBMIT</th>
-      <th>NEXT_STEP_ON_APPROVE</th><th>NEXT_STEP_ON_REJECT</th>
+      <td><b>WORKFLOW_METADATA</b></td>
+      <td>Static workflow graph & allowed actions</td>
+      <td>WORKFLOW_ID, STEP_CODE, ROLE, ACTIONS_ALLOWED, NEXT_STEP_ON_SUBMIT, NEXT_STEP_ON_APPROVE, NEXT_STEP_ON_REJECT</td>
     </tr>
     <tr>
-      <td>STEP1</td><td>FO Raises Challenge</td><td>FO_OWNER</td>
-      <td>SUBMIT</td><td>STEP2, STEP3</td><td>-</td><td>-</td>
+      <td><b>WORKFLOW_INSTANCE</b></td>
+      <td>Active/completed step records (we create a row per step progression)</td>
+      <td>INSTANCE_ID, EXCEPTION_ID, WORKFLOW_ID, CURRENT_STEP, CURRENT_STEP_SEQ, STATUS, ACTIVE_STEP_FLAG, ASSIGNED_TO_BRID, LAST_UPDATED, SLA_HOURS, EMAIL_TEMPLATE_ID,<br>EMAIL_STATUS, EMAIL_SENT_ON, COMMENTS</td>
     </tr>
     <tr>
-      <td>STEP2</td><td>FO Business Review</td><td>FO_BUSINESS</td>
-      <td>APPROVE, REJECT</td><td>-</td><td>STEP4</td><td>STEP4</td>
+      <td><b>EXCEPTION_SLA_TRACKER</b></td>
+      <td>SLA + notification tracking per workflow instance</td>
+      <td>TRACKER_ID, INSTANCE_ID, EXCEPTION_ID, STEP_CODE, SLA_HOURS, START_TIME, DUE_TIME, REMINDER_SENT_COUNT, ESCALATED_FLAG, EMAIL_STATUS, EMAIL_SENT_ON</td>
     </tr>
     <tr>
-      <td>STEP3</td><td>Reg Policy Review</td><td>REG_POLICY</td>
-      <td>APPROVE, REJECT</td><td>-</td><td>STEP4</td><td>STEP4</td>
+      <td><b>WORKFLOW_ACTION_HISTORY</b></td>
+      <td>Audit of user actions (Envers or this table depending on your stack)</td>
+      <td>ACTION_ID, INSTANCE_ID, ACTION_BY, ACTION, FROM_STEP, TO_STEP, ACTION_TIME, COMMENTS</td>
     </tr>
     <tr>
-      <td>STEP4</td><td>FO Owner Final Action</td><td>FO_OWNER</td>
-      <td>CLOSE</td><td>-</td><td>-</td><td>-</td>
+      <td><b>EXCEPTION_ACCESS</b></td>
+      <td>Role → BRID mapping (who can be assigned)</td>
+      <td>BRID, ROLE, PRODUCT_AREA, ACTIVE_FLAG</td>
     </tr>
   </table>
 </div>
 
-<div class="box">
-  <h2>3️⃣ Example Instance Flow (EXC_20251022001)</h2>
-
-  <div class="flow">
-    <b>STEP 1 → STEP 2:</b> FO Owner raises challenge, submits to FO Business.<br>
-    <code>
-    STATUS: COMPLETED, ACTIVE_STEP_FLAG = 'N'<br>
-    NEXT ACTIVE: STEP2 (FO_BUSINESS)
-    </code>
-  </div>
-
-  <div class="flow">
-    <b>STEP 2 → STEP 4:</b> FO Business approves challenge, sent back to FO Owner for final closure.<br>
-    <code>
-    STATUS: COMPLETED, ACTIVE_STEP_FLAG = 'N'<br>
-    NEXT ACTIVE: STEP4 (FO_OWNER)
-    </code>
-  </div>
-
-  <div class="flow">
-    <b>STEP 4:</b> FO Owner closes workflow.<br>
-    <code>STATUS: CLOSED</code>
-  </div>
-
+<div class="card">
+  <h2>FO Challenge (WORKFLOW_ID = 101) — metadata (final)</h2>
   <table>
+    <tr><th>STEP_CODE</th><th>STEP_NAME</th><th>ROLE</th><th>ACTIONS_ALLOWED</th>
+        <th>NEXT_STEP_ON_SUBMIT</th><th>NEXT_STEP_ON_APPROVE</th><th>NEXT_STEP_ON_REJECT</th></tr>
     <tr>
-      <th>INSTANCE_ID</th><th>EXCEPTION_ID</th><th>CURRENT_STEP</th><th>STATUS</th>
-      <th>ASSIGNED_TO</th><th>ACTIVE_FLAG</th><th>COMMENTS</th>
+      <td>STEP1</td><td>FO Raises Challenge</td><td>FO_OWNER</td><td>SUBMIT</td>
+      <td>STEP2:FO_BUSINESS,STEP3:REG_POLICY</td><td>—</td><td>—</td>
     </tr>
     <tr>
-      <td>1001</td><td>EXC_20251022001</td><td>STEP1</td><td>COMPLETED</td><td>BR12345</td><td>N</td><td>Submitted to FO Business</td>
+      <td>STEP2</td><td>FO Business Review</td><td>FO_BUSINESS</td><td>APPROVE,REJECT</td>
+      <td>—</td><td>STEP4:FO_OWNER</td><td>STEP4:FO_OWNER</td>
     </tr>
     <tr>
-      <td>1002</td><td>EXC_20251022001</td><td>STEP2</td><td>IN_PROGRESS</td><td>BR56789</td><td>Y</td><td>FO Business reviewing</td>
+      <td>STEP3</td><td>Reg Policy Review</td><td>REG_POLICY</td><td>APPROVE,REJECT</td>
+      <td>—</td><td>STEP4:FO_OWNER</td><td>STEP4:FO_OWNER</td>
     </tr>
     <tr>
-      <td>1003</td><td>EXC_20251022001</td><td>STEP4</td><td>CLOSED</td><td>BR12345</td><td>N</td><td>Challenge approved and closed</td>
+      <td>STEP4</td><td>FO Owner Final Action</td><td>FO_OWNER</td><td>CLOSE,REWORK</td>
+      <td>—</td><td>END</td><td>END</td>
     </tr>
   </table>
+  <p class="muted">Note: NEXT_STEP values can be either step code (STEP2) or step+role token. Use step code to look up role via WORKFLOW_METADATA.</p>
 </div>
 
-<div class="box">
-  <h2>4️⃣ Automatic Backend Flow</h2>
+<div class="card">
+  <h2>SLA & Email lifecycle (summary)</h2>
   <ol>
-    <li>Backend fetches <code>WORKFLOW_METADATA</code> for current step.</li>
-    <li>Checks <code>ACTIONS_ALLOWED</code> to validate user action.</li>
-    <li>On action (SUBMIT / APPROVE / REJECT):  
-      <ul>
-        <li>Marks current step as <b>COMPLETED</b></li>
-        <li>Determines next step using metadata columns</li>
-        <li>Creates a new active instance row for next step</li>
-        <li>Sends SLA-based email notification</li>
-      </ul>
-    </li>
-    <li>Every change is logged in <code>WORKFLOW_ACTION_HISTORY</code></li>
+    <li><b>Start SLA:</b> When an active step row is created (ACTIVE_STEP_FLAG='Y'), SLA tracker row is created with START_TIME and DUE_TIME = START_TIME + SLA_HOURS.</li>
+    <li><b>Reminder(s):</b> When remaining time <= reminder threshold, send reminder email. Increment REMINDER_SENT_COUNT.</li>
+    <li><b>Breach / Escalate:</b> When current_time > DUE_TIME and ESCALATED_FLAG='N' → send escalation email and set ESCALATED_FLAG='Y'.</li>
+    <li><b>Completion:</b> When step is completed (APPROVE/REJECT/OTHER), mark SLA row END_TIME and SLA_MET = (END_TIME <= DUE_TIME).</li>
+    <li><b>Email status:</b> EMAIL_STATUS in both instance and SLA tracker = {PENDING, SENT, FAILED}. All sends should be idempotent (store message_id, retry if FAILED).</li>
   </ol>
 </div>
 
-<div class="box">
-  <h2>5️⃣ SLA and Email Configuration</h2>
+<div class="card">
+  <h2>Concrete test data — FO Challenge example with timestamps</h2>
+  <p class="muted">This is the canonical timeline to test SLA and emails end-to-end.</p>
+
   <table>
-    <tr><th>STEP_CODE</th><th>SLA_HOURS</th><th>EMAIL_TEMPLATE_ID</th><th>TRIGGER_ON</th></tr>
-    <tr><td>STEP1</td><td>24</td><td>201</td><td>ON_CREATE</td></tr>
-    <tr><td>STEP2</td><td>12</td><td>202</td><td>ON_ASSIGN</td></tr>
-    <tr><td>STEP4</td><td>8</td><td>203</td><td>ON_STATUS_CHANGE</td></tr>
+    <tr><th>Row</th><th>Instance / Tracker</th><th>Fields (key)</th></tr>
+
+    <tr>
+      <td>1</td>
+      <td><b>WORKFLOW_INSTANCE (STEP1 created)</b></td>
+      <td>
+        INSTANCE_ID = 1001, EXCEPTION_ID=EXC-CH-001, WORKFLOW_ID=101, CURRENT_STEP=STEP1, CURRENT_STEP_SEQ=1,<br>
+        STATUS=COMPLETED, ACTIVE_STEP_FLAG='N', ASSIGNED_TO_BRID=BR12345, LAST_UPDATED=2025-10-22 09:15
+      </td>
+    </tr>
+
+    <tr>
+      <td>2</td>
+      <td><b>WORKFLOW_INSTANCE (STEP2 active)</b></td>
+      <td>
+        INSTANCE_ID = 1002, EXCEPTION_ID=EXC-CH-001, WORKFLOW_ID=101, CURRENT_STEP=STEP2, CURRENT_STEP_SEQ=2,<br>
+        STATUS=IN_PROGRESS, ACTIVE_STEP_FLAG='Y', ASSIGNED_TO_BRID=BR56789, LAST_UPDATED=2025-10-22 09:30,<br>
+        SLA_HOURS=12, EMAIL_TEMPLATE_ID=202, EMAIL_STATUS='SENT', EMAIL_SENT_ON=2025-10-22 09:31
+      </td>
+    </tr>
+
+    <tr>
+      <td>3</td>
+      <td><b>EXCEPTION_SLA_TRACKER (for STEP2)</b></td>
+      <td>TRACKER_ID=5001, INSTANCE_ID=1002, EXCEPTION_ID=EXC-CH-001, STEP_CODE=STEP2, START_TIME=2025-10-22 09:30,<br>
+          DUE_TIME=2025-10-22 21:30, REMINDER_SENT_COUNT=0, ESCALATED_FLAG='N', EMAIL_STATUS='SENT', EMAIL_SENT_ON=2025-10-22 09:31</td>
+    </tr>
+
+    <tr>
+      <td>4</td>
+      <td><b>When FO Business APPROVES</b></td>
+      <td>
+        UPDATE INSTANCE_ID=1002 → STATUS='COMPLETED', ACTIVE_STEP_FLAG='N', LAST_UPDATED=2025-10-22 11:02; <br>
+        INSERT new instance row for STEP4: INSTANCE_ID=1003, CURRENT_STEP=STEP4, STATUS='IN_PROGRESS', ACTIVE_STEP_FLAG='Y', ASSIGNED_TO_BRID=BR12345, SLA_HOURS=8, EMAIL_TEMPLATE_ID=203, EMAIL_STATUS='SENT', EMAIL_SENT_ON=2025-10-22 11:03
+      </td>
+    </tr>
+
+    <tr>
+      <td>5</td>
+      <td><b>EXCEPTION_SLA_TRACKER (STEP2 completed)</b></td>
+      <td>UPDATE TRACKER_ID=5001: END_TIME=2025-10-22 11:02, SLA_MET = TRUE (because END_TIME < DUE_TIME)</td>
+    </tr>
+
+    <tr>
+      <td>6</td>
+      <td><b>Closure</b></td>
+      <td>FO Owner closes STEP4 → mark instance 1003 STATUS='CLOSED', ACTIVE_STEP_FLAG='N', update SLA tracker for STEP4.</td>
+    </tr>
   </table>
 </div>
 
-<footer style="text-align:center; font-size:12px; color:#777;">
-  © 2025 Exception Workflow System | Internal Use Only
-</footer>
+<div class="card">
+  <h2>Backend: action handler pseudocode (detailed)</h2>
+  <pre>
+function performAction(exceptionId, instanceId, action, performedBy, comments) {
+  // 1) Validate
+  instance = db.select("SELECT * FROM WORKFLOW_INSTANCE WHERE INSTANCE_ID = ?", instanceId);
+  metadata = db.select("SELECT * FROM WORKFLOW_METADATA WHERE WORKFLOW_ID=? AND STEP_CODE=?", instance.WORKFLOW_ID, instance.CURRENT_STEP);
+  if (!metadata.ACTIONS_ALLOWED.contains(action)) throw 400;
 
+  // 2) Compute next step token
+  nextToken = null;
+  if (action == 'SUBMIT') nextToken = metadata.NEXT_STEP_ON_SUBMIT; 
+  else if (action == 'APPROVE') nextToken = metadata.NEXT_STEP_ON_APPROVE;
+  else if (action == 'REJECT') nextToken = metadata.NEXT_STEP_ON_REJECT;
+
+  // note: NEXT_STEP may be "STEP2:FO_BUSINESS,STEP3:REG_POLICY" for SUBMIT
+  // SUBMIT path may require UI choice (we handle that below)
+
+  // 3) Close current active instance row
+  db.update("UPDATE WORKFLOW_INSTANCE SET STATUS='COMPLETED', ACTIVE_STEP_FLAG='N', LAST_UPDATED=CURRENT_TIMESTAMP WHERE INSTANCE_ID=?", instanceId);
+
+  // 4) Insert action history
+  db.insert("INSERT INTO WORKFLOW_ACTION_HISTORY (INSTANCE_ID, ACTION_BY, ACTION, FROM_STEP, TO_STEP, ACTION_TIME, COMMENTS) VALUES (?,?,?,?,?,?,?)",
+            [instanceId, performedBy, action, instance.CURRENT_STEP, nextToken, now(), comments]);
+
+  // 5) If nextToken is empty or 'END' -> mark overall as closed
+  if (!nextToken || nextToken.toUpperCase() == 'END') {
+     db.update("UPDATE EXCEPTION_WORKFLOW SET STATUS='RESOLVED' WHERE EXCEPTION_ID=?", exceptionId);
+     return;
+  }
+
+  // 6) If NEXT_STEP_ON_SUBMIT contains multiple options:
+  //    - UI should have sent selectedNextStep in payload, else return choices to UI
+  if (action == 'SUBMIT' && nextToken.contains(',')) {
+      selected = request.payload.selectedNextStep; // e.g. "STEP2"
+      if (!selected) return 409 "UI must provide selectedNextStep";
+      nextStepCode = parse(selected);
+  } else {
+      nextStepCode = parse single token from nextToken;
+  }
+
+  // 7) Find the role for nextStepCode -> assign a BRID via EXCEPTION_ACCESS
+  nextMeta = db.select("SELECT ROLE FROM WORKFLOW_METADATA WHERE WORKFLOW_ID=? AND STEP_CODE=?", instance.WORKFLOW_ID, nextStepCode);
+  assigneeBrid = resolveAssignee(nextMeta.ROLE); // round-robin or least-loaded or same-user rule
+
+  // 8) Create new active instance row
+  newInstanceId = db.nextval("INST_SEQ");
+  db.insert("INSERT INTO WORKFLOW_INSTANCE (INSTANCE_ID, EXCEPTION_ID, WORKFLOW_ID, CURRENT_STEP, CURRENT_STEP_SEQ, STATUS, ACTIVE_STEP_FLAG, ASSIGNED_TO_BRID, LAST_UPDATED, SLA_HOURS, EMAIL_TEMPLATE_ID, EMAIL_STATUS, EMAIL_SENT_ON, COMMENTS) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+    [newInstanceId, exceptionId, instance.WORKFLOW_ID, nextStepCode, instance.CURRENT_STEP_SEQ+1, 'IN_PROGRESS', 'Y', assigneeBrid, now(), lookupSlaHours(...), lookupEmailTemplate(...), 'PENDING', NULL, comments]);
+
+  // 9) Start SLA tracker row
+  due = now() + interval hours(lookupSlaHours(...));
+  trackerId = db.nextval("SLA_SEQ");
+  db.insert("INSERT INTO EXCEPTION_SLA_TRACKER (TRACKER_ID, INSTANCE_ID, EXCEPTION_ID, STEP_CODE, SLA_HOURS, START_TIME, DUE_TIME, REMINDER_SENT_COUNT, ESCALATED_FLAG, EMAIL_STATUS) VALUES (?,?,?,?,?,?,?,?,?,?)",
+            [trackerId, newInstanceId, exceptionId, nextStepCode, lookupSlaHours(...), now(), due, 0, 'N', 'PENDING']);
+
+  // 10) Trigger email async (send once, set EMAIL_STATUS)
+  sendEmailAsync(lookupEmailTemplate(...), assigneeBrid, function(result) {
+     db.update("UPDATE WORKFLOW_INSTANCE SET EMAIL_STATUS=?, EMAIL_SENT_ON=? WHERE INSTANCE_ID=?", [result.status, now(), newInstanceId]);
+     db.update("UPDATE EXCEPTION_SLA_TRACKER SET EMAIL_STATUS=?, EMAIL_SENT_ON=? WHERE TRACKER_ID=?", [result.status, now(), trackerId]);
+  });
+}
+  </pre>
+  <p class="muted">Notes: sendEmailAsync must be idempotent; store provider message_id in DB for retries. Always use DB transaction boundaries for updates + inserts to keep state consistent.</p>
+</div>
+
+<div class="card">
+  <h2>Backend: SLA monitor (scheduler) pseudocode</h2>
+  <pre>
+function slaSchedulerTick() {
+  // run every minute (or configurable)
+  rows = db.select("SELECT * FROM EXCEPTION_SLA_TRACKER WHERE ESCALATED_FLAG='N' AND END_TIME IS NULL");
+  for (r in rows) {
+     now = currentTime();
+     if (now > r.DUE_TIME) {
+         // SLA breached
+         db.update("UPDATE EXCEPTION_SLA_TRACKER SET ESCALATED_FLAG='Y' WHERE TRACKER_ID=?", [r.TRACKER_ID]);
+         // notify escalation recipients
+         template = lookupEscalationTemplate(r.STEP_CODE);
+         sendEmail(template, lookupEscalationRecipients(r.EXCEPTION_ID));
+     } else if (now > r.DUE_TIME - reminderWindow && r.REMINDER_SENT_COUNT < maxReminders) {
+         // send reminder
+         sendEmail(reminderTemplate, assignedUser);
+         db.update("UPDATE EXCEPTION_SLA_TRACKER SET REMINDER_SENT_COUNT = REMINDER_SENT_COUNT + 1 WHERE TRACKER_ID=?", [r.TRACKER_ID]);
+     }
+  }
+}
+  </pre>
+</div>
+
+<div class="card">
+  <h2>API endpoints (suggested)</h2>
+  <table>
+    <tr><th>Method</th><th>Path</th><th>Purpose</th><th>Sample payload</th></tr>
+    <tr>
+      <td>POST</td><td>/workflow/start</td><td>Create workflow instance for exception</td>
+      <td><pre>{
+  "exceptionId":"EXC-CH-001",
+  "workflowId":101,
+  "startStep":"STEP1",
+  "assignedTo":"BR12345",
+  "comments":"FO owner raised challenge to FO Business"
+}</pre></td>
+    </tr>
+    <tr>
+      <td>POST</td><td>/workflow/action</td><td>Perform action on active step</td>
+      <td><pre>{
+  "exceptionId":"EXC-CH-001",
+  "instanceId":1002,
+  "action":"APPROVE",
+  "performedBy":"BR56789",
+  "comments":"I confirm valuation; approve"
+}</pre></td>
+    </tr>
+    <tr>
+      <td>GET</td><td>/workflow/status/{exceptionId}</td><td>Return active step, SLA remaining, email status, and history</td>
+      <td>—</td>
+    </tr>
+  </table>
+</div>
+
+<div class="card">
+  <h2>UI behavior recommendations (developer checklist)</h2>
+  <div class="grid">
+    <div>
+      <h3>Active Step panel</h3>
+      <ul>
+        <li><b>Show current step name</b>, assigned BRID (display name + email), and SLA countdown timer (hours:minutes).</li>
+        <li>Badge showing <span class="pill">IN_PROGRESS</span> or <span class="pill">COMPLETED</span>.</li>
+        <li>Show email indicator: <b>Sent / Pending / Failed</b> with tool-tip showing last email timestamp and message id.</li>
+      </ul>
+    </div>
+    <div>
+      <h3>Action controls</h3>
+      <ul>
+        <li>Only render buttons allowed by metadata ACTIONS_ALLOWED for the role (e.g., Approve/Reject).</li>
+        <li>If SUBMIT has multiple targets (STEP2, STEP3), show a choice dropdown before submit; include rationale text box required for submit.</li>
+        <li>After user clicks action: disable buttons, show spinner, call <code>/workflow/action</code>, refresh status on success.</li>
+      </ul>
+    </div>
+  </div>
+
+  <h4>History & SLA</h4>
+  <ul>
+    <li>Show timeline (WORKFLOW_ACTION_HISTORY) with timestamps—who performed what and the resulting new step.</li>
+    <li>SLA panel: show START_TIME, DUE_TIME, REMINDERS_SENT, ESCALATION_FLAG. Color code: green (on time), amber (within reminder window), red (breached).</li>
+  </ul>
+
+  <h4>Error / retry UI</h4>
+  <ul>
+    <li>If EMAIL_STATUS='FAILED', show "Resend Email" button (admin only) that calls an endpoint to retry sending the template and logs attempts.</li>
+    <li>Show conflict warnings if instance row was updated (optimistic lock) while user had the screen open.</li>
+  </ul>
+</div>
+
+<div class="card">
+  <h2>Developer testing checklist (FO Challenge)</h2>
+  <ol>
+    <li>Create an exception and call <code>/workflow/start</code> for STEP1 (submit to STEP2).</li>
+    <li>Verify WORKFLOW_INSTANCE row for STEP1 is marked COMPLETED and a new STEP2 row is ACTIVE.</li>
+    <li>Verify EXCEPTION_SLA_TRACKER row created with correct DUE_TIME.</li>
+    <li>Simulate FO Business APPROVE: call <code>/workflow/action</code> => verify STEP2 completes and STEP4 (FO OWNER) is inserted and assigned back to FO Owner.</li>
+    <li>Verify SLA for STEP2 marked SLA_MET (if completed before due) or ESCALATED if late.</li>
+    <li>Inspect emails: EMAIL_STATUS in instance + SLA tracker updated to SENT. If you force email provider failure, EMAIL_STATUS should become FAILED and UI should allow retry.</li>
+  </ol>
+</div>
+
+<footer style="margin-top:20px;font-size:12px;color:#8892a0">
+  © Internal — Exception Workflow Guide. For questions reach product owner or platform-engineering.
+</footer>
 </body>
 </html>
+
 
 Perfect — now that you’ve got the logic and reasoning locked in ✅, let’s formalize this into:
 
